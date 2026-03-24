@@ -24,7 +24,7 @@ func TestDefaultAISchema_NonZero(t *testing.T) {
 func TestDefaultAISchema_AllTypeIDs(t *testing.T) {
 	s := codevaldai.DefaultAISchema()
 
-	want := []string{"Agent", "AgentRun", "RunField", "RunInput"}
+	want := []string{"LLMProvider", "Agent", "AgentRun", "RunField", "RunInput"}
 	found := make(map[string]bool)
 	for _, td := range s.Types {
 		found[td.Name] = true
@@ -42,7 +42,7 @@ func TestDefaultAISchema_AllTypeIDs(t *testing.T) {
 func TestDefaultAISchema_AgentRequiredFields(t *testing.T) {
 	td := findType(t, codevaldai.DefaultAISchema(), "Agent")
 
-	required := []string{"name", "provider", "model", "system_prompt"}
+	required := []string{"name", "model", "system_prompt"}
 	assertRequiredProps(t, td, required)
 }
 
@@ -51,7 +51,7 @@ func TestDefaultAISchema_AgentRequiredFields(t *testing.T) {
 func TestDefaultAISchema_AgentRunRequiredFields(t *testing.T) {
 	td := findType(t, codevaldai.DefaultAISchema(), "AgentRun")
 
-	required := []string{"agent_id", "instructions", "status"}
+	required := []string{"instructions", "status"}
 	assertRequiredProps(t, td, required)
 }
 

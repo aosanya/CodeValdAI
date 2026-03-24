@@ -6,6 +6,17 @@ package codevaldai
 import "errors"
 
 var (
+	// ErrProviderNotFound is returned when a requested LLMProvider ID does not exist.
+	ErrProviderNotFound = errors.New("llm provider not found")
+
+	// ErrProviderInUse is returned when DeleteProvider is called on a provider
+	// that has one or more Agents referencing it via a uses_provider edge.
+	ErrProviderInUse = errors.New("llm provider is in use by one or more agents")
+
+	// ErrInvalidProvider is returned when CreateProvider is called with missing
+	// required fields or an unsupported provider_type value.
+	ErrInvalidProvider = errors.New("invalid provider: missing required fields or unsupported type")
+
 	// ErrAgentNotFound is returned when an Agent lookup finds no matching record.
 	ErrAgentNotFound = errors.New("agent not found")
 
@@ -21,14 +32,14 @@ var (
 	ErrInvalidRunStatus = errors.New("invalid run status transition")
 
 	// ErrInvalidAgent is returned when a CreateAgent request is missing one
-	// or more required fields (Name, Provider, Model, or SystemPrompt).
+	// or more required fields (Name, ProviderID, Model, or SystemPrompt).
 	ErrInvalidAgent = errors.New("invalid agent: missing required fields")
 
 	// ErrAgentHasActiveRuns is returned by DeleteAgent when the agent still
 	// has runs that are not in a terminal state (completed or failed).
 	ErrAgentHasActiveRuns = errors.New("agent has active runs")
 
-	// ErrInvalidLLMResponse is returned when the Anthropic (or other provider)
-	// response cannot be parsed into the expected field schema.
+	// ErrInvalidLLMResponse is returned when the LLM response cannot be
+	// parsed into the expected structure (e.g. []RunField at Intake).
 	ErrInvalidLLMResponse = errors.New("invalid LLM response format")
 )

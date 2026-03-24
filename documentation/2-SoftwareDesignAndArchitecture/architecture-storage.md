@@ -1,4 +1,3 @@
-```markdown
 # CodeValdAI — ArangoDB Storage
 
 > Part of the split architecture. Index: [architecture.md](architecture.md)
@@ -9,8 +8,8 @@
 
 | Collection | Type | Contents |
 |---|---|---|
-| `ai_entities` | Document | Agent, AgentRun, RunField, RunInput |
-| `ai_relationships` | **Edge** | All relationship edges (`has_run`, `has_field`, `has_input` + inverses) |
+| `ai_entities` | Document | LLMProvider, Agent, AgentRun, RunField, RunInput |
+| `ai_relationships` | **Edge** | All relationship edges (`uses_provider`, `has_run`, `has_field`, `has_input` + inverses) |
 | `ai_schemas` | Document | Pre-delivered schema version documents (managed by `AISchemaManager`) |
 
 `ai_relationships` **must** be created as an edge collection — not a regular
@@ -19,6 +18,24 @@ document collection. ArangoDB graph traversal requires edge collections.
 ---
 
 ## 2. Document Shapes
+
+### `ai_entities/{key}` — LLMProvider
+
+```json
+{
+  "_key":      "<uuid>",
+  "type_id":   "LLMProvider",
+  "agency_id": "<agencyID>",
+  "properties": {
+    "name":          "Anthropic Production",
+    "provider_type": "anthropic",
+    "api_key":       "sk-ant-...",
+    "base_url":      ""
+  },
+  "created_at": "2026-03-24T10:00:00Z",
+  "updated_at": "2026-03-24T10:00:00Z"
+}
+```
 
 ### `ai_entities/{key}` — Agent
 
@@ -30,7 +47,6 @@ document collection. ArangoDB graph traversal requires edge collections.
   "properties": {
     "name":          "Risk Analyst",
     "description":   "Identifies and summarises operational risk",
-    "provider":      "anthropic",
     "model":         "claude-3-5-sonnet-20241022",
     "system_prompt": "You are a senior risk analyst...",
     "temperature":   0.7,
@@ -49,8 +65,6 @@ document collection. ArangoDB graph traversal requires edge collections.
   "type_id":   "AgentRun",
   "agency_id": "<agencyID>",
   "properties": {
-    "agent_id":      "<agentID>",
-    "workflow_id":   "<workflowID>",
     "instructions":  "Analyse the attached report and summarise key risks.",
     "status":        "completed",
     "output":        "The Q1 2026 Risk Report identifies three primary...",
@@ -107,8 +121,8 @@ document collection. ArangoDB graph traversal requires edge collections.
 {
   "_key":  "<uuid>",
   "_from": "ai_entities/<agentID>",
-  "_to":   "ai_entities/<runID>",
-  "name":  "has_run",
+  "_to":   "ai_entities/<providerID>",
+  "name":  "uses_provider",
   "properties": {}
 }
 ```
@@ -121,7 +135,6 @@ document collection. ArangoDB graph traversal requires edge collections.
 |---|---|---|---|---|
 | `ai_entities` | `idx_type_agency` | `type_id`, `agency_id` | persistent | List by type within an agency |
 | `ai_entities` | `idx_run_status` | `properties.status` | persistent | Filter runs by status |
-| `ai_entities` | `idx_run_agent` | `properties.agent_id` | persistent | List runs by agent |
 | `ai_relationships` | `idx_from_name` | `_from`, `name` | persistent | Traverse outbound edges by label |
 | `ai_relationships` | `idx_to_name` | `_to`, `name` | persistent | Traverse inbound edges by label |
 
@@ -137,4 +150,3 @@ Graph name: `ai_graph`
 | Vertex collections | `ai_entities` |
 
 Used by `TraverseGraph` in `entitygraph.DataManager` for depth-first traversal.
-```
