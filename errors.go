@@ -1,0 +1,34 @@
+// Package codevaldai — exported sentinel errors.
+// All domain errors are defined here so that callers can type-switch
+// without importing internal packages.
+package codevaldai
+
+import "errors"
+
+var (
+	// ErrAgentNotFound is returned when an Agent lookup finds no matching record.
+	ErrAgentNotFound = errors.New("agent not found")
+
+	// ErrRunNotFound is returned when an AgentRun lookup finds no matching record.
+	ErrRunNotFound = errors.New("agent run not found")
+
+	// ErrRunNotIntaked is returned by ExecuteRun when the target AgentRun is
+	// not in the pending_intake state.
+	ErrRunNotIntaked = errors.New("run is not in pending_intake state")
+
+	// ErrInvalidRunStatus is returned when a requested status transition is
+	// not permitted by the run lifecycle.
+	ErrInvalidRunStatus = errors.New("invalid run status transition")
+
+	// ErrInvalidAgent is returned when a CreateAgent request is missing one
+	// or more required fields (Name, Provider, Model, or SystemPrompt).
+	ErrInvalidAgent = errors.New("invalid agent: missing required fields")
+
+	// ErrAgentHasActiveRuns is returned by DeleteAgent when the agent still
+	// has runs that are not in a terminal state (completed or failed).
+	ErrAgentHasActiveRuns = errors.New("agent has active runs")
+
+	// ErrInvalidLLMResponse is returned when the Anthropic (or other provider)
+	// response cannot be parsed into the expected field schema.
+	ErrInvalidLLMResponse = errors.New("invalid LLM response format")
+)
