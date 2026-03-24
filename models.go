@@ -3,110 +3,152 @@
 // defined here.
 package codevaldai
 
-// Agent is a persisted LLM configuration entity.
-// It describes a single AI persona: which model to use, the system prompt,
-// sampling parameters, and metadata.
+// LLMProvider is a persisted LLM configuration entity.
+// It is shared across Agents — multiple Agents may reference the same
+// LLMProvider via a uses_provider edge.
+type LLMProvider struct {
+ID           string `json:"id"`
+Name         string `json:"name"`
+ProviderType string `json:"provider_type"` // "anthropic" | "openai"
+APIKey       string `json:"api_key"`
+BaseURL      string `json:"base_url,omitempty"` // empty = use provider default endpoint
+CreatedAt    string `json:"created_at"`
+UpdatedAt    string `json:"updated_at"`
+}
+
+// Agent is a persisted LLM agent configuration entity.
+// It references one LLMProvider via the uses_provider graph edge.
 type Agent struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	Description  string  `json:"description,omitempty"`
-	Provider     string  `json:"provider"`      // "anthropic" | "openai"
-	Model        string  `json:"model"`         // e.g. "claude-3-5-sonnet-20241022"
-	SystemPrompt string  `json:"system_prompt"` // Persona / task instructions for the LLM
-	Temperature  float64 `json:"temperature"`   // Sampling temperature; default 0.7
-	MaxTokens    int     `json:"max_tokens"`    // Max output tokens; default 4096
-	CreatedAt    string  `json:"created_at"`
-	UpdatedAt    string  `json:"updated_at"`
+ID           string  `json:"id"`
+Name         string  `json:"name"`
+Description  string  `json:"description,omitempty"`
+ProviderID   string  `json:"provider_id"` // resolved from uses_provider edge
+Model        string  `json:"model"`         // e.g. "claude-3-5-sonnet-20241022"
+SystemPrompt string  `json:"system_prompt"` // Persona / task instructions for the LLM
+Temperature  float64 `json:"temperature,omitempty"`
+MaxTokens    int     `json:"max_tokens,omitempty"`
+CreatedAt    string  `json:"created_at"`
+UpdatedAt    string  `json:"updated_at"`
 }
 
 // AgentRun is the execution record for a single LLM interaction.
-// It captures inputs, output, token usage, and the full status history.
+// The agent_id is resolved at read time from the belongs_to_agent edge —
+// it is not stored as a flat property on the AgentRun document.
 type AgentRun struct {
-	ID           string         `json:"id"`
-	AgentID      string         `json:"agent_id"`
-	WorkflowID   string         `json:"workflow_id,omitempty"`
-	Instructions string         `json:"instructions"`
-	Status       AgentRunStatus `json:"status"`
-	Output       string         `json:"output,omitempty"`
-	ErrorMessage string         `json:"error_message,omitempty"`
-	InputTokens  int            `json:"input_tokens,omitempty"`
-	OutputTokens int            `json:"output_tokens,omitempty"`
-	StartedAt    string         `json:"started_at,omitempty"`
-	CompletedAt  string         `json:"completed_at,omitempty"`
-	CreatedAt    string         `json:"created_at"`
-	UpdatedAt    string         `json:"updated_at"`
+ID           string         `json:"id"`
+AgentID      string         `json:"agent_id"`     // resolved from belongs_to_agent edge
+Instructions string         `json:"instructions"`
+Status       AgentRunStatus `json:"status"`
+Output       string         `json:"output,omitempty"`
+ErrorMessage string         `json:"error_message,omitempty"`
+InputTokens  int            `json:"input_tokens,omitempty"`
+OutputTokens int            `json:"output_tokens,omitempty"`
+StartedAt    string         `json:"started_at,omitempty"`
+CompletedAt  string         `json:"completed_at,omitempty"`
+CreatedAt    string         `json:"created_at"`
+UpdatedAt    string         `json:"updated_at"`
 }
 
 // AgentRunStatus enumerates the valid states of an AgentRun lifecycle.
 type AgentRunStatus string
 
 const (
-	// AgentRunStatusPendingIntake is the initial state after IntakeRun creates
-	// the run. The LLM has inferred the required input fields but the caller
-	// has not yet submitted them.
-	AgentRunStatusPendingIntake AgentRunStatus = "pending_intake"
+// AgentRunStatusPendingIntake is the initial state after IntakeRun creates
+// the run. The LLM has inferred the required input fields but the caller
+// has not yet submitted them.
+AgentRunStatusPendingIntake AgentRunStatus = "pending_intake"
 
-	// AgentRunStatusPendingExecution indicates that inputs have been received
-	// and the run is queued for the Execute phase.
-	AgentRunStatusPendingExecution AgentRunStatus = "pending_execution"
+// AgentRunStatusPendingExecution indicates that inputs have been received
+// and the run is queued for the Execute phase.
+AgentRunStatusPendingExecution AgentRunStatus = "pending_execution"
 
-	// AgentRunStatusRunning indicates the Execute phase is actively calling
-	// the LLM.
-	AgentRunStatusRunning AgentRunStatus = "running"
+// AgentRunStatusRunning indicates the Execute phase is actively calling
+// the LLM.
+AgentRunStatusRunning AgentRunStatus = "running"
 
-	// AgentRunStatusCompleted indicates the Execute phase finished
-	// successfully and output is stored.
-	AgentRunStatusCompleted AgentRunStatus = "completed"
+// AgentRunStatusCompleted indicates the Execute phase finished
+// successfully and output is stored.
+AgentRunStatusCompleted AgentRunStatus = "completed"
 
-	// AgentRunStatusFailed indicates the Execute phase encountered an
-	// unrecoverable error (e.g. LLM call failed).
-	AgentRunStatusFailed AgentRunStatus = "failed"
+// AgentRunStatusFailed indicates the Execute phase encountered an
+// unrecoverable error (e.g. LLM call failed).
+AgentRunStatusFailed AgentRunStatus = "failed"
 )
 
 // RunField is a single input field inferred by the LLM during the Intake
 // phase. The caller uses the returned RunFields to build a form and then
 // submits filled RunInputs to ExecuteRun.
+// RunField is immutable — written once at Intake.
 type RunField struct {
-	ID         string   `json:"id"`
-	Fieldname  string   `json:"fieldname"`
-	Type       string   `json:"type"` // "string" | "number" | "boolean" | "select" | "text"
-	Label      string   `json:"label"`
-	Required   bool     `json:"required"`
-	Options    []string `json:"options,omitempty"` // populated when type="select"
-	Ordinality int      `json:"ordinality"`
+ID         string   `json:"id"`
+Fieldname  string   `json:"fieldname"`
+Type       string   `json:"type"` // "string" | "number" | "boolean" | "select" | "text"
+Label      string   `json:"label"`
+Required   bool     `json:"required"`
+Options    []string `json:"options,omitempty"` // populated when type="select"
+Ordinality int      `json:"ordinality"`
 }
 
 // RunInput is a single filled value submitted by the caller during the
 // Execute phase to satisfy a RunField inferred by Intake.
+// RunInput is immutable — written once at Execute.
 type RunInput struct {
-	ID        string `json:"id"`
-	Fieldname string `json:"fieldname"`
-	Value     string `json:"value"`
+ID        string `json:"id"`
+Fieldname string `json:"fieldname"`
+Value     string `json:"value"`
+}
+
+// CreateProviderRequest carries the data required to create a new LLMProvider.
+// Name, ProviderType, and APIKey are required fields.
+type CreateProviderRequest struct {
+Name         string `json:"name"`
+ProviderType string `json:"provider_type"` // "anthropic" | "openai"
+APIKey       string `json:"api_key"`
+BaseURL      string `json:"base_url,omitempty"`
+}
+
+// UpdateProviderRequest carries the mutable fields that may be changed on
+// an existing LLMProvider. Only non-empty fields are applied.
+type UpdateProviderRequest struct {
+Name    string `json:"name,omitempty"`
+APIKey  string `json:"api_key,omitempty"`
+BaseURL string `json:"base_url,omitempty"`
 }
 
 // CreateAgentRequest carries the data required to create a new Agent.
-// Name, Provider, Model, and SystemPrompt are required fields.
+// Name, ProviderID, Model, and SystemPrompt are required fields.
 type CreateAgentRequest struct {
-	Name         string  `json:"name"`
-	Description  string  `json:"description,omitempty"`
-	Provider     string  `json:"provider"`
-	Model        string  `json:"model"`
-	SystemPrompt string  `json:"system_prompt"`
-	Temperature  float64 `json:"temperature,omitempty"`
-	MaxTokens    int     `json:"max_tokens,omitempty"`
+Name         string  `json:"name"`
+Description  string  `json:"description,omitempty"`
+ProviderID   string  `json:"provider_id"`
+Model        string  `json:"model"`
+SystemPrompt string  `json:"system_prompt"`
+Temperature  float64 `json:"temperature,omitempty"`
+MaxTokens    int     `json:"max_tokens,omitempty"`
+}
+
+// UpdateAgentRequest carries the mutable fields that may be changed on an
+// existing Agent. Only non-empty / non-zero fields are applied.
+type UpdateAgentRequest struct {
+Name         string  `json:"name,omitempty"`
+Description  string  `json:"description,omitempty"`
+ProviderID   string  `json:"provider_id,omitempty"`
+Model        string  `json:"model,omitempty"`
+SystemPrompt string  `json:"system_prompt,omitempty"`
+Temperature  float64 `json:"temperature,omitempty"`
+MaxTokens    int     `json:"max_tokens,omitempty"`
 }
 
 // IntakeRunRequest carries the data required to start the Intake phase of
-// a two-phase run. The LLM uses the agent's system prompt, the optional
-// WorkflowID context, and Instructions to infer what RunFields are needed.
+// a two-phase run. The LLM uses the agent's system prompt and the caller-
+// supplied Instructions to infer what RunFields are needed.
 type IntakeRunRequest struct {
-	AgentID      string `json:"agent_id"`
-	WorkflowID   string `json:"workflow_id,omitempty"`
-	Instructions string `json:"instructions"`
+AgentID      string `json:"agent_id"`
+Instructions string `json:"instructions"`
 }
 
 // RunFilter constrains a ListRuns query. Zero values mean "no filter".
 type RunFilter struct {
-	AgentID string
-	Status  AgentRunStatus
+AgentID string
+Status  AgentRunStatus
 }
