@@ -29,7 +29,7 @@ The MVP delivers:
 | Task ID | Title | Status | Depends On |
 |---|---|---|---|
 | MVP-AI-001 | Module scaffolding — go.mod, Makefile, buf.yaml, directory structure | ✅ Done | — |
-| MVP-AI-002 | Domain models — `models.go` (Agent, AgentRun, AgentRunStatus, RunField, RunInput, request/filter types) | � In Progress | MVP-AI-001 |
+| MVP-AI-002 | Domain models — `models.go` (Agent, AgentRun, AgentRunStatus, RunField, RunInput, request/filter types) | ✅ Done | MVP-AI-001 |
 | MVP-AI-003 | Error types — `errors.go` | 🔲 Not Started | MVP-AI-001 |
 | MVP-AI-004 | Pre-delivered schema — `schema.go` (`DefaultAISchema`) | 🔲 Not Started | MVP-AI-002 |
 | MVP-AI-005 | `AIManager` interface & `aiManager` stub — `ai.go` | 🔲 Not Started | MVP-AI-002, MVP-AI-003 |
