@@ -289,14 +289,15 @@ if err != nil {
 return Agent{}, fmt.Errorf("CreateAgent: %w", err)
 }
 
-// Write uses_provider edge: Agent → LLMProvider.
+	// Write uses_provider edge: Agent → LLMProvider.
 	if _, err := m.dm.CreateRelationship(ctx, entitygraph.CreateRelationshipRequest{
 		AgencyID: m.agencyID,
 		FromID:   entity.ID,
 		ToID:     req.ProviderID,
 		Name:     "uses_provider",
-return Agent{}, fmt.Errorf("CreateAgent %s: link provider: %w", entity.ID, err)
-}
+	}); err != nil {
+		return Agent{}, fmt.Errorf("CreateAgent %s: link provider: %w", entity.ID, err)
+	}
 
 agent := agentFromEntity(entity)
 agent.ProviderID = req.ProviderID
