@@ -32,7 +32,7 @@ The MVP delivers:
 | MVP-AI-002 | Domain models — `models.go` (Agent, AgentRun, AgentRunStatus, RunField, RunInput, request/filter types) | ✅ Done | MVP-AI-001 |
 | MVP-AI-003 | Error types — `errors.go` | ✅ Done | MVP-AI-001 |
 | MVP-AI-004 | Pre-delivered schema — `schema.go` (`DefaultAISchema`) | ✅ Done | MVP-AI-002 |
-| MVP-AI-005 | `AIManager` interface & `aiManager` stub — `ai.go` | 🔲 Not Started | MVP-AI-002, MVP-AI-003 |
+| MVP-AI-005 | `AIManager` interface & `aiManager` stub — `ai.go` | � In Progress | MVP-AI-002, MVP-AI-003 |
 | MVP-AI-006 | `LLMClient` interface — `internal/llm/client.go` (`LLMClient`, `CompletionRequest`, `CompletionResponse`) | 🔲 Not Started | MVP-AI-001 |
 | MVP-AI-007 | Anthropic implementation — `internal/llm/anthropic/client.go` | 🔲 Not Started | MVP-AI-006 |
 | MVP-AI-008 | ArangoDB backend — `storage/arangodb/` (`storage.go`, `docs.go`, `ops.go`) | 🔲 Not Started | MVP-AI-004, MVP-AI-005 |
