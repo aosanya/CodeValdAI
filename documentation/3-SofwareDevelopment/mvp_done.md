@@ -9,3 +9,4 @@ Completed tasks are removed from `mvp.md` and recorded here with their completio
 | MVP-AI-003 | Error types — `errors.go` | 2026-03-24 | feature/AI-003_error_types |
 | MVP-AI-004 | Pre-delivered schema — `schema.go` (`DefaultAISchema`) | 2026-03-24 | feature/AI-004_pre-delivered-schema |
 | MVP-AI-005 | `AIManager` interface & `aiManager` stub — `ai.go` | 2026-03-24 | feature/AI-005_aimanager-interface-stub |
+| MVP-AI-006 | `LLMClient` interface — `internal/llm/client.go` | 2026-03-24 | feature/AI-005_aimanager-interface-stub |

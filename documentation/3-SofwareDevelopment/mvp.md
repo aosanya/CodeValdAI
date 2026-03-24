@@ -33,7 +33,7 @@ The MVP delivers:
 | MVP-AI-003 | Error types — `errors.go` | ✅ Done | MVP-AI-001 |
 | MVP-AI-004 | Pre-delivered schema — `schema.go` (`DefaultAISchema`) | ✅ Done | MVP-AI-002 |
 | MVP-AI-005 | `AIManager` interface & `aiManager` stub — `ai.go` | ✅ Done | MVP-AI-002, MVP-AI-003 |
-| MVP-AI-006 | `LLMClient` interface — `internal/llm/client.go` (`LLMClient`, `CompletionRequest`, `CompletionResponse`) | 🔲 Not Started | MVP-AI-001 |
+| MVP-AI-006 | `LLMClient` interface — `internal/llm/client.go` (`LLMClient`, `CompletionRequest`, `CompletionResponse`) | ✅ Done | MVP-AI-001 |
 | MVP-AI-007 | Anthropic implementation — `internal/llm/anthropic/client.go` | 🔲 Not Started | MVP-AI-006 |
 | MVP-AI-008 | ArangoDB backend — `storage/arangodb/` (`storage.go`, `docs.go`, `ops.go`) | 🔲 Not Started | MVP-AI-004, MVP-AI-005 |
 | MVP-AI-009 | gRPC proto — `proto/codevaldai/v1/ai.proto` + `buf generate` | 🔲 Not Started | MVP-AI-005 |
