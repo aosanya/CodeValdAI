@@ -27,11 +27,11 @@ The MVP delivers:
 | Task ID | Title | Status | Depends On |
 |---|---|---|---|
 | MVP-AI-001 | Module scaffolding — go.mod, Makefile, buf.yaml, directory structure | ✅ Done | — |
-| MVP-AI-002 | Domain models — `models.go` (LLMProvider, Agent, AgentRun, AgentRunStatus, RunField, RunInput, request/filter types) | 🔲 Needs Update | MVP-AI-001 |
-| MVP-AI-003 | Error types — `errors.go` (add ErrProviderNotFound, ErrProviderInUse, ErrInvalidProvider, ErrAgentHasActiveRuns, ErrInvalidLLMResponse) | 🔲 Needs Update | MVP-AI-001 |
-| MVP-AI-004 | Pre-delivered schema — `schema.go` (`DefaultAISchema` — add LLMProvider TypeDef, update Agent/AgentRun) | 🔲 Needs Update | MVP-AI-002 |
-| MVP-AI-005 | `AIManager` interface & `aiManager` stub — `ai.go` (add Provider CRUD methods; remove llmClient param) | 🔲 Needs Update | MVP-AI-002, MVP-AI-003 |
-| MVP-AI-006 | Delete `internal/llm/` — remove LLMClient interface and Anthropic implementation | 🔲 Not Started | MVP-AI-005 |
+| MVP-AI-002 | Domain models — `models.go` (LLMProvider, Agent, AgentRun, AgentRunStatus, RunField, RunInput, request/filter types) | ✅ Done | MVP-AI-001 |
+| MVP-AI-003 | Error types — `errors.go` (add ErrProviderNotFound, ErrProviderInUse, ErrInvalidProvider, ErrAgentHasActiveRuns, ErrInvalidLLMResponse) | ✅ Done | MVP-AI-001 |
+| MVP-AI-004 | Pre-delivered schema — `schema.go` (`DefaultAISchema` — add LLMProvider TypeDef, update Agent/AgentRun) | ✅ Done | MVP-AI-002 |
+| MVP-AI-005 | `AIManager` interface & `aiManager` stub — `ai.go` (add Provider CRUD methods; remove llmClient param) | ✅ Done | MVP-AI-002, MVP-AI-003 |
+| MVP-AI-006 | Delete `internal/llm/` — remove LLMClient interface and Anthropic implementation | ✅ Done | MVP-AI-005 |
 | MVP-AI-007 | ArangoDB backend — `storage/arangodb/` (`storage.go`, `docs.go`, `ops.go`) | 🔲 Not Started | MVP-AI-004, MVP-AI-005 |
 | MVP-AI-008 | gRPC proto — `proto/codevaldai/v1/ai.proto` + `buf generate` (add provider RPCs) | 🔲 Not Started | MVP-AI-005 |
 | MVP-AI-009 | gRPC server — `internal/server/server.go`, `entity_server.go`, `errors.go` | 🔲 Not Started | MVP-AI-008 |
