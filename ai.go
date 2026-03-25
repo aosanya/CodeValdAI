@@ -449,27 +449,6 @@ func (m *aiManager) ListRuns(ctx context.Context, filter RunFilter) ([]AgentRun,
 	return runs, nil
 }
 
-// ── LLM Dispatch (internal) ───────────────────────────────────────────────────
-
-// callLLM dispatches an LLM completion request to the provider identified by
-// provider.ProviderType. Returns (content, inputTokens, outputTokens, error).
-func callLLM(ctx context.Context, provider LLMProvider, agent Agent, system, user string) (string, int, int, error) {
-	switch provider.ProviderType {
-	case "anthropic":
-		return callAnthropic(ctx, provider, agent, system, user)
-	default:
-		return "", 0, 0, fmt.Errorf("unsupported provider_type %q", provider.ProviderType)
-	}
-}
-
-// callAnthropic performs a POST /v1/messages to the Anthropic API.
-// Implementation is provided in MVP-AI-012.
-func callAnthropic(_ context.Context, _ LLMProvider, _ Agent, _, _ string) (string, int, int, error) {
-	return "", 0, 0, fmt.Errorf("callAnthropic: not implemented (MVP-AI-012)")
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 // publish delivers an event to CodeValdCross. Errors are swallowed —
 // events are best-effort and must not fail the originating operation.
 func (m *aiManager) publish(ctx context.Context, topic string) {

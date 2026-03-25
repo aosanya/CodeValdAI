@@ -1,0 +1,258 @@
+syntax = "proto3";
+
+package codevaldai.v1;
+
+option go_package = "github.com/aosanya/CodeValdAI/gen/go/codevaldai/v1;codevaldaiv1";
+
+import "google/protobuf/timestamp.proto";
+
+// ── Enumerations ──────────────────────────────────────────────────────────────
+
+// AgentRunStatus mirrors the Go AgentRunStatus type.
+enum AgentRunStatus {
+  AGENT_RUN_STATUS_UNSPECIFIED         = 0;
+  AGENT_RUN_STATUS_PENDING_INTAKE      = 1;
+  AGENT_RUN_STATUS_PENDING_EXECUTION   = 2;
+  AGENT_RUN_STATUS_RUNNING             = 3;
+  AGENT_RUN_STATUS_COMPLETED           = 4;
+  AGENT_RUN_STATUS_FAILED              = 5;
+}
+
+// ── LLMProvider ───────────────────────────────────────────────────────────────
+
+// LLMProvider is a persisted LLM configuration entity shared across Agents.
+message LLMProvider {
+  string                    id            = 1;
+  string                    name          = 2;
+  string                    provider_type = 3; // "anthropic" | "openai"
+  string                    api_key       = 4;
+  string                    base_url      = 5; // empty = use provider default endpoint
+  google.protobuf.Timestamp created_at    = 6;
+  google.protobuf.Timestamp updated_at    = 7;
+}
+
+// CreateProviderRequest carries the data required to create a new LLMProvider.
+// name, provider_type, and api_key are required.
+message CreateProviderRequest {
+  string name          = 1;
+  string provider_type = 2;
+  string api_key       = 3;
+  string base_url      = 4;
+}
+
+// GetProviderRequest selects a provider by its ID.
+message GetProviderRequest {
+  string provider_id = 1;
+}
+
+// ListProvidersRequest is intentionally empty.
+message ListProvidersRequest {}
+
+// ListProvidersResponse wraps the list of providers.
+message ListProvidersResponse {
+  repeated LLMProvider providers = 1;
+}
+
+// UpdateProviderRequest carries mutable fields for an LLMProvider.
+// Only non-empty fields are applied.
+message UpdateProviderRequest {
+  string provider_id = 1;
+  string name        = 2;
+  string api_key     = 3;
+  string base_url    = 4;
+}
+
+// DeleteProviderRequest selects a provider to remove.
+message DeleteProviderRequest {
+  string provider_id = 1;
+}
+
+// DeleteProviderResponse is intentionally empty on success.
+message DeleteProviderResponse {}
+
+// ── Agent ─────────────────────────────────────────────────────────────────────
+
+// Agent is a persisted LLM agent configuration entity.
+// It references one LLMProvider via a uses_provider graph edge.
+message Agent {
+  string                    id            = 1;
+  string                    name          = 2;
+  string                    description   = 3;
+  string                    provider_id   = 4;
+  string                    model         = 5;
+  string                    system_prompt = 6;
+  double                    temperature   = 7;
+  int32                     max_tokens    = 8;
+  google.protobuf.Timestamp created_at    = 9;
+  google.protobuf.Timestamp updated_at    = 10;
+}
+
+// CreateAgentRequest carries the data required to create a new Agent.
+// name, provider_id, model, and system_prompt are required.
+message CreateAgentRequest {
+  string name          = 1;
+  string description   = 2;
+  string provider_id   = 3;
+  string model         = 4;
+  string system_prompt = 5;
+  double temperature   = 6;
+  int32  max_tokens    = 7;
+}
+
+// GetAgentRequest selects an agent by its ID.
+message GetAgentRequest {
+  string agent_id = 1;
+}
+
+// ListAgentsRequest is intentionally empty.
+message ListAgentsRequest {}
+
+// ListAgentsResponse wraps the list of agents.
+message ListAgentsResponse {
+  repeated Agent agents = 1;
+}
+
+// UpdateAgentRequest carries mutable fields for an Agent.
+// Only non-empty / non-zero fields are applied.
+message UpdateAgentRequest {
+  string agent_id      = 1;
+  string name          = 2;
+  string description   = 3;
+  string provider_id   = 4;
+  string model         = 5;
+  string system_prompt = 6;
+  double temperature   = 7;
+  int32  max_tokens    = 8;
+}
+
+// DeleteAgentRequest selects an agent to remove.
+message DeleteAgentRequest {
+  string agent_id = 1;
+}
+
+// DeleteAgentResponse is intentionally empty on success.
+message DeleteAgentResponse {}
+
+// ── Run Lifecycle ─────────────────────────────────────────────────────────────
+
+// AgentRun is the execution record for a single LLM interaction.
+message AgentRun {
+  string                    id            = 1;
+  string                    agent_id      = 2;
+  string                    instructions  = 3;
+  AgentRunStatus            status        = 4;
+  string                    output        = 5;
+  string                    error_message = 6;
+  int32                     input_tokens  = 7;
+  int32                     output_tokens = 8;
+  google.protobuf.Timestamp started_at    = 9;
+  google.protobuf.Timestamp completed_at  = 10;
+  google.protobuf.Timestamp created_at    = 11;
+  google.protobuf.Timestamp updated_at    = 12;
+}
+
+// RunField is a single input field inferred by the LLM during the Intake phase.
+message RunField {
+  string          id         = 1;
+  string          fieldname  = 2;
+  string          type       = 3; // "string" | "number" | "boolean" | "select" | "text"
+  string          label      = 4;
+  bool            required   = 5;
+  repeated string options    = 6; // populated when type="select"
+  int32           ordinality = 7;
+}
+
+// RunInput is a single filled value submitted during the Execute phase.
+message RunInput {
+  string fieldname = 1;
+  string value     = 2;
+}
+
+// IntakeRunRequest carries data required to start the Intake phase.
+message IntakeRunRequest {
+  string agent_id     = 1;
+  string instructions = 2;
+}
+
+// IntakeRunResponse wraps the created AgentRun and its inferred RunFields.
+message IntakeRunResponse {
+  AgentRun          run    = 1;
+  repeated RunField fields = 2;
+}
+
+// ExecuteRunRequest carries the run ID and caller-supplied inputs.
+message ExecuteRunRequest {
+  string           run_id = 1;
+  repeated RunInput inputs = 2;
+}
+
+// GetRunRequest selects a run by its ID.
+message GetRunRequest {
+  string run_id = 1;
+}
+
+// ListRunsRequest constrains a ListRuns query.
+message ListRunsRequest {
+  string         agent_id = 1; // empty = no filter
+  AgentRunStatus status   = 2; // UNSPECIFIED = no filter
+}
+
+// ListRunsResponse wraps the list of agent runs.
+message ListRunsResponse {
+  repeated AgentRun runs = 1;
+}
+
+// ── Service ───────────────────────────────────────────────────────────────────
+
+// AIService exposes provider catalogue, agent catalogue, and run lifecycle RPCs.
+service AIService {
+  // ── Provider Catalogue ────────────────────────────────────────────────────
+
+  // CreateProvider persists a new LLMProvider configuration.
+  rpc CreateProvider (CreateProviderRequest) returns (LLMProvider);
+
+  // GetProvider retrieves a single LLMProvider by its ID.
+  rpc GetProvider (GetProviderRequest) returns (LLMProvider);
+
+  // ListProviders returns all LLMProvider entities for this agency.
+  rpc ListProviders (ListProvidersRequest) returns (ListProvidersResponse);
+
+  // UpdateProvider replaces mutable fields on an LLMProvider.
+  rpc UpdateProvider (UpdateProviderRequest) returns (LLMProvider);
+
+  // DeleteProvider removes an LLMProvider configuration.
+  rpc DeleteProvider (DeleteProviderRequest) returns (DeleteProviderResponse);
+
+  // ── Agent Catalogue ───────────────────────────────────────────────────────
+
+  // CreateAgent persists a new Agent configuration.
+  rpc CreateAgent (CreateAgentRequest) returns (Agent);
+
+  // GetAgent retrieves a single Agent by its ID.
+  rpc GetAgent (GetAgentRequest) returns (Agent);
+
+  // ListAgents returns all Agent entities for this agency.
+  rpc ListAgents (ListAgentsRequest) returns (ListAgentsResponse);
+
+  // UpdateAgent replaces mutable fields on an Agent.
+  rpc UpdateAgent (UpdateAgentRequest) returns (Agent);
+
+  // DeleteAgent removes an Agent configuration.
+  rpc DeleteAgent (DeleteAgentRequest) returns (DeleteAgentResponse);
+
+  // ── Run Lifecycle ─────────────────────────────────────────────────────────
+
+  // IntakeRun creates an AgentRun in pending_intake state and returns the
+  // inferred RunFields the caller must fill.
+  rpc IntakeRun (IntakeRunRequest) returns (IntakeRunResponse);
+
+  // ExecuteRun transitions a run from pending_intake to running and calls
+  // the LLM with the submitted inputs.
+  rpc ExecuteRun (ExecuteRunRequest) returns (AgentRun);
+
+  // GetRun retrieves a single AgentRun by its ID.
+  rpc GetRun (GetRunRequest) returns (AgentRun);
+
+  // ListRuns returns all AgentRun entities matching the filter.
+  rpc ListRuns (ListRunsRequest) returns (ListRunsResponse);
+}

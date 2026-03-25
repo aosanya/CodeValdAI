@@ -22,6 +22,9 @@
 | Downstream communication | gRPC only — no direct Go imports of other CodeVald services | Stable, versioned contracts |
 | Cross registration | `OrchestratorService.Register` on startup + heartbeat every 20 s | Standard CodeVald onboarding pattern |
 | Pre-delivered schema | `DefaultAISchema()` seeded on startup (idempotent) | TypeDefinitions for LLMProvider, Agent, AgentRun, RunField, RunInput |
+| EntityService gRPC handler | `egserver.NewEntityServer` from SharedLib `entitygraph/server` | Same pattern as CodeValdAgency; no AI-specific handler code |
+| Schema seed | `entitygraph.SeedSchema` from SharedLib | Idempotent startup helper shared across all services |
+| Entity gRPC route path | `egserver.GRPCServicePath` (`/entitygraph.v1.EntityService`) | Constant from SharedLib; used when advertising entity HTTP routes to Cross |
 | Error types | `errors.go` at module root | All exported errors in one place |
 | Value types | `models.go` at module root | Pure data structs; no methods |
 
@@ -45,13 +48,11 @@ CodeValdAI/
 │   │   └── registrar.go         # Cross registration heartbeat loop + CrossPublisher impl
 │   └── server/
 │       ├── server.go            # Inbound gRPC server — AIService handlers
-│       ├── entity_server.go     # EntityService handlers — delegates to entitygraph.DataManager
-│       └── errors.go            # gRPC status code mapping
+│       ├── entity_server.go     # Re-export of egserver.NewEntityServer from SharedLib (same pattern as CodeValdAgency)
+│       └── errors.go            # AIService-domain gRPC error mapping
 ├── storage/
 │   └── arangodb/
-│       ├── storage.go           # Config, Backend struct, constructors, ensureCollection
-│       ├── docs.go              # ArangoDB document types and domain↔document conversions
-│       └── ops.go               # Backend interface method implementations
+│       └── storage.go           # Config, Backend struct, ArangoDB implementation (thin wrapper over entitygraph)
 ├── proto/
 │   └── codevaldai/
 │       └── v1/
