@@ -32,7 +32,7 @@ The MVP delivers:
 | MVP-AI-004 | Pre-delivered schema — `schema.go` (`DefaultAISchema` — add LLMProvider TypeDef, update Agent/AgentRun) | ✅ Done | MVP-AI-002 |
 | MVP-AI-005 | `AIManager` interface & `aiManager` stub — `ai.go` (add Provider CRUD methods; remove llmClient param) | ✅ Done | MVP-AI-002, MVP-AI-003 |
 | MVP-AI-006 | Delete `internal/llm/` — remove LLMClient interface and Anthropic implementation | ✅ Done | MVP-AI-005 |
-| MVP-AI-007 | ArangoDB backend — `storage/arangodb/` (`storage.go`, `docs.go`, `ops.go`) | 🔲 Not Started | MVP-AI-004, MVP-AI-005 |
+| MVP-AI-007 | ArangoDB backend — `storage/arangodb/` (`storage.go`, `docs.go`, `ops.go`) | ✅ Done | MVP-AI-004, MVP-AI-005 |
 | MVP-AI-008 | gRPC proto — `proto/codevaldai/v1/ai.proto` + `buf generate` (add provider RPCs) | 🔲 Not Started | MVP-AI-005 |
 | MVP-AI-009 | gRPC server — `internal/server/server.go`, `entity_server.go`, `errors.go` | 🔲 Not Started | MVP-AI-008 |
 | MVP-AI-010 | Config & registrar — `internal/config/config.go` + `internal/registrar/registrar.go` | 🔲 Not Started | MVP-AI-001 |
