@@ -62,10 +62,10 @@ See [architecture-storage.md](../../2-SoftwareDesignAndArchitecture/architecture
 
 ---
 
-## MVP-AI-009 — gRPC Proto
+## MVP-AI-008 — gRPC Proto
 
-**Status**: 🔲 Not Started
-**Branch**: `feature/AI-009_grpc_proto`
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
+**Branch**: `feature/AI-008_grpc_proto`
 
 ### Goal
 
@@ -159,10 +159,10 @@ message ListRunsResponse    { repeated AgentRun runs = 1; }
 
 ---
 
-## MVP-AI-010 — gRPC Server
+## MVP-AI-009 — gRPC Server
 
-**Status**: 🔲 Not Started
-**Branch**: `feature/AI-010_grpc_server`
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
+**Branch**: `feature/AI-009_grpc_server`
 
 ### Goal
 
