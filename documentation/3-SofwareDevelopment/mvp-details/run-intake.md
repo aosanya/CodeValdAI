@@ -46,16 +46,24 @@ AIManager.IntakeRun(ctx, IntakeRunRequest{AgentID, WorkflowID, Instructions})
         Instructions: {instructions}
         What input fields do you need to complete this task?"
 
-5. llmClient.Complete(ctx, CompletionRequest{
-       Model:       agent.Model,
-       System:      <intake system message>,
-       UserMessage: <intake user message>,
-       Temperature: 0.2,   // low temperature for structured output
-       MaxTokens:   512,
-   })
+4a. dm.TraverseRelationship(ctx, agent.ID, "uses_provider") → LLMProvider
+       provider not found → ErrProviderNotFound
+
+5. var output strings.Builder
+   _, _, err := m.callLLM(ctx,
+       provider, agent,
+       intakeSystemMessage,        // system (hardcoded; see below)
+       intakeUserMessage,          // user (built in step 4)
+       output.WriteString,         // onChunk — buffer the JSON response
+   )
        → on LLM error: return nil, nil, fmt.Errorf("IntakeRun %s: llm: %w", agentID, err)
 
-6. Parse the LLM response as []intakeField (internal struct):
+   Note: Intake calls do not need streaming (the response is a small JSON
+   array) but go through the same dispatcher per MVP-AI-017 — `agent.Temperature`
+   and `agent.MaxTokens` are passed via the agent struct. Token counts are
+   discarded for Intake; only the parsed fields matter.
+
+6. Parse output.String() as []intakeField (internal struct):
        type intakeField struct {
            Fieldname string   `json:"fieldname"`
            Type      string   `json:"type"`
@@ -63,7 +71,7 @@ AIManager.IntakeRun(ctx, IntakeRunRequest{AgentID, WorkflowID, Instructions})
            Required  bool     `json:"required"`
            Options   []string `json:"options,omitempty"`
        }
-       json.Unmarshal([]byte(response.Content), &fields)
+       json.Unmarshal([]byte(output.String()), &fields)
        → ErrInvalidLLMResponse if unmarshal fails or result is empty
 
 7. dm.CreateEntity(ctx, entitygraph.CreateEntityRequest{
@@ -152,19 +160,25 @@ func unmarshalOptions(s string) []string
 
 ---
 
-### FakeLLMClient for Tests
+### Mocking the LLM Provider for Tests
+
+There is no `LLMClient` interface to fake — LLM dispatch is a switch on
+`LLMProvider.ProviderType` over raw HTTP. Tests stand up an
+`httptest.Server` returning the provider's wire shape (Anthropic SSE or
+OpenAI Chat Completions SSE) and point `LLMProvider.BaseURL` at it:
 
 ```go
-// FakeLLMClient returns a hardcoded intake response for testing.
-type FakeLLMClient struct {
-    Response llm.CompletionResponse
-    Err      error
-}
-
-func (f *FakeLLMClient) Complete(_ context.Context, _ llm.CompletionRequest) (llm.CompletionResponse, error) {
-    return f.Response, f.Err
-}
+// in intake_test.go
+srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/event-stream")
+    // Stream the JSON-array intake response in SSE chunks
+    fmt.Fprint(w, `data: {"choices":[{"delta":{"content":"[{\"fieldname\":\"x\",\"type\":\"string\",\"label\":\"X\",\"required\":true}]"}}]}`)
+    fmt.Fprint(w, "\n\ndata: [DONE]\n\n")
+}))
+defer srv.Close()
+provider := LLMProvider{ProviderType: "openai", BaseURL: srv.URL, APIKey: "test"}
 ```
 
-The fake is defined in `internal/llm/fake.go` or `ai_test.go` — never shipped in production binary.
+See [llm-client/providers/](llm-client/providers/) for each provider's
+exact wire shape.
 ````
