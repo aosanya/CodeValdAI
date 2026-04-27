@@ -82,15 +82,21 @@ func (AgentRunStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // LLMProvider is a persisted LLM configuration entity shared across Agents.
+//
+// provider_route is HuggingFace-only: when non-empty the dispatcher appends
+// it to Agent.model as ":<route>" to pin the HuggingFace Router to a
+// specific backend (e.g. "fireworks-ai"). It is ignored for the
+// "anthropic" and "openai" provider types.
 type LLMProvider struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	ProviderType  string                 `protobuf:"bytes,3,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"` // "anthropic" | "openai"
+	ProviderType  string                 `protobuf:"bytes,3,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"` // "anthropic" | "openai" | "huggingface"
 	ApiKey        string                 `protobuf:"bytes,4,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
 	BaseUrl       string                 `protobuf:"bytes,5,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"` // empty = use provider default endpoint
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ProviderRoute string                 `protobuf:"bytes,8,opt,name=provider_route,json=providerRoute,proto3" json:"provider_route,omitempty"` // HuggingFace-only: backend pin
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -174,6 +180,13 @@ func (x *LLMProvider) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *LLMProvider) GetProviderRoute() string {
+	if x != nil {
+		return x.ProviderRoute
+	}
+	return ""
+}
+
 // CreateProviderRequest carries the data required to create a new LLMProvider.
 // name, provider_type, and api_key are required.
 type CreateProviderRequest struct {
@@ -182,6 +195,7 @@ type CreateProviderRequest struct {
 	ProviderType  string                 `protobuf:"bytes,2,opt,name=provider_type,json=providerType,proto3" json:"provider_type,omitempty"`
 	ApiKey        string                 `protobuf:"bytes,3,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
 	BaseUrl       string                 `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	ProviderRoute string                 `protobuf:"bytes,5,opt,name=provider_route,json=providerRoute,proto3" json:"provider_route,omitempty"` // HuggingFace-only
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -240,6 +254,13 @@ func (x *CreateProviderRequest) GetApiKey() string {
 func (x *CreateProviderRequest) GetBaseUrl() string {
 	if x != nil {
 		return x.BaseUrl
+	}
+	return ""
+}
+
+func (x *CreateProviderRequest) GetProviderRoute() string {
+	if x != nil {
+		return x.ProviderRoute
 	}
 	return ""
 }
@@ -373,12 +394,17 @@ func (x *ListProvidersResponse) GetProviders() []*LLMProvider {
 
 // UpdateProviderRequest carries mutable fields for an LLMProvider.
 // Only non-empty fields are applied.
+//
+// provider_type is intentionally absent: changing the type of an existing
+// LLMProvider invalidates uses_provider edges. Callers must delete and
+// recreate.
 type UpdateProviderRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ProviderId    string                 `protobuf:"bytes,1,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	ApiKey        string                 `protobuf:"bytes,3,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
 	BaseUrl       string                 `protobuf:"bytes,4,opt,name=base_url,json=baseUrl,proto3" json:"base_url,omitempty"`
+	ProviderRoute string                 `protobuf:"bytes,5,opt,name=provider_route,json=providerRoute,proto3" json:"provider_route,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -437,6 +463,13 @@ func (x *UpdateProviderRequest) GetApiKey() string {
 func (x *UpdateProviderRequest) GetBaseUrl() string {
 	if x != nil {
 		return x.BaseUrl
+	}
+	return ""
+}
+
+func (x *UpdateProviderRequest) GetProviderRoute() string {
+	if x != nil {
+		return x.ProviderRoute
 	}
 	return ""
 }
@@ -525,20 +558,24 @@ func (*DeleteProviderResponse) Descriptor() ([]byte, []int) {
 
 // Agent is a persisted LLM agent configuration entity.
 // It references one LLMProvider via a uses_provider graph edge.
+//
+// timeout_seconds overrides the system default LLM-call timeout for this
+// Agent. Zero means "use the system default".
 type Agent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	ProviderId    string                 `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	Model         string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
-	SystemPrompt  string                 `protobuf:"bytes,6,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
-	Temperature   float64                `protobuf:"fixed64,7,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	MaxTokens     int32                  `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	ProviderId     string                 `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Model          string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	SystemPrompt   string                 `protobuf:"bytes,6,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
+	Temperature    float64                `protobuf:"fixed64,7,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	MaxTokens      int32                  `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	TimeoutSeconds int32                  `protobuf:"varint,11,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"` // 0 = system default
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Agent) Reset() {
@@ -641,19 +678,27 @@ func (x *Agent) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Agent) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
+	}
+	return 0
+}
+
 // CreateAgentRequest carries the data required to create a new Agent.
 // name, provider_id, model, and system_prompt are required.
 type CreateAgentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	ProviderId    string                 `protobuf:"bytes,3,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	Model         string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
-	SystemPrompt  string                 `protobuf:"bytes,5,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
-	Temperature   float64                `protobuf:"fixed64,6,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	MaxTokens     int32                  `protobuf:"varint,7,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description    string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	ProviderId     string                 `protobuf:"bytes,3,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Model          string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
+	SystemPrompt   string                 `protobuf:"bytes,5,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
+	Temperature    float64                `protobuf:"fixed64,6,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	MaxTokens      int32                  `protobuf:"varint,7,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	TimeoutSeconds int32                  `protobuf:"varint,8,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateAgentRequest) Reset() {
@@ -731,6 +776,13 @@ func (x *CreateAgentRequest) GetTemperature() float64 {
 func (x *CreateAgentRequest) GetMaxTokens() int32 {
 	if x != nil {
 		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *CreateAgentRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
 	}
 	return 0
 }
@@ -865,17 +917,18 @@ func (x *ListAgentsResponse) GetAgents() []*Agent {
 // UpdateAgentRequest carries mutable fields for an Agent.
 // Only non-empty / non-zero fields are applied.
 type UpdateAgentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	ProviderId    string                 `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	Model         string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
-	SystemPrompt  string                 `protobuf:"bytes,6,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
-	Temperature   float64                `protobuf:"fixed64,7,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	MaxTokens     int32                  `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	AgentId        string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	ProviderId     string                 `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Model          string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	SystemPrompt   string                 `protobuf:"bytes,6,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
+	Temperature    float64                `protobuf:"fixed64,7,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	MaxTokens      int32                  `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	TimeoutSeconds int32                  `protobuf:"varint,9,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *UpdateAgentRequest) Reset() {
@@ -960,6 +1013,13 @@ func (x *UpdateAgentRequest) GetTemperature() float64 {
 func (x *UpdateAgentRequest) GetMaxTokens() int32 {
 	if x != nil {
 		return x.MaxTokens
+	}
+	return 0
+}
+
+func (x *UpdateAgentRequest) GetTimeoutSeconds() int32 {
+	if x != nil {
+		return x.TimeoutSeconds
 	}
 	return 0
 }
@@ -1631,7 +1691,7 @@ var File_codevaldai_v1_ai_proto protoreflect.FileDescriptor
 
 const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\n" +
-	"\x16codevaldai/v1/ai.proto\x12\rcodevaldai.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\x02\n" +
+	"\x16codevaldai/v1/ai.proto\x12\rcodevaldai.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\x02\n" +
 	"\vLLMProvider\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -1641,28 +1701,31 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x84\x01\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
+	"\x0eprovider_route\x18\b \x01(\tR\rproviderRoute\"\xab\x01\n" +
 	"\x15CreateProviderRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rprovider_type\x18\x02 \x01(\tR\fproviderType\x12\x17\n" +
 	"\aapi_key\x18\x03 \x01(\tR\x06apiKey\x12\x19\n" +
-	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\"5\n" +
+	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12%\n" +
+	"\x0eprovider_route\x18\x05 \x01(\tR\rproviderRoute\"5\n" +
 	"\x12GetProviderRequest\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\"\x16\n" +
 	"\x14ListProvidersRequest\"Q\n" +
 	"\x15ListProvidersResponse\x128\n" +
-	"\tproviders\x18\x01 \x03(\v2\x1a.codevaldai.v1.LLMProviderR\tproviders\"\x80\x01\n" +
+	"\tproviders\x18\x01 \x03(\v2\x1a.codevaldai.v1.LLMProviderR\tproviders\"\xa7\x01\n" +
 	"\x15UpdateProviderRequest\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x17\n" +
 	"\aapi_key\x18\x03 \x01(\tR\x06apiKey\x12\x19\n" +
-	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\"8\n" +
+	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12%\n" +
+	"\x0eprovider_route\x18\x05 \x01(\tR\rproviderRoute\"8\n" +
 	"\x15DeleteProviderRequest\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\"\x18\n" +
-	"\x16DeleteProviderResponse\"\xe0\x02\n" +
+	"\x16DeleteProviderResponse\"\x89\x03\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1678,7 +1741,8 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xe7\x01\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12'\n" +
+	"\x0ftimeout_seconds\x18\v \x01(\x05R\x0etimeoutSeconds\"\x90\x02\n" +
 	"\x12CreateAgentRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1f\n" +
@@ -1688,12 +1752,13 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\rsystem_prompt\x18\x05 \x01(\tR\fsystemPrompt\x12 \n" +
 	"\vtemperature\x18\x06 \x01(\x01R\vtemperature\x12\x1d\n" +
 	"\n" +
-	"max_tokens\x18\a \x01(\x05R\tmaxTokens\",\n" +
+	"max_tokens\x18\a \x01(\x05R\tmaxTokens\x12'\n" +
+	"\x0ftimeout_seconds\x18\b \x01(\x05R\x0etimeoutSeconds\",\n" +
 	"\x0fGetAgentRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x13\n" +
 	"\x11ListAgentsRequest\"B\n" +
 	"\x12ListAgentsResponse\x12,\n" +
-	"\x06agents\x18\x01 \x03(\v2\x14.codevaldai.v1.AgentR\x06agents\"\x82\x02\n" +
+	"\x06agents\x18\x01 \x03(\v2\x14.codevaldai.v1.AgentR\x06agents\"\xab\x02\n" +
 	"\x12UpdateAgentRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1704,7 +1769,8 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\rsystem_prompt\x18\x06 \x01(\tR\fsystemPrompt\x12 \n" +
 	"\vtemperature\x18\a \x01(\x01R\vtemperature\x12\x1d\n" +
 	"\n" +
-	"max_tokens\x18\b \x01(\x05R\tmaxTokens\"/\n" +
+	"max_tokens\x18\b \x01(\x05R\tmaxTokens\x12'\n" +
+	"\x0ftimeout_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\"/\n" +
 	"\x12DeleteAgentRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x15\n" +
 	"\x13DeleteAgentResponse\"\x85\x04\n" +
