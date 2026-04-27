@@ -17,8 +17,8 @@
 
 | Role | Interaction |
 |---|---|
-| **Platform Operator** | Deploys CodeValdAI; configures `ANTHROPIC_API_KEY`, DB connection, and Cross address via environment |
-| **Agency Administrator** | Creates and manages Agent configurations via the API; reviews run history |
+| **Platform Operator** | Deploys CodeValdAI; configures DB connection, Cross address, and gRPC port via environment. **Provider API keys are not env vars** — they live on `LLMProvider` graph entities created by the Agency Administrator via the API |
+| **Agency Administrator** | Creates and manages `LLMProvider` configurations (provider type, API key, optional `provider_route` for HuggingFace backend pinning) and Agent configurations (`provider_id`, model, system prompt, `timeout_seconds`); reviews run history |
 | **Agent Executor** | Submits Intake requests, fills returned fields, and submits Execute requests |
 
 ---

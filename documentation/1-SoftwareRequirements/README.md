@@ -23,17 +23,18 @@ CodeValdAI is responsible for:
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| REQ-001 | `CreateAgent` validates required fields (name, provider, model, system_prompt) before insert | P0 |
+| REQ-001 | `CreateAgent` validates required fields (name, provider_id, model, system_prompt) before insert; `provider_id` must reference an existing `LLMProvider` entity | P0 |
 | REQ-002 | `IntakeRun` calls the LLM and returns a structured field schema; creates an `AgentRun` in `pending_intake` state | P0 |
 | REQ-003 | `ExecuteRun` transitions the run `pending_intake → pending_execution → running → completed / failed` | P0 |
-| REQ-004 | All operations are context-cancellable (deadline propagated to ArangoDB and LLM client) | P0 |
+| REQ-004 | All operations are context-cancellable; LLM dispatcher wraps every call in a per-`Agent` timeout (`Agent.TimeoutSeconds` overrides the system default) | P0 |
 | REQ-005 | Service registers with CodeValdCross within 30 s of startup; heartbeat every 20 s | P0 |
 | REQ-006 | gRPC server listens on `CODEVALDAI_GRPC_PORT` (default `:50056`) | P1 |
-| REQ-007 | `LLMClient` is an injected interface — Anthropic is the first implementation; provider is swappable | P0 |
+| REQ-007 | LLM dispatch is data-driven via the `LLMProvider` graph entity — Anthropic, OpenAI, and HuggingFace (incl. DeepSeek V4 via Router) are swappable at runtime by creating new `LLMProvider` entities; no code change required to add a new provider configuration | P0 |
 | REQ-008 | `cross.ai.{agencyID}.run.completed` is published after every successful `ExecuteRun` | P0 |
-| REQ-009 | `cross.ai.{agencyID}.run.failed` is published when a run transitions to `failed` | P0 |
-| REQ-010 | Service subscribes to `work.task.dispatched` and can auto-trigger a run when a task is dispatched | P1 |
+| REQ-009 | `cross.ai.{agencyID}.run.failed` is published when a run transitions to `failed` (LLM error, timeout, or boot-sweep reconciliation of an interrupted run) | P0 |
+| REQ-010 | Service subscribes to `work.task.dispatched` and can auto-trigger a run when a task is dispatched | P2 — Deferred from MVP; see Future Work in [../3-SofwareDevelopment/mvp-details/run-execution.md](../3-SofwareDevelopment/mvp-details/run-execution.md) |
 | REQ-011 | Pre-delivered schema (`DefaultAISchema`) is seeded into `ai_schemas` on startup (idempotent) | P0 |
+| REQ-012 | Server-streaming RPC `ExecuteRunStreaming` delivers LLM output chunks live for human-facing or debug consumers; persists the same `AgentRun` as the unary `ExecuteRun` | P1 |
 
 ---
 
@@ -42,7 +43,7 @@ CodeValdAI is responsible for:
 | Document | Description |
 |---|---|
 | [Introduction / Problem Definition](introduction/problem-definition.md) | What an AI Agent is; the problem CodeValdAI solves |
-| [High-Level Features](introduction/high-level-features.md) | Agent catalogue, two-phase run lifecycle, LLM provider model |
+| [High-Level Features](introduction/high-level-features.md) | Agent catalogue, two-phase run lifecycle, data-driven LLM provider model |
 | [Stakeholders & Roles](introduction/stakeholders.md) | Consumers of CodeValdAI within the platform |
 
 ---
