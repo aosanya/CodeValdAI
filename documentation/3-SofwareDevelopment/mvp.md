@@ -37,10 +37,13 @@ The MVP delivers:
 | MVP-AI-009 | gRPC server — `internal/server/server.go`, `entity_server.go`, `errors.go` | ✅ Done | MVP-AI-008 |
 | MVP-AI-010 | Config & registrar — `internal/config/config.go` + `internal/registrar/registrar.go` | ✅ Done | MVP-AI-001 |
 | MVP-AI-011 | `cmd/main.go` wiring — inject `DataManager`, `AISchemaManager`, seed schema, start server | ✅ Done | MVP-AI-007, MVP-AI-009, MVP-AI-010 |
-| MVP-AI-012 | Intake flow — `IntakeRun` implementation (fetch LLMProvider from graph; LLM infers fields; stores AgentRun + RunFields) | 🔲 Not Started | MVP-AI-005, MVP-AI-006 |
+| MVP-AI-012 | Intake flow — `IntakeRun` implementation (fetch LLMProvider from graph; LLM infers fields; stores AgentRun + RunFields) | 🔲 Not Started | MVP-AI-005, MVP-AI-017 |
 | MVP-AI-013 | Execute flow — `ExecuteRun` implementation (validate inputs, fetch LLMProvider, call LLM, store output, publish events) | 🔲 Not Started | MVP-AI-012 |
 | MVP-AI-014 | Provider CRUD — `CreateProvider`, `GetProvider`, `ListProviders`, `UpdateProvider`, `DeleteProvider` implementations in `ai.go` | ✅ Done | MVP-AI-005, MVP-AI-007 |
 | MVP-AI-015 | Unit & integration tests — `fakeDataManager`, full run-phase acceptance tests | 🔲 Not Started | MVP-AI-007, MVP-AI-012, MVP-AI-013 |
+| MVP-AI-016 | LLMProvider/Agent schema additions — `ProviderRoute` (HF backend pin), `TimeoutSeconds` (per-Agent override), `huggingface` provider type | 🔲 Not Started | MVP-AI-002, MVP-AI-004 |
+| MVP-AI-017 | LLM dispatcher refactor — `callOpenAICompatible` (OpenAI + HuggingFace), `callAnthropic`, per-Agent timeout, startup `running`-run sweep with `run.failed` publish | 🔲 Not Started | MVP-AI-016 |
+| MVP-AI-018 | Streaming RPC — `ExecuteRunStreaming` server-streaming gRPC, dispatcher chunk callback, dual unary+streaming entrypoints sharing one dispatcher | 🔲 Not Started | MVP-AI-017 |
 
 ---
 
@@ -53,10 +56,16 @@ MVP-AI-001
     │                                               ├── MVP-AI-007 → MVP-AI-011
     │                                               └── MVP-AI-008 → MVP-AI-009 → MVP-AI-011
     ├── MVP-AI-010 → MVP-AI-011
-    └── MVP-AI-005 + MVP-AI-006 → MVP-AI-012 → MVP-AI-013
-                   MVP-AI-005 + MVP-AI-007 → MVP-AI-014
+    └── MVP-AI-005 + MVP-AI-007 → MVP-AI-014
+                   MVP-AI-002 + MVP-AI-004 → MVP-AI-016 → MVP-AI-017 → MVP-AI-012 → MVP-AI-013
+                                                                ↘ MVP-AI-018 (streaming RPC; can land after 013)
                    MVP-AI-015 (after 007, 012, 013)
 ```
+
+The HuggingFace + DeepSeek V4 work is split across MVP-AI-016/017/018 with
+strict ordering: schema first, dispatcher second, streaming RPC third. See
+[mvp-details/llm-client/README.md](mvp-details/llm-client/README.md) for
+the architecture and per-task detail files.
 
 ---
 
@@ -76,6 +85,11 @@ MVP-AI-001
 - [ ] HTTP routes registered with CodeValdCross and proxied correctly
 - [ ] CodeValdCross registration fires on startup and repeats every 20 s
 - [ ] `internal/llm/` package is deleted — no `LLMClient` interface anywhere
+- [ ] `LLMProvider` accepts `provider_type: "huggingface"` with optional `provider_route` backend pin
+- [ ] `Agent.TimeoutSeconds` overrides system default (5 min); `cross.ai.{agencyID}.run.failed` published on `context.DeadlineExceeded`
+- [ ] Startup `ReconcileRunningRuns` transitions any `running` run to `failed` with `error_message = "interrupted by service restart"` and publishes `cross.ai.{agencyID}.run.failed`
+- [ ] `ExecuteRunStreaming` server-streaming RPC delivers chunks live; persists the same `AgentRun` as unary `ExecuteRun`
+- [ ] DeepSeek V4 via HuggingFace Router (`deepseek-ai/DeepSeek-V4` model id, optional `:fireworks-ai` route) end-to-end run succeeds
 
 ---
 
@@ -96,4 +110,7 @@ feature/AI-012_intake_flow
 feature/AI-013_execute_flow
 feature/AI-014_provider_crud
 feature/AI-015_tests
+feature/AI-016_schema_huggingface_timeout
+feature/AI-017_dispatcher_timeout
+feature/AI-018_streaming_rpc
 ```

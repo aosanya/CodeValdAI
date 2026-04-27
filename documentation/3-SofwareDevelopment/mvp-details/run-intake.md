@@ -3,10 +3,12 @@
 
 ---
 
-## MVP-AI-013 — Intake Flow
+## MVP-AI-012 — Intake Flow
 
 **Status**: 🔲 Not Started
-**Branch**: `feature/AI-013_intake_flow`
+**Branch**: `feature/AI-012_intake_flow`
+
+**Depends on**: [MVP-AI-017 Dispatcher](llm-client/dispatcher.md)
 
 ### Goal
 

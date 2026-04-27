@@ -116,23 +116,49 @@ type AISchemaManager = entitygraph.SchemaManager
 
 There is no injected `LLMClient` interface. The `aiManager` implementation
 reads the `LLMProvider` entity from the graph at call time and dispatches
-the HTTP request via an unexported switch:
+the HTTP request via an unexported switch. Three provider types are
+supported, with `openai` and `huggingface` sharing one OpenAI-compatible
+dispatcher:
 
 ```go
+const defaultLLMCallTimeout = 5 * time.Minute
+
 // internal to aiManager — not exported
-func (m *aiManager) callLLM(ctx context.Context, provider LLMProvider, agent Agent, system, user string) (string, int, int, error) {
+func (m *aiManager) callLLM(
+    ctx context.Context,
+    provider LLMProvider,
+    agent Agent,
+    system, user string,
+    onChunk func(string),    // buffer for unary RPCs, forward for streaming
+) (inputTok, outputTok int, err error) {
+
+    timeout := defaultLLMCallTimeout
+    if agent.TimeoutSeconds > 0 {
+        timeout = time.Duration(agent.TimeoutSeconds) * time.Second
+    }
+    ctx, cancel := context.WithTimeout(ctx, timeout)
+    defer cancel()
+
     switch provider.ProviderType {
     case "anthropic":
-        return callAnthropic(ctx, provider, agent, system, user)
+        return callAnthropic(ctx, provider, agent, system, user, onChunk)
+    case "openai", "huggingface":
+        return callOpenAICompatible(ctx, provider, agent, system, user, onChunk)
     default:
-        return "", 0, 0, fmt.Errorf("unsupported provider_type %q", provider.ProviderType)
+        return 0, 0, fmt.Errorf("unsupported provider_type %q", provider.ProviderType)
     }
 }
 ```
 
-`callAnthropic` is an unexported package-level function in `ai.go` (or a
-dedicated `internal/dispatch/anthropic.go`). It uses `net/http` directly —
-no third-party SDK.
+`callAnthropic` and `callOpenAICompatible` are unexported package-level
+functions. They use `net/http` directly — no third-party SDK. Both always
+send `stream: true` to the provider; `onChunk` is invoked once per
+streamed token group.
+
+The full per-task spec, per-provider request/response shapes (incl.
+DeepSeek V4 via HuggingFace Router), the timeout contract, and the
+startup `ReconcileRunningRuns` boot sweep are documented in
+[../3-SofwareDevelopment/mvp-details/llm-client/](../3-SofwareDevelopment/mvp-details/llm-client/README.md).
 
 ---
 
@@ -144,13 +170,14 @@ no third-party SDK.
 // LLMProvider is a persisted LLM configuration entity.
 // It is shared across Agents — multiple Agents may use_provider the same LLMProvider.
 type LLMProvider struct {
-    ID           string `json:"id"`
-    Name         string `json:"name"`
-    ProviderType string `json:"provider_type"` // "anthropic" | "openai"
-    APIKey       string `json:"api_key"`
-    BaseURL      string `json:"base_url,omitempty"` // empty = use provider default
-    CreatedAt    string `json:"created_at"`
-    UpdatedAt    string `json:"updated_at"`
+    ID            string `json:"id"`
+    Name          string `json:"name"`
+    ProviderType  string `json:"provider_type"`             // "anthropic" | "openai" | "huggingface"
+    APIKey        string `json:"api_key"`
+    BaseURL       string `json:"base_url,omitempty"`        // empty = use provider default
+    ProviderRoute string `json:"provider_route,omitempty"`  // HuggingFace-only: backend pin (e.g. "fireworks-ai")
+    CreatedAt     string `json:"created_at"`
+    UpdatedAt     string `json:"updated_at"`
 }
 ```
 
@@ -159,16 +186,17 @@ type LLMProvider struct {
 ```go
 // Agent is a persisted LLM agent configuration entity.
 type Agent struct {
-    ID           string  `json:"id"`
-    Name         string  `json:"name"`
-    Description  string  `json:"description,omitempty"`
-    Model        string  `json:"model"`
-    SystemPrompt string  `json:"system_prompt"`
-    Temperature  float64 `json:"temperature,omitempty"`
-    MaxTokens    int     `json:"max_tokens,omitempty"`
-    ProviderID   string  `json:"provider_id"` // resolved from uses_provider edge
-    CreatedAt    string  `json:"created_at"`
-    UpdatedAt    string  `json:"updated_at"`
+    ID             string  `json:"id"`
+    Name           string  `json:"name"`
+    Description    string  `json:"description,omitempty"`
+    Model          string  `json:"model"`
+    SystemPrompt   string  `json:"system_prompt"`
+    Temperature    float64 `json:"temperature,omitempty"`
+    MaxTokens      int     `json:"max_tokens,omitempty"`
+    TimeoutSeconds int     `json:"timeout_seconds,omitempty"` // 0 = use system default (5 min)
+    ProviderID     string  `json:"provider_id"`                // resolved from uses_provider edge
+    CreatedAt      string  `json:"created_at"`
+    UpdatedAt      string  `json:"updated_at"`
 }
 ```
 

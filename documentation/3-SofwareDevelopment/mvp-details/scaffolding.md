@@ -227,7 +227,7 @@ func DefaultAISchema() types.Schema {
 
 Define the `AIManager` interface and the unexported `aiManager` concrete type in `ai.go`.
 The concrete implementation body can be stubbed — methods return `nil, ErrAgentNotFound` etc.
-Full implementation comes in MVP-AI-013 and MVP-AI-014.
+Full implementation comes in MVP-AI-012 (Intake) and MVP-AI-013 (Execute).
 
 ### File: `ai.go`
 

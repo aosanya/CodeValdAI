@@ -1,12 +1,14 @@
 ````markdown
-# Execute Flow, Auto-Dispatch & Tests — Implementation Details
+# Execute Flow & Tests — Implementation Details
 
 ---
 
-## MVP-AI-014 — Execute Flow
+## MVP-AI-013 — Execute Flow
 
 **Status**: 🔲 Not Started
-**Branch**: `feature/AI-014_execute_flow`
+**Branch**: `feature/AI-013_execute_flow`
+
+**Depends on**: [MVP-AI-012 Intake](run-intake.md), [MVP-AI-017 Dispatcher](llm-client/dispatcher.md)
 
 ### Goal
 
@@ -36,6 +38,8 @@ AIManager.ExecuteRun(ctx, runID, []RunInput)
        dm.UpdateEntity(ctx, runID, {"status": "pending_execution"})
 
 5. dm.GetEntity(ctx, run.AgentID) → Agent
+   dm.TraverseRelationship(ctx, agent.ID, "uses_provider") → LLMProvider
+       provider not found → ErrProviderNotFound
 
 6. Load RunFields (to include field labels in prompt):
        dm.TraverseRelationship(ctx, runID, "has_field") → []RunField entities
@@ -51,20 +55,22 @@ AIManager.ExecuteRun(ctx, runID, []RunInput)
 8. Transition: pending_execution → running; stamp started_at
        dm.UpdateEntity(ctx, runID, {"status":"running", "started_at": now})
 
-9. llmClient.Complete(ctx, CompletionRequest{
-       Model:       agent.Model,
-       System:      agent.SystemPrompt,
-       UserMessage: <execution user message>,
-       Temperature: agent.Temperature,
-       MaxTokens:   agent.MaxTokens,
-   })
+9. var output strings.Builder
+   inputTok, outputTok, err := m.callLLM(ctx,
+       provider, agent,
+       agent.SystemPrompt,        // system
+       userMessage,               // user (built in step 7)
+       output.WriteString,        // onChunk — buffering for unary RPC
+   )
+   // Per MVP-AI-017: callLLM wraps in context.WithTimeout using
+   // agent.TimeoutSeconds (or system default 5 min).
 
 10a. On success:
        dm.UpdateEntity(ctx, runID, {
            "status":        "completed",
-           "output":        response.Content,
-           "input_tokens":  response.InputTokens,
-           "output_tokens": response.OutputTokens,
+           "output":        output.String(),
+           "input_tokens":  inputTok,    // 0 if provider omitted usage
+           "output_tokens": outputTok,   // 0 if provider omitted usage
            "completed_at":  now,
            "updated_at":    now,
        })
@@ -73,10 +79,15 @@ AIManager.ExecuteRun(ctx, runID, []RunInput)
            // publish errors: log, do not return to caller
        return (AgentRun{status:"completed"}, nil)
 
-10b. On LLM error:
+10b. On LLM error (incl. context.DeadlineExceeded):
+       msg := err.Error()
+       if errors.Is(err, context.DeadlineExceeded) {
+           msg = fmt.Sprintf("timeout exceeded after %s", timeout)
+       }
        dm.UpdateEntity(ctx, runID, {
            "status":        "failed",
-           "error_message": err.Error(),
+           "error_message": msg,
+           "output":        output.String(),  // partial output preserved
            "completed_at":  now,
            "updated_at":    now,
        })
@@ -84,6 +95,11 @@ AIManager.ExecuteRun(ctx, runID, []RunInput)
            fmt.Sprintf("cross.ai.%s.run.failed", agencyID), runID)
        return (AgentRun{status:"failed"}, err)
 ```
+
+For the streaming sibling RPC (`ExecuteRunStreaming`), see
+[llm-client/streaming.md](llm-client/streaming.md). Both unary and
+streaming RPCs share this same flow — they differ only in the `onChunk`
+callback passed to `callLLM`.
 
 ---
 
@@ -108,19 +124,25 @@ Unmatched inputs (no corresponding field) are included with their fieldname only
 | `ExecuteRun` with unknown `runID` | `ErrRunNotFound` |
 | `ExecuteRun` on a `completed` run | `ErrRunNotIntaked` |
 | `ExecuteRun` on a `running` run | `ErrRunNotIntaked` |
+| Agent has no `uses_provider` edge | `ErrProviderNotFound` |
 | Valid `ExecuteRun` — LLM succeeds | Run status = `completed`; output non-empty |
 | Valid `ExecuteRun` — LLM errors | Run status = `failed`; error_message stored; error returned |
-| `completed` run token counts stored | `input_tokens > 0`, `output_tokens > 0` |
+| Valid `ExecuteRun` — `context.DeadlineExceeded` | Run status = `failed`; error_message contains "timeout exceeded after"; partial output preserved |
+| `completed` run token counts stored | `input_tokens >= 0`, `output_tokens >= 0` (0 when provider omits `usage` — see [llm-client/dispatcher.md](llm-client/dispatcher.md)) |
 | `cross.ai.{id}.run.completed` published | ✅ (fake publisher captures call) |
 | `cross.ai.{id}.run.failed` published on failure | ✅ |
 | `completed_at` stamped on both success and failure | ✅ |
 
 ---
 
-## MVP-AI-015 — Auto-Dispatch Consumer
+## Future Work — Auto-Dispatch Consumer
 
-**Status**: 🔲 Not Started
-**Branch**: `feature/AI-015_auto_dispatch`
+**Status**: ⏸️ Deferred — not in current [mvp.md](../mvp.md) scope.
+
+This section captures the design for an inbound consumer that auto-triggers
+runs from CodeValdCross events. It is documented here for continuity but is
+**not** an MVP task. To activate, add a new task ID to `mvp.md` and update
+the cross-service-events table in [../README.md](../README.md).
 
 ### Goal
 
@@ -184,23 +206,28 @@ descriptive error message.
 
 ---
 
-## MVP-AI-016 — Unit & Integration Tests
+## MVP-AI-015 — Unit & Integration Tests
 
 **Status**: 🔲 Not Started
-**Branch**: `feature/AI-016_tests`
+**Branch**: `feature/AI-015_tests`
 
 ### Goal
 
-Full test coverage for all `AIManager` methods using `fakeDataManager` and
-`FakeLLMClient`. Integration tests run against a real ArangoDB instance.
+Full test coverage for all `AIManager` methods using `fakeDataManager` plus
+an `httptest.Server` standing in for the LLM provider. There is no
+`FakeLLMClient` — the LLM dispatch has no interface, so unit tests mock at
+the HTTP layer instead. Integration tests run against a real ArangoDB
+instance.
 
 ### Test Files
 
 | File | Covers |
 |---|---|
-| `ai_test.go` | `NewAIManager`, `CreateAgent`, `GetAgent`, `ListAgents`, `DeleteAgent` |
-| `intake_test.go` | `IntakeRun` — all happy paths and error paths |
-| `execute_test.go` | `ExecuteRun` — all happy paths, error paths, and status transitions |
+| `ai_test.go` | `NewAIManager`, Provider CRUD, Agent CRUD |
+| `intake_test.go` | `IntakeRun` — all happy paths and error paths (uses `httptest.Server` for the provider) |
+| `execute_test.go` | `ExecuteRun` and `ExecuteRunStreaming` — all happy paths, error paths, status transitions, timeout, partial-output-on-failure |
+| `dispatcher_test.go` | `callLLM` switch routing, `callAnthropic`, `callOpenAICompatible` (covers OpenAI + HuggingFace) — `httptest.Server` mocks each provider's wire shape |
+| `recovery_test.go` | `ReconcileRunningRuns` boot sweep |
 | `storage/arangodb/storage_test.go` | ArangoDB backend — integration tests with `+build integration` tag |
 
 ### Fake DataManager
@@ -213,6 +240,22 @@ type fakeDataManager struct {
     relationships []entitygraph.Relationship
     mu            sync.RWMutex
 }
+```
+
+### Mocking the Provider HTTP Layer
+
+```go
+// Each test that exercises callLLM stands up an httptest.Server that
+// returns the provider's wire shape (Anthropic SSE, OpenAI Chat
+// Completions SSE, etc.) and points the LLMProvider.BaseURL at it:
+srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/event-stream")
+    fmt.Fprint(w, "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\n")
+    fmt.Fprint(w, "data: {\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1}}\n\n")
+    fmt.Fprint(w, "data: [DONE]\n\n")
+}))
+defer srv.Close()
+provider := LLMProvider{ProviderType: "openai", BaseURL: srv.URL, APIKey: "test"}
 ```
 
 ### Coverage Requirements

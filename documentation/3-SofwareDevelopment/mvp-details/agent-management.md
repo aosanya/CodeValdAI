@@ -3,10 +3,10 @@
 
 ---
 
-## MVP-AI-008 — ArangoDB Backend
+## MVP-AI-007 — ArangoDB Backend
 
-**Status**: 🔲 Not Started
-**Branch**: `feature/AI-008_arangodb_backend`
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
+**Branch**: `feature/AI-007_arangodb_backend`
 
 ### Goal
 
