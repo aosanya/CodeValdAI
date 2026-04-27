@@ -1,4 +1,4 @@
-.PHONY: build build-server run-server restart kill proto test test-arango test-all vet lint clean
+.PHONY: build build-server build-dev server dev dev-restart kill proto test cover test-arango test-all vet lint clean
 
 export PATH := /usr/local/go/bin:$(PATH)
 
@@ -8,30 +8,34 @@ export PATH := /usr/local/go/bin:$(PATH)
 build:
 	go build ./...
 
-## Build the service binary to bin/codevaldai.
+## Build the production server binary to bin/codevaldai-server.
 build-server:
-	go build -o bin/codevaldai ./cmd
+	go build -o bin/codevaldai-server ./cmd/server
 
-## Build and run the service.
-## ArangoDB and Cross vars can be placed in a .env file (loaded automatically).
-run-server: build-server
+## Build the dev binary to bin/codevaldai-dev.
+build-dev:
+	go build -o bin/codevaldai-dev ./cmd/dev
+
+## Run the production server locally. Expects env vars to be set by the caller
+## (or the shell) — does not source .env, to mirror container behaviour.
+server: build-server
+	./bin/codevaldai-server
+
+## Run the dev binary with local-dev defaults. Sources .env if present so
+## AI_ARANGO_PASSWORD etc. stay out of the source tree.
+dev: build-dev
 	@if [ -f .env ]; then \
 		set -a && . ./.env && set +a; \
 	fi; \
-	./bin/codevaldai
+	./bin/codevaldai-dev
 
-## Stop any running instance, rebuild, and run.
-restart: kill build-server
-	@echo "Running codevaldai..."
-	@if [ -f .env ]; then \
-		set -a && . ./.env && set +a; \
-	fi; \
-	./bin/codevaldai
+## Stop any running dev instance, rebuild, and run.
+dev-restart: kill dev
 
-## Stop any running instances of codevaldai.
+## Stop any running instances of the codevaldai binaries.
 kill:
 	@echo "Stopping any running instances..."
-	-@pkill -9 -f "bin/codevaldai" 2>/dev/null || true
+	-@pkill -9 -f "bin/codevaldai-" 2>/dev/null || true
 	-@fuser -k $${CODEVALDAI_GRPC_PORT:-50056}/tcp 2>/dev/null || true
 	@sleep 1
 
@@ -39,22 +43,22 @@ kill:
 
 ## Regenerate Go stubs from proto/codevaldai/v1/*.proto.
 ## Requires: buf, protoc-gen-go, protoc-gen-go-grpc on PATH.
-## Install: go install github.com/bufbuild/buf/cmd/buf@latest
-##          go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-##          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 proto:
 	buf generate
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 
-## Run all unit tests (integration tests skip if ArangoDB is unreachable).
+## Run all unit tests with race detector (skips integration tests that need ArangoDB).
 test:
 	go test -v -race -count=1 ./...
 
+## Run tests and produce an HTML coverage report (coverage.html).
+cover:
+	go test -v -race -count=1 -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+
 ## Run ArangoDB integration tests.
 ## Loads .env if it exists, otherwise falls back to environment variables.
-## Usage: make test-arango
-##        CODEVALDAI_ARANGO_URL=http://host:8529 CODEVALDAI_ARANGO_USER=root CODEVALDAI_ARANGO_PASSWORD=pw make test-arango
 test-arango:
 	@if [ -f .env ]; then \
 		set -a && . ./.env && set +a; \

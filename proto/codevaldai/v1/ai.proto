@@ -21,23 +21,30 @@ enum AgentRunStatus {
 // ── LLMProvider ───────────────────────────────────────────────────────────────
 
 // LLMProvider is a persisted LLM configuration entity shared across Agents.
+//
+// provider_route is HuggingFace-only: when non-empty the dispatcher appends
+// it to Agent.model as ":<route>" to pin the HuggingFace Router to a
+// specific backend (e.g. "fireworks-ai"). It is ignored for the
+// "anthropic" and "openai" provider types.
 message LLMProvider {
-  string                    id            = 1;
-  string                    name          = 2;
-  string                    provider_type = 3; // "anthropic" | "openai"
-  string                    api_key       = 4;
-  string                    base_url      = 5; // empty = use provider default endpoint
-  google.protobuf.Timestamp created_at    = 6;
-  google.protobuf.Timestamp updated_at    = 7;
+  string                    id             = 1;
+  string                    name           = 2;
+  string                    provider_type  = 3; // "anthropic" | "openai" | "huggingface"
+  string                    api_key        = 4;
+  string                    base_url       = 5; // empty = use provider default endpoint
+  google.protobuf.Timestamp created_at     = 6;
+  google.protobuf.Timestamp updated_at     = 7;
+  string                    provider_route = 8; // HuggingFace-only: backend pin
 }
 
 // CreateProviderRequest carries the data required to create a new LLMProvider.
 // name, provider_type, and api_key are required.
 message CreateProviderRequest {
-  string name          = 1;
-  string provider_type = 2;
-  string api_key       = 3;
-  string base_url      = 4;
+  string name           = 1;
+  string provider_type  = 2;
+  string api_key        = 3;
+  string base_url       = 4;
+  string provider_route = 5; // HuggingFace-only
 }
 
 // GetProviderRequest selects a provider by its ID.
@@ -55,11 +62,16 @@ message ListProvidersResponse {
 
 // UpdateProviderRequest carries mutable fields for an LLMProvider.
 // Only non-empty fields are applied.
+//
+// provider_type is intentionally absent: changing the type of an existing
+// LLMProvider invalidates uses_provider edges. Callers must delete and
+// recreate.
 message UpdateProviderRequest {
-  string provider_id = 1;
-  string name        = 2;
-  string api_key     = 3;
-  string base_url    = 4;
+  string provider_id    = 1;
+  string name           = 2;
+  string api_key        = 3;
+  string base_url       = 4;
+  string provider_route = 5;
 }
 
 // DeleteProviderRequest selects a provider to remove.
@@ -74,29 +86,34 @@ message DeleteProviderResponse {}
 
 // Agent is a persisted LLM agent configuration entity.
 // It references one LLMProvider via a uses_provider graph edge.
+//
+// timeout_seconds overrides the system default LLM-call timeout for this
+// Agent. Zero means "use the system default".
 message Agent {
-  string                    id            = 1;
-  string                    name          = 2;
-  string                    description   = 3;
-  string                    provider_id   = 4;
-  string                    model         = 5;
-  string                    system_prompt = 6;
-  double                    temperature   = 7;
-  int32                     max_tokens    = 8;
-  google.protobuf.Timestamp created_at    = 9;
-  google.protobuf.Timestamp updated_at    = 10;
+  string                    id              = 1;
+  string                    name            = 2;
+  string                    description     = 3;
+  string                    provider_id     = 4;
+  string                    model           = 5;
+  string                    system_prompt   = 6;
+  double                    temperature     = 7;
+  int32                     max_tokens      = 8;
+  google.protobuf.Timestamp created_at      = 9;
+  google.protobuf.Timestamp updated_at      = 10;
+  int32                     timeout_seconds = 11; // 0 = system default
 }
 
 // CreateAgentRequest carries the data required to create a new Agent.
 // name, provider_id, model, and system_prompt are required.
 message CreateAgentRequest {
-  string name          = 1;
-  string description   = 2;
-  string provider_id   = 3;
-  string model         = 4;
-  string system_prompt = 5;
-  double temperature   = 6;
-  int32  max_tokens    = 7;
+  string name            = 1;
+  string description     = 2;
+  string provider_id     = 3;
+  string model           = 4;
+  string system_prompt   = 5;
+  double temperature     = 6;
+  int32  max_tokens      = 7;
+  int32  timeout_seconds = 8;
 }
 
 // GetAgentRequest selects an agent by its ID.
@@ -115,14 +132,15 @@ message ListAgentsResponse {
 // UpdateAgentRequest carries mutable fields for an Agent.
 // Only non-empty / non-zero fields are applied.
 message UpdateAgentRequest {
-  string agent_id      = 1;
-  string name          = 2;
-  string description   = 3;
-  string provider_id   = 4;
-  string model         = 5;
-  string system_prompt = 6;
-  double temperature   = 7;
-  int32  max_tokens    = 8;
+  string agent_id        = 1;
+  string name            = 2;
+  string description     = 3;
+  string provider_id     = 4;
+  string model           = 5;
+  string system_prompt   = 6;
+  double temperature     = 7;
+  int32  max_tokens      = 8;
+  int32  timeout_seconds = 9;
 }
 
 // DeleteAgentRequest selects an agent to remove.
