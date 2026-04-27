@@ -1,8 +1,8 @@
 // Package codevaldai — pre-delivered schema definition.
 //
 // This file exposes [DefaultAISchema], which returns the fixed [types.Schema]
-// for CodeValdAI. cmd/main.go seeds this schema idempotently on startup via
-// AISchemaManager.SetSchema.
+// for CodeValdAI. internal/app seeds this schema idempotently on startup via
+// [entitygraph.SeedSchema].
 //
 // The schema declares five TypeDefinitions:
 //   - LLMProvider — reusable LLM configuration entity (mutable)
@@ -31,7 +31,7 @@ package codevaldai
 import "github.com/aosanya/CodeValdSharedLib/types"
 
 // DefaultAISchema returns the pre-delivered [types.Schema] seeded by
-// cmd/main.go on startup via AISchemaManager.SetSchema. The operation is
+// internal/app on startup via [entitygraph.SeedSchema]. The operation is
 // idempotent — calling it multiple times with the same schema ID is safe.
 //
 // The returned schema contains TypeDefinitions for LLMProvider, Agent,
@@ -53,11 +53,14 @@ func DefaultAISchema() types.Schema {
 					{Name: "ref_code", Type: types.PropertyTypeUUID, Required: true},
 					{Name: "code", Type: types.PropertyTypeString, Required: false},
 					{Name: "name", Type: types.PropertyTypeString, Required: true},
-					// provider_type: "anthropic" (MVP) | "openai" (reserved)
+					// provider_type: "anthropic" | "openai" | "huggingface"
 					{Name: "provider_type", Type: types.PropertyTypeString, Required: true},
 					{Name: "api_key", Type: types.PropertyTypeString, Required: true},
 					// base_url: empty string means use the provider's default endpoint.
 					{Name: "base_url", Type: types.PropertyTypeString},
+					// provider_route: HuggingFace-only backend pin (e.g. "fireworks-ai");
+					// ignored for "anthropic" and "openai".
+					{Name: "provider_route", Type: types.PropertyTypeString},
 					{Name: "created_at", Type: types.PropertyTypeString},
 					{Name: "updated_at", Type: types.PropertyTypeString},
 				},
@@ -86,6 +89,9 @@ func DefaultAISchema() types.Schema {
 					{Name: "system_prompt", Type: types.PropertyTypeString, Required: true},
 					{Name: "temperature", Type: types.PropertyTypeFloat},
 					{Name: "max_tokens", Type: types.PropertyTypeInteger},
+					// timeout_seconds: per-Agent override of the system default
+					// LLM-call timeout. Zero means use the default.
+					{Name: "timeout_seconds", Type: types.PropertyTypeInteger},
 					{Name: "created_at", Type: types.PropertyTypeString},
 					{Name: "updated_at", Type: types.PropertyTypeString},
 				},

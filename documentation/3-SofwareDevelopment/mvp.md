@@ -41,7 +41,7 @@ The MVP delivers:
 | MVP-AI-013 | Execute flow — `ExecuteRun` implementation (validate inputs, fetch LLMProvider, call LLM, store output, publish events) | 🔲 Not Started | MVP-AI-012 |
 | MVP-AI-014 | Provider CRUD — `CreateProvider`, `GetProvider`, `ListProviders`, `UpdateProvider`, `DeleteProvider` implementations in `ai.go` | ✅ Done | MVP-AI-005, MVP-AI-007 |
 | MVP-AI-015 | Unit & integration tests — `fakeDataManager`, full run-phase acceptance tests | 🔲 Not Started | MVP-AI-007, MVP-AI-012, MVP-AI-013 |
-| MVP-AI-016 | LLMProvider/Agent schema additions — `ProviderRoute` (HF backend pin), `TimeoutSeconds` (per-Agent override), `huggingface` provider type | 🔲 Not Started | MVP-AI-002, MVP-AI-004 |
+| MVP-AI-016 | LLMProvider/Agent schema additions — `ProviderRoute` (HF backend pin), `TimeoutSeconds` (per-Agent override), `huggingface` provider type | 🚀 In Progress | MVP-AI-002, MVP-AI-004 |
 | MVP-AI-017 | LLM dispatcher refactor — `callOpenAICompatible` (OpenAI + HuggingFace), `callAnthropic`, per-Agent timeout, startup `running`-run sweep with `run.failed` publish | 🔲 Not Started | MVP-AI-016 |
 | MVP-AI-018 | Streaming RPC — `ExecuteRunStreaming` server-streaming gRPC, dispatcher chunk callback, dual unary+streaming entrypoints sharing one dispatcher | 🔲 Not Started | MVP-AI-017 |
 

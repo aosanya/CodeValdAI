@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+#
+# Build context MUST be the monorepo root so the COPY lines can reach
+# CodeValdSharedLib/ — go.mod has `replace ... => ../CodeValdSharedLib`,
+# which only resolves when SharedLib is present on disk at build time.
+#
+# Invoked from Deployment/staging/codevaldai/Makefile as:
+#   docker build -f ../../../CodeValdAI/Dockerfile.server -t codevaldai:staging ../../..
+
+# ── Build stage ───────────────────────────────────────────────────────────────
+FROM golang:1.25-alpine AS build
+
+WORKDIR /src
+
+# SharedLib first — referenced via `replace` in CodeValdAI/go.mod.
+COPY CodeValdSharedLib/ /CodeValdSharedLib/
+
+# Cache dependency downloads separately from source changes.
+COPY CodeValdAI/go.mod CodeValdAI/go.sum ./
+RUN go mod download
+
+# Copy the rest of the source and build the server binary.
+COPY CodeValdAI/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o /codevaldai-server ./cmd/server
+
+# ── Runtime stage ─────────────────────────────────────────────────────────────
+FROM gcr.io/distroless/static-debian12
+
+COPY --from=build /codevaldai-server /codevaldai-server
+
+# gRPC port (CODEVALDAI_GRPC_PORT)
+EXPOSE 50056
+
+ENTRYPOINT ["/codevaldai-server"]

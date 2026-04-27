@@ -7,8 +7,8 @@ agent: agent
 > ⚠️ **Before starting**, run the following documentation hygiene check across
 > **every repo you are about to touch**, then fix any hits before writing a
 
-> ⚠️ **Before starting**, confirm no feature branch is currently open in any repo.
-> If one exists, finish and merge it first (see the **Finish** section at the bottom).
+> ⚠️ **Before starting**, after picking a task, confirm no feature branch is currently open in **the target repo** for that task.
+> If one exists, finish and merge it first in that repo only (see the **Finish** section at the bottom). Branches in other repos do not block you.
 
 The **authoritative task list** for the whole platform is:
 `/workspaces/CodeVald-AIProject/CodeValdCross/documentation/3-SofwareDevelopment/prioritization.md`

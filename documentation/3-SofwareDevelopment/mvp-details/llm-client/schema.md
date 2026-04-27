@@ -1,6 +1,6 @@
 # MVP-AI-016 — Schema & Model Updates
 
-**Status**: 🔲 Not Started
+**Status**: 🚀 In Progress
 **Branch**: `feature/AI-016_schema_huggingface_timeout`
 
 ### Goal

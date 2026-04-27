@@ -136,12 +136,18 @@ func NewAIManager(
 	}
 }
 
+// defaultLLMCallTimeout is the system default timeout applied to LLM calls
+// when an Agent does not specify its own [Agent.TimeoutSeconds]. Consumed
+// by the dispatcher in MVP-AI-017.
+const defaultLLMCallTimeout = 5 * time.Minute
+
 // ── Provider Catalogue ────────────────────────────────────────────────────────
 
 // knownProviderTypes lists the accepted values for LLMProvider.ProviderType.
 var knownProviderTypes = map[string]bool{
-	"anthropic": true,
-	"openai":    true,
+	"anthropic":   true,
+	"openai":      true,
+	"huggingface": true,
 }
 
 // CreateProvider persists a new LLMProvider entity in the graph.
@@ -156,12 +162,13 @@ func (m *aiManager) CreateProvider(ctx context.Context, req CreateProviderReques
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	props := map[string]any{
-		"name":          req.Name,
-		"provider_type": req.ProviderType,
-		"api_key":       req.APIKey,
-		"base_url":      req.BaseURL,
-		"created_at":    now,
-		"updated_at":    now,
+		"name":           req.Name,
+		"provider_type":  req.ProviderType,
+		"api_key":        req.APIKey,
+		"base_url":       req.BaseURL,
+		"provider_route": req.ProviderRoute,
+		"created_at":     now,
+		"updated_at":     now,
 	}
 
 	entity, err := m.dm.CreateEntity(ctx, entitygraph.CreateEntityRequest{
@@ -220,6 +227,9 @@ func (m *aiManager) UpdateProvider(ctx context.Context, providerID string, req U
 	if req.BaseURL != "" {
 		props["base_url"] = req.BaseURL
 	}
+	if req.ProviderRoute != "" {
+		props["provider_route"] = req.ProviderRoute
+	}
 	props["updated_at"] = now
 
 	updated, err := m.dm.UpdateEntity(ctx, m.agencyID, providerID, entitygraph.UpdateEntityRequest{
@@ -270,14 +280,15 @@ func (m *aiManager) CreateAgent(ctx context.Context, req CreateAgentRequest) (Ag
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	props := map[string]any{
-		"name":          req.Name,
-		"description":   req.Description,
-		"model":         req.Model,
-		"system_prompt": req.SystemPrompt,
-		"temperature":   req.Temperature,
-		"max_tokens":    req.MaxTokens,
-		"created_at":    now,
-		"updated_at":    now,
+		"name":            req.Name,
+		"description":     req.Description,
+		"model":           req.Model,
+		"system_prompt":   req.SystemPrompt,
+		"temperature":     req.Temperature,
+		"max_tokens":      req.MaxTokens,
+		"timeout_seconds": req.TimeoutSeconds,
+		"created_at":      now,
+		"updated_at":      now,
 	}
 
 	entity, err := m.dm.CreateEntity(ctx, entitygraph.CreateEntityRequest{
@@ -358,6 +369,9 @@ func (m *aiManager) UpdateAgent(ctx context.Context, agentID string, req UpdateA
 	}
 	if req.MaxTokens != 0 {
 		props["max_tokens"] = req.MaxTokens
+	}
+	if req.TimeoutSeconds != 0 {
+		props["timeout_seconds"] = req.TimeoutSeconds
 	}
 	props["updated_at"] = now
 
@@ -481,13 +495,14 @@ func cloneProps(src map[string]any) map[string]any {
 func providerFromEntity(e entitygraph.Entity) LLMProvider {
 	p := e.Properties
 	return LLMProvider{
-		ID:           e.ID,
-		Name:         strProp(p, "name"),
-		ProviderType: strProp(p, "provider_type"),
-		APIKey:       strProp(p, "api_key"),
-		BaseURL:      strProp(p, "base_url"),
-		CreatedAt:    strProp(p, "created_at"),
-		UpdatedAt:    strProp(p, "updated_at"),
+		ID:            e.ID,
+		Name:          strProp(p, "name"),
+		ProviderType:  strProp(p, "provider_type"),
+		APIKey:        strProp(p, "api_key"),
+		BaseURL:       strProp(p, "base_url"),
+		ProviderRoute: strProp(p, "provider_route"),
+		CreatedAt:     strProp(p, "created_at"),
+		UpdatedAt:     strProp(p, "updated_at"),
 	}
 }
 
@@ -495,15 +510,16 @@ func providerFromEntity(e entitygraph.Entity) LLMProvider {
 func agentFromEntity(e entitygraph.Entity) Agent {
 	p := e.Properties
 	return Agent{
-		ID:           e.ID,
-		Name:         strProp(p, "name"),
-		Description:  strProp(p, "description"),
-		Model:        strProp(p, "model"),
-		SystemPrompt: strProp(p, "system_prompt"),
-		Temperature:  float64Prop(p, "temperature"),
-		MaxTokens:    intProp(p, "max_tokens"),
-		CreatedAt:    strProp(p, "created_at"),
-		UpdatedAt:    strProp(p, "updated_at"),
+		ID:             e.ID,
+		Name:           strProp(p, "name"),
+		Description:    strProp(p, "description"),
+		Model:          strProp(p, "model"),
+		SystemPrompt:   strProp(p, "system_prompt"),
+		Temperature:    float64Prop(p, "temperature"),
+		MaxTokens:      intProp(p, "max_tokens"),
+		TimeoutSeconds: intProp(p, "timeout_seconds"),
+		CreatedAt:      strProp(p, "created_at"),
+		UpdatedAt:      strProp(p, "updated_at"),
 	}
 }
 
