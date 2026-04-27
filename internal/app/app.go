@@ -17,6 +17,7 @@ import (
 	codevaldai "github.com/aosanya/CodeValdAI"
 	pb "github.com/aosanya/CodeValdAI/gen/go/codevaldai/v1"
 	"github.com/aosanya/CodeValdAI/internal/config"
+	"github.com/aosanya/CodeValdAI/internal/recovery"
 	"github.com/aosanya/CodeValdAI/internal/registrar"
 	"github.com/aosanya/CodeValdAI/internal/server"
 	aiarangodb "github.com/aosanya/CodeValdAI/storage/arangodb"
@@ -76,6 +77,16 @@ func Run(cfg config.Config) error {
 		seedCancel()
 	} else {
 		log.Println("codevaldai: CODEVALDAI_AGENCY_ID not set — skipping schema seed")
+	}
+
+	// ── Boot sweep — fail any AgentRun left in "running" by a prior crash ───
+	if cfg.AgencyID != "" {
+		sweepCtx, sweepCancel := context.WithTimeout(ctx, 30*time.Second)
+		if err := recovery.ReconcileRunningRuns(sweepCtx, backend, pub, cfg.AgencyID, nil); err != nil {
+			log.Printf("codevaldai: reconcile running runs: %v", err)
+			// continue — reconcile failure must not block startup
+		}
+		sweepCancel()
 	}
 
 	// ── AIManager ────────────────────────────────────────────────────────────
