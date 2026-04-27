@@ -27,7 +27,7 @@
 
 | Dependency | Purpose |
 |---|---|
-| **Anthropic API** | LLM provider for MVP — all calls go through `internal/llm/anthropic/` |
+| **LLM Providers** (Anthropic, OpenAI, HuggingFace Router) | LLM dispatch is data-driven — `aiManager` switches on `LLMProvider.ProviderType` and calls the provider's HTTP API directly via `net/http`. HuggingFace Router serves DeepSeek V4 and other open models. See [../../3-SofwareDevelopment/mvp-details/llm-client/](../../3-SofwareDevelopment/mvp-details/llm-client/README.md) |
 | **ArangoDB** | Persistence for Agent, AgentRun, RunField, RunInput entities |
 | **CodeValdCross gRPC** | Registration heartbeat and pub/sub event publishing |
 | **CodeValdSharedLib** | `entitygraph.DataManager`, `registrar`, `serverutil`, `arangoutil`, `types` |
