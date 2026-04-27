@@ -201,10 +201,10 @@ func (s *Server) IntakeRun(ctx context.Context, req *pb.IntakeRunRequest) (*pb.I
 
 ---
 
-## MVP-AI-011 — Config & Registrar
+## MVP-AI-010 — Config & Registrar
 
-**Status**: 🔲 Not Started
-**Branch**: `feature/AI-011_config_registrar`
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
+**Branch**: `feature/AI-010_config_registrar`
 
 ### Goal
 
@@ -259,10 +259,10 @@ using `schemaroutes.RoutesFromSchema` from CodeValdSharedLib.
 
 ---
 
-## MVP-AI-012 — cmd/main.go Wiring
+## MVP-AI-011 — cmd/main.go Wiring
 
-**Status**: 🔲 Not Started
-**Branch**: `feature/AI-012_cmd_wiring`
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
+**Branch**: `feature/AI-011_cmd_wiring`
 
 ### Goal
 
