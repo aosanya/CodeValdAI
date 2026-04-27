@@ -95,11 +95,16 @@ the architecture and per-task detail files.
 
 ## Branch Naming
 
+Proposed branch per task. Completed tasks landed on the actual branches
+recorded in [mvp_done.md](mvp_done.md) — several were bundled onto shared
+branches (e.g. 002–006 + 014 all landed on `feature/AI-007_anthropic-implementation`).
+
 ```
-feature/AI-002_domain_models_update
-feature/AI-003_error_types_update
-feature/AI-004_schema_update
-feature/AI-005_aimanager_update
+feature/AI-001_module_scaffolding
+feature/AI-002_domain_models
+feature/AI-003_error_types
+feature/AI-004_pre_delivered_schema
+feature/AI-005_aimanager_interface
 feature/AI-006_delete_llm_package
 feature/AI-007_arangodb_backend
 feature/AI-008_grpc_proto

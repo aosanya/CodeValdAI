@@ -5,7 +5,7 @@
 
 ## MVP-AI-001 — Module Scaffolding
 
-**Status**: 🔲 Not Started
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
 **Branch**: `feature/AI-001_module_scaffolding`
 
 ### Goal
@@ -41,7 +41,7 @@ No business logic — only skeleton files and configuration.
 
 ## MVP-AI-002 — Domain Models
 
-**Status**: 🔲 Not Started
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
 **Branch**: `feature/AI-002_domain_models`
 
 ### Goal
@@ -147,7 +147,7 @@ type RunFilter struct {
 
 ## MVP-AI-003 — Error Types
 
-**Status**: 🔲 Not Started
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
 **Branch**: `feature/AI-003_error_types`
 
 ### Goal
@@ -181,7 +181,7 @@ var (
 
 ## MVP-AI-004 — Pre-Delivered Schema
 
-**Status**: 🔲 Not Started
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
 **Branch**: `feature/AI-004_pre_delivered_schema`
 
 ### Goal
@@ -220,7 +220,7 @@ func DefaultAISchema() types.Schema {
 
 ## MVP-AI-005 — AIManager Interface
 
-**Status**: 🔲 Not Started
+**Status**: ✅ Done — see [../mvp_done.md](../mvp_done.md)
 **Branch**: `feature/AI-005_aimanager_interface`
 
 ### Goal
