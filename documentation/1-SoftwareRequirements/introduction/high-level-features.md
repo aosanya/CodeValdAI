@@ -3,20 +3,39 @@
 
 ## 1. Agent Catalogue
 
-An **Agent** is a persistent configuration entity:
+An **Agent** is a persistent configuration entity, linked to an `LLMProvider`
+via a `uses_provider` graph edge:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `id` | string | ✅ | Unique identifier |
 | `name` | string | ✅ | Human-readable name (e.g. "Risk Analyst") |
 | `description` | string | | What this agent does |
-| `provider` | string | ✅ | LLM provider — `"anthropic"` \| `"openai"` |
-| `model` | string | ✅ | Model identifier (e.g. `"claude-3-5-sonnet-20241022"`) |
+| `provider_id` | string | ✅ | FK to an `LLMProvider` entity (resolved from the `uses_provider` edge) |
+| `model` | string | ✅ | Model identifier (e.g. `"claude-3-5-sonnet-20241022"`, `"gpt-4o"`, `"deepseek-ai/DeepSeek-V4"`) |
 | `system_prompt` | string | ✅ | Persona and constraint instructions sent as the system message |
 | `temperature` | number | | Sampling temperature (default 0.7) |
 | `max_tokens` | number | | Max output tokens (default 4096) |
+| `timeout_seconds` | number | | Per-Agent override of the system LLM-call timeout (default 5 min) |
 
-Multiple agents can exist per Agency, each with a different persona and model binding.
+Multiple agents can exist per Agency, each with a different persona, model
+binding, and (via `provider_id`) provider configuration.
+
+### Provider Catalogue
+
+An **LLMProvider** is a separate persistent configuration entity that holds
+the connection-level concerns (API key, optional base URL override, optional
+HuggingFace backend route). One `LLMProvider` is shared across many `Agent`s
+via the `uses_provider` edge:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `id` | string | ✅ | Unique identifier |
+| `name` | string | ✅ | Human-readable name (e.g. "huggingface-deepseek") |
+| `provider_type` | string | ✅ | `"anthropic"` \| `"openai"` \| `"huggingface"` |
+| `api_key` | string | ✅ | Provider credential (stored in DB, not env) |
+| `base_url` | string | | Override the provider's default endpoint |
+| `provider_route` | string | | HuggingFace-only — backend pin (e.g. `"fireworks-ai"` for DeepSeek V4) |
 
 ---
 
@@ -91,27 +110,39 @@ pending_intake ──► pending_execution ──► running ──► completed
 
 ---
 
-## 4. Provider-Agnostic LLM Client
+## 4. Data-Driven LLM Dispatch
 
-The `LLMClient` interface abstracts all provider-specific HTTP calls.
-`cmd/main.go` constructs the desired implementation and injects it into `AIManager`.
+LLM dispatch is **data-driven** — there is no `LLMClient` interface. The
+`aiManager` reads the `LLMProvider` entity from the graph at call time and
+routes via an internal switch on `LLMProvider.ProviderType`:
 
-**MVP implementation**: Anthropic (`claude-3-5-sonnet-20241022`)
+| `provider_type` | Wire schema | Default endpoint |
+|---|---|---|
+| `anthropic` | Anthropic Messages API | `https://api.anthropic.com/v1/messages` |
+| `openai` | OpenAI Chat Completions | `https://api.openai.com/v1/chat/completions` |
+| `huggingface` | OpenAI Chat Completions (router) | `https://router.huggingface.co/v1/chat/completions` |
 
-```go
-type LLMClient interface {
-    Complete(ctx context.Context, req CompletionRequest) (CompletionResponse, error)
-}
-```
+The dispatcher always streams from the provider internally; both unary
+`ExecuteRun` and streaming `ExecuteRunStreaming` RPCs share the same code
+path. Adding a new OpenAI-compatible provider (Together direct, Fireworks
+direct, local vLLM, etc.) requires only a new enum value and a new `case`
+in the dispatch switch — no new dispatcher implementation.
+
+See [../../3-SofwareDevelopment/mvp-details/llm-client/](../../3-SofwareDevelopment/mvp-details/llm-client/README.md)
+for the full dispatcher contract, per-provider request/response shapes, and
+the DeepSeek V4 worked example.
 
 ---
 
-## 5. Auto-Dispatch
+## 5. Auto-Dispatch (Deferred from MVP)
 
-When CodeValdAI receives a `work.task.dispatched` event from the Cross bus, it
-can automatically start a run against the configured agent for that workflow.
-Explicit triggering via the HTTP/gRPC API is always available regardless of
-auto-dispatch configuration.
+When CodeValdAI receives a `work.task.dispatched` event from the Cross bus,
+it can automatically start a run against the configured agent for that
+workflow. Explicit triggering via the HTTP/gRPC API is always available.
+
+> **Status**: Deferred from MVP. The design is documented under Future Work
+> in [../../3-SofwareDevelopment/mvp-details/run-execution.md](../../3-SofwareDevelopment/mvp-details/run-execution.md).
+> Activate by adding a new task ID to `mvp.md`.
 
 ---
 

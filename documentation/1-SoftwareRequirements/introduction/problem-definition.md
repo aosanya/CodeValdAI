@@ -33,7 +33,7 @@ CodeValdAI introduces two first-class concepts:
 
 ### 1. Agent
 A named, versioned configuration for an LLM interaction:
-- Which **provider** and **model** to use (e.g. Anthropic / `claude-3-5-sonnet-20241022`)
+- Which **provider** and **model** to use — referenced by `provider_id` to a separate `LLMProvider` entity (e.g. Anthropic / `claude-3-5-sonnet-20241022`, OpenAI / `gpt-4o`, or HuggingFace / `deepseek-ai/DeepSeek-V4`)
 - A **system prompt** that sets the agent's persona and constraints
 - Default **parameters** (temperature, max_tokens)
 
