@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"time"
 
+	codevaldai "github.com/aosanya/CodeValdAI"
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
 )
 
@@ -44,7 +45,7 @@ func ReconcileRunningRuns(
 	runs, err := dm.ListEntities(ctx, entitygraph.EntityFilter{
 		AgencyID:   agencyID,
 		TypeID:     "AgentRun",
-		Properties: map[string]any{"status": "running"},
+		Properties: map[string]any{"status": string(codevaldai.AgentRunStatusRunning)},
 	})
 	if err != nil {
 		return fmt.Errorf("query running runs: %w", err)
@@ -55,7 +56,7 @@ func ReconcileRunningRuns(
 	for _, run := range runs {
 		if _, err := dm.UpdateEntity(ctx, agencyID, run.ID, entitygraph.UpdateEntityRequest{
 			Properties: map[string]any{
-				"status":        "failed",
+				"status":        string(codevaldai.AgentRunStatusFailed),
 				"error_message": "interrupted by service restart",
 				"completed_at":  now,
 				"updated_at":    now,
