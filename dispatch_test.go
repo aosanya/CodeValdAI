@@ -239,25 +239,33 @@ func TestCallAnthropic_HTTP401(t *testing.T) {
 // ── callLLM dispatch + timeout ───────────────────────────────────────────────
 
 func TestCallLLM_RoutesByProviderType(t *testing.T) {
+	// Each provider type's dispatcher recognises a different auth header. The
+	// test handler sends provider-specific termination so the dispatcher exits
+	// cleanly: Anthropic ends with a message_delta frame; OpenAI-compatible
+	// ends with `data: [DONE]`.
 	cases := []struct {
 		providerType string
-		expectRoute  string
+		expectAuth   string
 	}{
 		{"anthropic", "anthropic"},
 		{"openai", "openai"},
-		{"huggingface", "openai"}, // OpenAI-compatible endpoint
+		{"huggingface", "openai"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.providerType, func(t *testing.T) {
 			var seenAuth string
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if v := r.Header.Get("Authorization"); v != "" {
+				if r.Header.Get("Authorization") != "" {
 					seenAuth = "openai"
 				} else if r.Header.Get("x-api-key") != "" {
 					seenAuth = "anthropic"
 				}
 				w.Header().Set("Content-Type", "text/event-stream")
-				io.WriteString(w, "data: [DONE]\n\n")
+				if tc.providerType == "anthropic" {
+					io.WriteString(w, `data: {"type":"message_delta","usage":{"input_tokens":1,"output_tokens":1}}`+"\n\n")
+				} else {
+					io.WriteString(w, "data: [DONE]\n\n")
+				}
 			}))
 			t.Cleanup(srv.Close)
 
@@ -272,8 +280,8 @@ func TestCallLLM_RoutesByProviderType(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
-			if seenAuth != tc.expectRoute {
-				t.Errorf("provider_type %q routed via %q, want %q", tc.providerType, seenAuth, tc.expectRoute)
+			if seenAuth != tc.expectAuth {
+				t.Errorf("provider_type %q routed via %q auth, want %q", tc.providerType, seenAuth, tc.expectAuth)
 			}
 		})
 	}
