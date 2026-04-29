@@ -79,11 +79,21 @@ type AIManager interface {
 	// ExecuteRun transitions a run from pending_intake to running, calls the
 	// LLM with the agent's system prompt + instructions + submitted inputs,
 	// stores the output, and transitions to completed or failed.
+	// Equivalent to ExecuteRunStreaming with a no-op onChunk callback.
 	// Returns [ErrRunNotFound] if runID does not exist.
 	// Returns [ErrRunNotIntaked] if the run is not in pending_intake state.
 	// Publishes "cross.ai.{agencyID}.run.completed" on success.
 	// Publishes "cross.ai.{agencyID}.run.failed" on LLM error.
 	ExecuteRun(ctx context.Context, runID string, inputs []RunInput) (AgentRun, error)
+
+	// ExecuteRunStreaming runs the same flow as ExecuteRun but invokes
+	// onChunk once per streamed token group from the LLM provider.
+	// The accumulated chunks equal AgentRun.Output stored in the database.
+	// Returns [ErrRunNotFound] if runID does not exist.
+	// Returns [ErrRunNotIntaked] if the run is not in pending_intake state.
+	// Publishes "cross.ai.{agencyID}.run.completed" on success.
+	// Publishes "cross.ai.{agencyID}.run.failed" on LLM error.
+	ExecuteRunStreaming(ctx context.Context, runID string, inputs []RunInput, onChunk func(string)) (AgentRun, error)
 
 	// GetRun retrieves a single AgentRun by its ID.
 	// Returns [ErrRunNotFound] if no run with that ID exists.

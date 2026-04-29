@@ -1687,6 +1687,94 @@ func (x *ListRunsResponse) GetRuns() []*AgentRun {
 	return nil
 }
 
+// ExecuteRunStreamingResponse is the per-message type for the
+// ExecuteRunStreaming server-streaming RPC. The stream sends zero or more
+// chunk messages followed by exactly one run message.
+type ExecuteRunStreamingResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Payload:
+	//
+	//	*ExecuteRunStreamingResponse_Chunk
+	//	*ExecuteRunStreamingResponse_Run
+	Payload       isExecuteRunStreamingResponse_Payload `protobuf_oneof:"payload"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExecuteRunStreamingResponse) Reset() {
+	*x = ExecuteRunStreamingResponse{}
+	mi := &file_codevaldai_v1_ai_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecuteRunStreamingResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecuteRunStreamingResponse) ProtoMessage() {}
+
+func (x *ExecuteRunStreamingResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_codevaldai_v1_ai_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecuteRunStreamingResponse.ProtoReflect.Descriptor instead.
+func (*ExecuteRunStreamingResponse) Descriptor() ([]byte, []int) {
+	return file_codevaldai_v1_ai_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ExecuteRunStreamingResponse) GetPayload() isExecuteRunStreamingResponse_Payload {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *ExecuteRunStreamingResponse) GetChunk() string {
+	if x != nil {
+		if x, ok := x.Payload.(*ExecuteRunStreamingResponse_Chunk); ok {
+			return x.Chunk
+		}
+	}
+	return ""
+}
+
+func (x *ExecuteRunStreamingResponse) GetRun() *AgentRun {
+	if x != nil {
+		if x, ok := x.Payload.(*ExecuteRunStreamingResponse_Run); ok {
+			return x.Run
+		}
+	}
+	return nil
+}
+
+type isExecuteRunStreamingResponse_Payload interface {
+	isExecuteRunStreamingResponse_Payload()
+}
+
+type ExecuteRunStreamingResponse_Chunk struct {
+	// chunk is a partial output fragment from the LLM. Multiple chunks
+	// arrive in order; concatenated they equal the final AgentRun.output.
+	Chunk string `protobuf:"bytes,1,opt,name=chunk,proto3,oneof"`
+}
+
+type ExecuteRunStreamingResponse_Run struct {
+	// run is the terminal AgentRun, sent once after the last chunk.
+	Run *AgentRun `protobuf:"bytes,2,opt,name=run,proto3,oneof"`
+}
+
+func (*ExecuteRunStreamingResponse_Chunk) isExecuteRunStreamingResponse_Payload() {}
+
+func (*ExecuteRunStreamingResponse_Run) isExecuteRunStreamingResponse_Payload() {}
+
 var File_codevaldai_v1_ai_proto protoreflect.FileDescriptor
 
 const file_codevaldai_v1_ai_proto_rawDesc = "" +
@@ -1819,14 +1907,18 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x125\n" +
 	"\x06status\x18\x02 \x01(\x0e2\x1d.codevaldai.v1.AgentRunStatusR\x06status\"?\n" +
 	"\x10ListRunsResponse\x12+\n" +
-	"\x04runs\x18\x01 \x03(\v2\x17.codevaldai.v1.AgentRunR\x04runs*\xda\x01\n" +
+	"\x04runs\x18\x01 \x03(\v2\x17.codevaldai.v1.AgentRunR\x04runs\"m\n" +
+	"\x1bExecuteRunStreamingResponse\x12\x16\n" +
+	"\x05chunk\x18\x01 \x01(\tH\x00R\x05chunk\x12+\n" +
+	"\x03run\x18\x02 \x01(\v2\x17.codevaldai.v1.AgentRunH\x00R\x03runB\t\n" +
+	"\apayload*\xda\x01\n" +
 	"\x0eAgentRunStatus\x12 \n" +
 	"\x1cAGENT_RUN_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fAGENT_RUN_STATUS_PENDING_INTAKE\x10\x01\x12&\n" +
 	"\"AGENT_RUN_STATUS_PENDING_EXECUTION\x10\x02\x12\x1c\n" +
 	"\x18AGENT_RUN_STATUS_RUNNING\x10\x03\x12\x1e\n" +
 	"\x1aAGENT_RUN_STATUS_COMPLETED\x10\x04\x12\x1b\n" +
-	"\x17AGENT_RUN_STATUS_FAILED\x10\x052\xde\b\n" +
+	"\x17AGENT_RUN_STATUS_FAILED\x10\x052\xc5\t\n" +
 	"\tAIService\x12R\n" +
 	"\x0eCreateProvider\x12$.codevaldai.v1.CreateProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12L\n" +
 	"\vGetProvider\x12!.codevaldai.v1.GetProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12Z\n" +
@@ -1841,7 +1933,8 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\vDeleteAgent\x12!.codevaldai.v1.DeleteAgentRequest\x1a\".codevaldai.v1.DeleteAgentResponse\x12N\n" +
 	"\tIntakeRun\x12\x1f.codevaldai.v1.IntakeRunRequest\x1a .codevaldai.v1.IntakeRunResponse\x12G\n" +
 	"\n" +
-	"ExecuteRun\x12 .codevaldai.v1.ExecuteRunRequest\x1a\x17.codevaldai.v1.AgentRun\x12?\n" +
+	"ExecuteRun\x12 .codevaldai.v1.ExecuteRunRequest\x1a\x17.codevaldai.v1.AgentRun\x12e\n" +
+	"\x13ExecuteRunStreaming\x12 .codevaldai.v1.ExecuteRunRequest\x1a*.codevaldai.v1.ExecuteRunStreamingResponse0\x01\x12?\n" +
 	"\x06GetRun\x12\x1c.codevaldai.v1.GetRunRequest\x1a\x17.codevaldai.v1.AgentRun\x12K\n" +
 	"\bListRuns\x12\x1e.codevaldai.v1.ListRunsRequest\x1a\x1f.codevaldai.v1.ListRunsResponseBAZ?github.com/aosanya/CodeValdAI/gen/go/codevaldai/v1;codevaldaiv1b\x06proto3"
 
@@ -1858,86 +1951,90 @@ func file_codevaldai_v1_ai_proto_rawDescGZIP() []byte {
 }
 
 var file_codevaldai_v1_ai_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_codevaldai_v1_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
+var file_codevaldai_v1_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
 var file_codevaldai_v1_ai_proto_goTypes = []any{
-	(AgentRunStatus)(0),            // 0: codevaldai.v1.AgentRunStatus
-	(*LLMProvider)(nil),            // 1: codevaldai.v1.LLMProvider
-	(*CreateProviderRequest)(nil),  // 2: codevaldai.v1.CreateProviderRequest
-	(*GetProviderRequest)(nil),     // 3: codevaldai.v1.GetProviderRequest
-	(*ListProvidersRequest)(nil),   // 4: codevaldai.v1.ListProvidersRequest
-	(*ListProvidersResponse)(nil),  // 5: codevaldai.v1.ListProvidersResponse
-	(*UpdateProviderRequest)(nil),  // 6: codevaldai.v1.UpdateProviderRequest
-	(*DeleteProviderRequest)(nil),  // 7: codevaldai.v1.DeleteProviderRequest
-	(*DeleteProviderResponse)(nil), // 8: codevaldai.v1.DeleteProviderResponse
-	(*Agent)(nil),                  // 9: codevaldai.v1.Agent
-	(*CreateAgentRequest)(nil),     // 10: codevaldai.v1.CreateAgentRequest
-	(*GetAgentRequest)(nil),        // 11: codevaldai.v1.GetAgentRequest
-	(*ListAgentsRequest)(nil),      // 12: codevaldai.v1.ListAgentsRequest
-	(*ListAgentsResponse)(nil),     // 13: codevaldai.v1.ListAgentsResponse
-	(*UpdateAgentRequest)(nil),     // 14: codevaldai.v1.UpdateAgentRequest
-	(*DeleteAgentRequest)(nil),     // 15: codevaldai.v1.DeleteAgentRequest
-	(*DeleteAgentResponse)(nil),    // 16: codevaldai.v1.DeleteAgentResponse
-	(*AgentRun)(nil),               // 17: codevaldai.v1.AgentRun
-	(*RunField)(nil),               // 18: codevaldai.v1.RunField
-	(*RunInput)(nil),               // 19: codevaldai.v1.RunInput
-	(*IntakeRunRequest)(nil),       // 20: codevaldai.v1.IntakeRunRequest
-	(*IntakeRunResponse)(nil),      // 21: codevaldai.v1.IntakeRunResponse
-	(*ExecuteRunRequest)(nil),      // 22: codevaldai.v1.ExecuteRunRequest
-	(*GetRunRequest)(nil),          // 23: codevaldai.v1.GetRunRequest
-	(*ListRunsRequest)(nil),        // 24: codevaldai.v1.ListRunsRequest
-	(*ListRunsResponse)(nil),       // 25: codevaldai.v1.ListRunsResponse
-	(*timestamppb.Timestamp)(nil),  // 26: google.protobuf.Timestamp
+	(AgentRunStatus)(0),                 // 0: codevaldai.v1.AgentRunStatus
+	(*LLMProvider)(nil),                 // 1: codevaldai.v1.LLMProvider
+	(*CreateProviderRequest)(nil),       // 2: codevaldai.v1.CreateProviderRequest
+	(*GetProviderRequest)(nil),          // 3: codevaldai.v1.GetProviderRequest
+	(*ListProvidersRequest)(nil),        // 4: codevaldai.v1.ListProvidersRequest
+	(*ListProvidersResponse)(nil),       // 5: codevaldai.v1.ListProvidersResponse
+	(*UpdateProviderRequest)(nil),       // 6: codevaldai.v1.UpdateProviderRequest
+	(*DeleteProviderRequest)(nil),       // 7: codevaldai.v1.DeleteProviderRequest
+	(*DeleteProviderResponse)(nil),      // 8: codevaldai.v1.DeleteProviderResponse
+	(*Agent)(nil),                       // 9: codevaldai.v1.Agent
+	(*CreateAgentRequest)(nil),          // 10: codevaldai.v1.CreateAgentRequest
+	(*GetAgentRequest)(nil),             // 11: codevaldai.v1.GetAgentRequest
+	(*ListAgentsRequest)(nil),           // 12: codevaldai.v1.ListAgentsRequest
+	(*ListAgentsResponse)(nil),          // 13: codevaldai.v1.ListAgentsResponse
+	(*UpdateAgentRequest)(nil),          // 14: codevaldai.v1.UpdateAgentRequest
+	(*DeleteAgentRequest)(nil),          // 15: codevaldai.v1.DeleteAgentRequest
+	(*DeleteAgentResponse)(nil),         // 16: codevaldai.v1.DeleteAgentResponse
+	(*AgentRun)(nil),                    // 17: codevaldai.v1.AgentRun
+	(*RunField)(nil),                    // 18: codevaldai.v1.RunField
+	(*RunInput)(nil),                    // 19: codevaldai.v1.RunInput
+	(*IntakeRunRequest)(nil),            // 20: codevaldai.v1.IntakeRunRequest
+	(*IntakeRunResponse)(nil),           // 21: codevaldai.v1.IntakeRunResponse
+	(*ExecuteRunRequest)(nil),           // 22: codevaldai.v1.ExecuteRunRequest
+	(*GetRunRequest)(nil),               // 23: codevaldai.v1.GetRunRequest
+	(*ListRunsRequest)(nil),             // 24: codevaldai.v1.ListRunsRequest
+	(*ListRunsResponse)(nil),            // 25: codevaldai.v1.ListRunsResponse
+	(*ExecuteRunStreamingResponse)(nil), // 26: codevaldai.v1.ExecuteRunStreamingResponse
+	(*timestamppb.Timestamp)(nil),       // 27: google.protobuf.Timestamp
 }
 var file_codevaldai_v1_ai_proto_depIdxs = []int32{
-	26, // 0: codevaldai.v1.LLMProvider.created_at:type_name -> google.protobuf.Timestamp
-	26, // 1: codevaldai.v1.LLMProvider.updated_at:type_name -> google.protobuf.Timestamp
+	27, // 0: codevaldai.v1.LLMProvider.created_at:type_name -> google.protobuf.Timestamp
+	27, // 1: codevaldai.v1.LLMProvider.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: codevaldai.v1.ListProvidersResponse.providers:type_name -> codevaldai.v1.LLMProvider
-	26, // 3: codevaldai.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
-	26, // 4: codevaldai.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
+	27, // 3: codevaldai.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
+	27, // 4: codevaldai.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
 	9,  // 5: codevaldai.v1.ListAgentsResponse.agents:type_name -> codevaldai.v1.Agent
 	0,  // 6: codevaldai.v1.AgentRun.status:type_name -> codevaldai.v1.AgentRunStatus
-	26, // 7: codevaldai.v1.AgentRun.started_at:type_name -> google.protobuf.Timestamp
-	26, // 8: codevaldai.v1.AgentRun.completed_at:type_name -> google.protobuf.Timestamp
-	26, // 9: codevaldai.v1.AgentRun.created_at:type_name -> google.protobuf.Timestamp
-	26, // 10: codevaldai.v1.AgentRun.updated_at:type_name -> google.protobuf.Timestamp
+	27, // 7: codevaldai.v1.AgentRun.started_at:type_name -> google.protobuf.Timestamp
+	27, // 8: codevaldai.v1.AgentRun.completed_at:type_name -> google.protobuf.Timestamp
+	27, // 9: codevaldai.v1.AgentRun.created_at:type_name -> google.protobuf.Timestamp
+	27, // 10: codevaldai.v1.AgentRun.updated_at:type_name -> google.protobuf.Timestamp
 	17, // 11: codevaldai.v1.IntakeRunResponse.run:type_name -> codevaldai.v1.AgentRun
 	18, // 12: codevaldai.v1.IntakeRunResponse.fields:type_name -> codevaldai.v1.RunField
 	19, // 13: codevaldai.v1.ExecuteRunRequest.inputs:type_name -> codevaldai.v1.RunInput
 	0,  // 14: codevaldai.v1.ListRunsRequest.status:type_name -> codevaldai.v1.AgentRunStatus
 	17, // 15: codevaldai.v1.ListRunsResponse.runs:type_name -> codevaldai.v1.AgentRun
-	2,  // 16: codevaldai.v1.AIService.CreateProvider:input_type -> codevaldai.v1.CreateProviderRequest
-	3,  // 17: codevaldai.v1.AIService.GetProvider:input_type -> codevaldai.v1.GetProviderRequest
-	4,  // 18: codevaldai.v1.AIService.ListProviders:input_type -> codevaldai.v1.ListProvidersRequest
-	6,  // 19: codevaldai.v1.AIService.UpdateProvider:input_type -> codevaldai.v1.UpdateProviderRequest
-	7,  // 20: codevaldai.v1.AIService.DeleteProvider:input_type -> codevaldai.v1.DeleteProviderRequest
-	10, // 21: codevaldai.v1.AIService.CreateAgent:input_type -> codevaldai.v1.CreateAgentRequest
-	11, // 22: codevaldai.v1.AIService.GetAgent:input_type -> codevaldai.v1.GetAgentRequest
-	12, // 23: codevaldai.v1.AIService.ListAgents:input_type -> codevaldai.v1.ListAgentsRequest
-	14, // 24: codevaldai.v1.AIService.UpdateAgent:input_type -> codevaldai.v1.UpdateAgentRequest
-	15, // 25: codevaldai.v1.AIService.DeleteAgent:input_type -> codevaldai.v1.DeleteAgentRequest
-	20, // 26: codevaldai.v1.AIService.IntakeRun:input_type -> codevaldai.v1.IntakeRunRequest
-	22, // 27: codevaldai.v1.AIService.ExecuteRun:input_type -> codevaldai.v1.ExecuteRunRequest
-	23, // 28: codevaldai.v1.AIService.GetRun:input_type -> codevaldai.v1.GetRunRequest
-	24, // 29: codevaldai.v1.AIService.ListRuns:input_type -> codevaldai.v1.ListRunsRequest
-	1,  // 30: codevaldai.v1.AIService.CreateProvider:output_type -> codevaldai.v1.LLMProvider
-	1,  // 31: codevaldai.v1.AIService.GetProvider:output_type -> codevaldai.v1.LLMProvider
-	5,  // 32: codevaldai.v1.AIService.ListProviders:output_type -> codevaldai.v1.ListProvidersResponse
-	1,  // 33: codevaldai.v1.AIService.UpdateProvider:output_type -> codevaldai.v1.LLMProvider
-	8,  // 34: codevaldai.v1.AIService.DeleteProvider:output_type -> codevaldai.v1.DeleteProviderResponse
-	9,  // 35: codevaldai.v1.AIService.CreateAgent:output_type -> codevaldai.v1.Agent
-	9,  // 36: codevaldai.v1.AIService.GetAgent:output_type -> codevaldai.v1.Agent
-	13, // 37: codevaldai.v1.AIService.ListAgents:output_type -> codevaldai.v1.ListAgentsResponse
-	9,  // 38: codevaldai.v1.AIService.UpdateAgent:output_type -> codevaldai.v1.Agent
-	16, // 39: codevaldai.v1.AIService.DeleteAgent:output_type -> codevaldai.v1.DeleteAgentResponse
-	21, // 40: codevaldai.v1.AIService.IntakeRun:output_type -> codevaldai.v1.IntakeRunResponse
-	17, // 41: codevaldai.v1.AIService.ExecuteRun:output_type -> codevaldai.v1.AgentRun
-	17, // 42: codevaldai.v1.AIService.GetRun:output_type -> codevaldai.v1.AgentRun
-	25, // 43: codevaldai.v1.AIService.ListRuns:output_type -> codevaldai.v1.ListRunsResponse
-	30, // [30:44] is the sub-list for method output_type
-	16, // [16:30] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	17, // 16: codevaldai.v1.ExecuteRunStreamingResponse.run:type_name -> codevaldai.v1.AgentRun
+	2,  // 17: codevaldai.v1.AIService.CreateProvider:input_type -> codevaldai.v1.CreateProviderRequest
+	3,  // 18: codevaldai.v1.AIService.GetProvider:input_type -> codevaldai.v1.GetProviderRequest
+	4,  // 19: codevaldai.v1.AIService.ListProviders:input_type -> codevaldai.v1.ListProvidersRequest
+	6,  // 20: codevaldai.v1.AIService.UpdateProvider:input_type -> codevaldai.v1.UpdateProviderRequest
+	7,  // 21: codevaldai.v1.AIService.DeleteProvider:input_type -> codevaldai.v1.DeleteProviderRequest
+	10, // 22: codevaldai.v1.AIService.CreateAgent:input_type -> codevaldai.v1.CreateAgentRequest
+	11, // 23: codevaldai.v1.AIService.GetAgent:input_type -> codevaldai.v1.GetAgentRequest
+	12, // 24: codevaldai.v1.AIService.ListAgents:input_type -> codevaldai.v1.ListAgentsRequest
+	14, // 25: codevaldai.v1.AIService.UpdateAgent:input_type -> codevaldai.v1.UpdateAgentRequest
+	15, // 26: codevaldai.v1.AIService.DeleteAgent:input_type -> codevaldai.v1.DeleteAgentRequest
+	20, // 27: codevaldai.v1.AIService.IntakeRun:input_type -> codevaldai.v1.IntakeRunRequest
+	22, // 28: codevaldai.v1.AIService.ExecuteRun:input_type -> codevaldai.v1.ExecuteRunRequest
+	22, // 29: codevaldai.v1.AIService.ExecuteRunStreaming:input_type -> codevaldai.v1.ExecuteRunRequest
+	23, // 30: codevaldai.v1.AIService.GetRun:input_type -> codevaldai.v1.GetRunRequest
+	24, // 31: codevaldai.v1.AIService.ListRuns:input_type -> codevaldai.v1.ListRunsRequest
+	1,  // 32: codevaldai.v1.AIService.CreateProvider:output_type -> codevaldai.v1.LLMProvider
+	1,  // 33: codevaldai.v1.AIService.GetProvider:output_type -> codevaldai.v1.LLMProvider
+	5,  // 34: codevaldai.v1.AIService.ListProviders:output_type -> codevaldai.v1.ListProvidersResponse
+	1,  // 35: codevaldai.v1.AIService.UpdateProvider:output_type -> codevaldai.v1.LLMProvider
+	8,  // 36: codevaldai.v1.AIService.DeleteProvider:output_type -> codevaldai.v1.DeleteProviderResponse
+	9,  // 37: codevaldai.v1.AIService.CreateAgent:output_type -> codevaldai.v1.Agent
+	9,  // 38: codevaldai.v1.AIService.GetAgent:output_type -> codevaldai.v1.Agent
+	13, // 39: codevaldai.v1.AIService.ListAgents:output_type -> codevaldai.v1.ListAgentsResponse
+	9,  // 40: codevaldai.v1.AIService.UpdateAgent:output_type -> codevaldai.v1.Agent
+	16, // 41: codevaldai.v1.AIService.DeleteAgent:output_type -> codevaldai.v1.DeleteAgentResponse
+	21, // 42: codevaldai.v1.AIService.IntakeRun:output_type -> codevaldai.v1.IntakeRunResponse
+	17, // 43: codevaldai.v1.AIService.ExecuteRun:output_type -> codevaldai.v1.AgentRun
+	26, // 44: codevaldai.v1.AIService.ExecuteRunStreaming:output_type -> codevaldai.v1.ExecuteRunStreamingResponse
+	17, // 45: codevaldai.v1.AIService.GetRun:output_type -> codevaldai.v1.AgentRun
+	25, // 46: codevaldai.v1.AIService.ListRuns:output_type -> codevaldai.v1.ListRunsResponse
+	32, // [32:47] is the sub-list for method output_type
+	17, // [17:32] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_codevaldai_v1_ai_proto_init() }
@@ -1945,13 +2042,17 @@ func file_codevaldai_v1_ai_proto_init() {
 	if File_codevaldai_v1_ai_proto != nil {
 		return
 	}
+	file_codevaldai_v1_ai_proto_msgTypes[25].OneofWrappers = []any{
+		(*ExecuteRunStreamingResponse_Chunk)(nil),
+		(*ExecuteRunStreamingResponse_Run)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_codevaldai_v1_ai_proto_rawDesc), len(file_codevaldai_v1_ai_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   25,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -171,18 +171,31 @@ func (s *Server) IntakeRun(ctx context.Context, req *pb.IntakeRunRequest) (*pb.I
 
 // ExecuteRun implements pb.AIServiceServer.
 func (s *Server) ExecuteRun(ctx context.Context, req *pb.ExecuteRunRequest) (*pb.AgentRun, error) {
-	inputs := make([]codevaldai.RunInput, len(req.GetInputs()))
-	for i, inp := range req.GetInputs() {
-		inputs[i] = codevaldai.RunInput{
-			Fieldname: inp.GetFieldname(),
-			Value:     inp.GetValue(),
-		}
-	}
-	run, err := s.mgr.ExecuteRun(ctx, req.GetRunId(), inputs)
+	run, err := s.mgr.ExecuteRun(ctx, req.GetRunId(), toRunInputs(req.GetInputs()))
 	if err != nil {
 		return nil, toGRPCError(err)
 	}
 	return agentRunToProto(run), nil
+}
+
+// ExecuteRunStreaming implements pb.AIServiceServer.
+// Forwards LLM output chunks to the client as they arrive, then sends the
+// terminal AgentRun as the final stream message. Send failures on individual
+// chunks are logged and do not abort the LLM call — the run always reaches a
+// terminal state regardless of stream health.
+func (s *Server) ExecuteRunStreaming(req *pb.ExecuteRunRequest, stream pb.AIService_ExecuteRunStreamingServer) error {
+	onChunk := func(chunk string) {
+		_ = stream.Send(&pb.ExecuteRunStreamingResponse{
+			Payload: &pb.ExecuteRunStreamingResponse_Chunk{Chunk: chunk},
+		})
+	}
+	run, err := s.mgr.ExecuteRunStreaming(stream.Context(), req.GetRunId(), toRunInputs(req.GetInputs()), onChunk)
+	if err != nil {
+		return toGRPCError(err)
+	}
+	return stream.Send(&pb.ExecuteRunStreamingResponse{
+		Payload: &pb.ExecuteRunStreamingResponse_Run{Run: agentRunToProto(run)},
+	})
 }
 
 // GetRun implements pb.AIServiceServer.
@@ -269,6 +282,14 @@ func runFieldToProto(f codevaldai.RunField) *pb.RunField {
 		Options:   f.Options,
 		Ordinality: int32(f.Ordinality),
 	}
+}
+
+func toRunInputs(pbInputs []*pb.RunInput) []codevaldai.RunInput {
+	inputs := make([]codevaldai.RunInput, len(pbInputs))
+	for i, inp := range pbInputs {
+		inputs[i] = codevaldai.RunInput{Fieldname: inp.GetFieldname(), Value: inp.GetValue()}
+	}
+	return inputs
 }
 
 func domainStatusToProto(s codevaldai.AgentRunStatus) pb.AgentRunStatus {

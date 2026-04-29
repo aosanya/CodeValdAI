@@ -19,20 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AIService_CreateProvider_FullMethodName = "/codevaldai.v1.AIService/CreateProvider"
-	AIService_GetProvider_FullMethodName    = "/codevaldai.v1.AIService/GetProvider"
-	AIService_ListProviders_FullMethodName  = "/codevaldai.v1.AIService/ListProviders"
-	AIService_UpdateProvider_FullMethodName = "/codevaldai.v1.AIService/UpdateProvider"
-	AIService_DeleteProvider_FullMethodName = "/codevaldai.v1.AIService/DeleteProvider"
-	AIService_CreateAgent_FullMethodName    = "/codevaldai.v1.AIService/CreateAgent"
-	AIService_GetAgent_FullMethodName       = "/codevaldai.v1.AIService/GetAgent"
-	AIService_ListAgents_FullMethodName     = "/codevaldai.v1.AIService/ListAgents"
-	AIService_UpdateAgent_FullMethodName    = "/codevaldai.v1.AIService/UpdateAgent"
-	AIService_DeleteAgent_FullMethodName    = "/codevaldai.v1.AIService/DeleteAgent"
-	AIService_IntakeRun_FullMethodName      = "/codevaldai.v1.AIService/IntakeRun"
-	AIService_ExecuteRun_FullMethodName     = "/codevaldai.v1.AIService/ExecuteRun"
-	AIService_GetRun_FullMethodName         = "/codevaldai.v1.AIService/GetRun"
-	AIService_ListRuns_FullMethodName       = "/codevaldai.v1.AIService/ListRuns"
+	AIService_CreateProvider_FullMethodName      = "/codevaldai.v1.AIService/CreateProvider"
+	AIService_GetProvider_FullMethodName         = "/codevaldai.v1.AIService/GetProvider"
+	AIService_ListProviders_FullMethodName       = "/codevaldai.v1.AIService/ListProviders"
+	AIService_UpdateProvider_FullMethodName      = "/codevaldai.v1.AIService/UpdateProvider"
+	AIService_DeleteProvider_FullMethodName      = "/codevaldai.v1.AIService/DeleteProvider"
+	AIService_CreateAgent_FullMethodName         = "/codevaldai.v1.AIService/CreateAgent"
+	AIService_GetAgent_FullMethodName            = "/codevaldai.v1.AIService/GetAgent"
+	AIService_ListAgents_FullMethodName          = "/codevaldai.v1.AIService/ListAgents"
+	AIService_UpdateAgent_FullMethodName         = "/codevaldai.v1.AIService/UpdateAgent"
+	AIService_DeleteAgent_FullMethodName         = "/codevaldai.v1.AIService/DeleteAgent"
+	AIService_IntakeRun_FullMethodName           = "/codevaldai.v1.AIService/IntakeRun"
+	AIService_ExecuteRun_FullMethodName          = "/codevaldai.v1.AIService/ExecuteRun"
+	AIService_ExecuteRunStreaming_FullMethodName = "/codevaldai.v1.AIService/ExecuteRunStreaming"
+	AIService_GetRun_FullMethodName              = "/codevaldai.v1.AIService/GetRun"
+	AIService_ListRuns_FullMethodName            = "/codevaldai.v1.AIService/ListRuns"
 )
 
 // AIServiceClient is the client API for AIService service.
@@ -65,8 +66,16 @@ type AIServiceClient interface {
 	// inferred RunFields the caller must fill.
 	IntakeRun(ctx context.Context, in *IntakeRunRequest, opts ...grpc.CallOption) (*IntakeRunResponse, error)
 	// ExecuteRun transitions a run from pending_intake to running and calls
-	// the LLM with the submitted inputs.
+	// the LLM with the submitted inputs. Returns the terminal AgentRun once
+	// the LLM call completes. Equivalent to ExecuteRunStreaming with a
+	// buffering callback.
 	ExecuteRun(ctx context.Context, in *ExecuteRunRequest, opts ...grpc.CallOption) (*AgentRun, error)
+	// ExecuteRunStreaming transitions a run from pending_intake to running,
+	// calls the LLM, and streams output chunks to the client as they arrive.
+	// Sends a final ExecuteRunStreamingResponse containing the terminal
+	// AgentRun once the stream completes. The AgentRun is persisted exactly
+	// as in ExecuteRun — the stream is supplemental, not the source of truth.
+	ExecuteRunStreaming(ctx context.Context, in *ExecuteRunRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecuteRunStreamingResponse], error)
 	// GetRun retrieves a single AgentRun by its ID.
 	GetRun(ctx context.Context, in *GetRunRequest, opts ...grpc.CallOption) (*AgentRun, error)
 	// ListRuns returns all AgentRun entities matching the filter.
@@ -201,6 +210,25 @@ func (c *aIServiceClient) ExecuteRun(ctx context.Context, in *ExecuteRunRequest,
 	return out, nil
 }
 
+func (c *aIServiceClient) ExecuteRunStreaming(ctx context.Context, in *ExecuteRunRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecuteRunStreamingResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &AIService_ServiceDesc.Streams[0], AIService_ExecuteRunStreaming_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ExecuteRunRequest, ExecuteRunStreamingResponse]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AIService_ExecuteRunStreamingClient = grpc.ServerStreamingClient[ExecuteRunStreamingResponse]
+
 func (c *aIServiceClient) GetRun(ctx context.Context, in *GetRunRequest, opts ...grpc.CallOption) (*AgentRun, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AgentRun)
@@ -251,8 +279,16 @@ type AIServiceServer interface {
 	// inferred RunFields the caller must fill.
 	IntakeRun(context.Context, *IntakeRunRequest) (*IntakeRunResponse, error)
 	// ExecuteRun transitions a run from pending_intake to running and calls
-	// the LLM with the submitted inputs.
+	// the LLM with the submitted inputs. Returns the terminal AgentRun once
+	// the LLM call completes. Equivalent to ExecuteRunStreaming with a
+	// buffering callback.
 	ExecuteRun(context.Context, *ExecuteRunRequest) (*AgentRun, error)
+	// ExecuteRunStreaming transitions a run from pending_intake to running,
+	// calls the LLM, and streams output chunks to the client as they arrive.
+	// Sends a final ExecuteRunStreamingResponse containing the terminal
+	// AgentRun once the stream completes. The AgentRun is persisted exactly
+	// as in ExecuteRun — the stream is supplemental, not the source of truth.
+	ExecuteRunStreaming(*ExecuteRunRequest, grpc.ServerStreamingServer[ExecuteRunStreamingResponse]) error
 	// GetRun retrieves a single AgentRun by its ID.
 	GetRun(context.Context, *GetRunRequest) (*AgentRun, error)
 	// ListRuns returns all AgentRun entities matching the filter.
@@ -302,6 +338,9 @@ func (UnimplementedAIServiceServer) IntakeRun(context.Context, *IntakeRunRequest
 }
 func (UnimplementedAIServiceServer) ExecuteRun(context.Context, *ExecuteRunRequest) (*AgentRun, error) {
 	return nil, status.Error(codes.Unimplemented, "method ExecuteRun not implemented")
+}
+func (UnimplementedAIServiceServer) ExecuteRunStreaming(*ExecuteRunRequest, grpc.ServerStreamingServer[ExecuteRunStreamingResponse]) error {
+	return status.Error(codes.Unimplemented, "method ExecuteRunStreaming not implemented")
 }
 func (UnimplementedAIServiceServer) GetRun(context.Context, *GetRunRequest) (*AgentRun, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetRun not implemented")
@@ -546,6 +585,17 @@ func _AIService_ExecuteRun_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AIService_ExecuteRunStreaming_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ExecuteRunRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(AIServiceServer).ExecuteRunStreaming(m, &grpc.GenericServerStream[ExecuteRunRequest, ExecuteRunStreamingResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type AIService_ExecuteRunStreamingServer = grpc.ServerStreamingServer[ExecuteRunStreamingResponse]
+
 func _AIService_GetRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRunRequest)
 	if err := dec(in); err != nil {
@@ -646,6 +696,12 @@ var AIService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AIService_ListRuns_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ExecuteRunStreaming",
+			Handler:       _AIService_ExecuteRunStreaming_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "codevaldai/v1/ai.proto",
 }

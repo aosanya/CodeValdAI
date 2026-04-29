@@ -11,17 +11,24 @@ import (
 )
 
 // ExecuteRun implements AIManager.ExecuteRun.
+// Thin wrapper around ExecuteRunStreaming with a no-op onChunk callback.
+func (m *aiManager) ExecuteRun(ctx context.Context, runID string, inputs []RunInput) (AgentRun, error) {
+	return m.ExecuteRunStreaming(ctx, runID, inputs, func(string) {})
+}
+
+// ExecuteRunStreaming implements AIManager.ExecuteRunStreaming.
 // Phase 2 of the two-phase run lifecycle: validates the run is in
 // pending_intake, stores submitted inputs, calls the LLM with the agent's
 // system prompt and the filled input fields, then transitions to completed or
-// failed.
+// failed. onChunk is invoked once per streamed token group; the accumulated
+// chunks are also stored as AgentRun.Output.
 //
 // Returns ErrRunNotFound if runID does not exist.
 // Returns ErrRunNotIntaked if the run is not in pending_intake state.
 // Returns ErrProviderNotFound if the agent's linked provider does not exist.
 // Publishes "cross.ai.{agencyID}.run.completed" on success.
 // Publishes "cross.ai.{agencyID}.run.failed" on LLM error.
-func (m *aiManager) ExecuteRun(ctx context.Context, runID string, inputs []RunInput) (AgentRun, error) {
+func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, inputs []RunInput, onChunk func(string)) (AgentRun, error) {
 	runEntity, err := m.dm.GetEntity(ctx, m.agencyID, runID)
 	if err != nil {
 		return AgentRun{}, fmt.Errorf("ExecuteRun %s: %w", runID, toRunErr(err))
@@ -90,8 +97,13 @@ func (m *aiManager) ExecuteRun(ctx context.Context, runID string, inputs []RunIn
 		return AgentRun{}, fmt.Errorf("ExecuteRun %s: transition to running: %w", runID, err)
 	}
 
+	// Accumulate output for DB storage while also forwarding chunks to the caller.
 	var output strings.Builder
-	inputTok, outputTok, llmErr := m.callLLM(ctx, provider, agent, agent.SystemPrompt, userMsg, func(chunk string) { output.WriteString(chunk) })
+	wrapped := func(s string) {
+		output.WriteString(s)
+		onChunk(s)
+	}
+	inputTok, outputTok, llmErr := m.callLLM(ctx, provider, agent, agent.SystemPrompt, userMsg, wrapped)
 
 	now = time.Now().UTC().Format(time.RFC3339)
 	if llmErr != nil {

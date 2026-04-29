@@ -202,6 +202,16 @@ func aiRoutes() []types.RouteInfo {
 				{URLParam: "runId", Field: "run_id"},
 			},
 		},
+		// POST /ai/{agencyId}/runs/{runId}/execute/stream — streaming execute.
+		{
+			Method:     "POST",
+			Pattern:    "/ai/{agencyId}/runs/{runId}/execute/stream",
+			Capability: "execute_run_streaming",
+			GrpcMethod: "/codevaldai.v1.AIService/ExecuteRunStreaming",
+			PathBindings: []types.PathBinding{
+				{URLParam: "runId", Field: "run_id"},
+			},
+		},
 		// GET /ai/{agencyId}/runs/{runId} — get a single AgentRun.
 		{
 			Method:     "GET",
