@@ -37,8 +37,8 @@ The MVP delivers:
 | MVP-AI-009 | gRPC server — `internal/server/server.go`, `entity_server.go`, `errors.go` | ✅ Done | MVP-AI-008 |
 | MVP-AI-010 | Config & registrar — `internal/config/config.go` + `internal/registrar/registrar.go` | ✅ Done | MVP-AI-001 |
 | MVP-AI-011 | `cmd/main.go` wiring — inject `DataManager`, `AISchemaManager`, seed schema, start server | ✅ Done | MVP-AI-007, MVP-AI-009, MVP-AI-010 |
-| MVP-AI-012 | Intake flow — `IntakeRun` implementation (fetch LLMProvider from graph; LLM infers fields; stores AgentRun + RunFields) | 🔲 Not Started | MVP-AI-005, MVP-AI-017 |
-| MVP-AI-013 | Execute flow — `ExecuteRun` implementation (validate inputs, fetch LLMProvider, call LLM, store output, publish events) | 🔲 Not Started | MVP-AI-012 |
+| MVP-AI-012 | Intake flow — `IntakeRun` implementation (fetch LLMProvider from graph; LLM infers fields; stores AgentRun + RunFields) | ✅ Done | MVP-AI-005, MVP-AI-017 |
+| MVP-AI-013 | Execute flow — `ExecuteRun` implementation (validate inputs, fetch LLMProvider, call LLM, store output, publish events) | ✅ Done | MVP-AI-012 |
 | MVP-AI-014 | Provider CRUD — `CreateProvider`, `GetProvider`, `ListProviders`, `UpdateProvider`, `DeleteProvider` implementations in `ai.go` | ✅ Done | MVP-AI-005, MVP-AI-007 |
 | MVP-AI-015 | Unit & integration tests — `fakeDataManager`, full run-phase acceptance tests | 🔲 Not Started | MVP-AI-007, MVP-AI-012, MVP-AI-013 |
 | MVP-AI-016 | LLMProvider/Agent schema additions — `ProviderRoute` (HF backend pin), `TimeoutSeconds` (per-Agent override), `huggingface` provider type | ✅ Done | MVP-AI-002, MVP-AI-004 |

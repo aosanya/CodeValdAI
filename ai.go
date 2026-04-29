@@ -417,18 +417,6 @@ func (m *aiManager) DeleteAgent(ctx context.Context, agentID string) error {
 
 // ── Run Lifecycle ─────────────────────────────────────────────────────────────
 
-// IntakeRun implementation is provided in MVP-AI-012.
-// Returns a not-implemented error until then.
-func (m *aiManager) IntakeRun(_ context.Context, req IntakeRunRequest) (AgentRun, []RunField, error) {
-	return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: not implemented (MVP-AI-012)", req.AgentID)
-}
-
-// ExecuteRun implementation is provided in MVP-AI-013.
-// Returns a not-implemented error until then.
-func (m *aiManager) ExecuteRun(_ context.Context, runID string, _ []RunInput) (AgentRun, error) {
-	return AgentRun{}, fmt.Errorf("ExecuteRun %s: not implemented (MVP-AI-013)", runID)
-}
-
 // GetRun retrieves a single AgentRun by its entity ID.
 // Returns [ErrRunNotFound] if no matching run exists.
 func (m *aiManager) GetRun(ctx context.Context, runID string) (AgentRun, error) {
@@ -523,6 +511,21 @@ func agentFromEntity(e entitygraph.Entity) Agent {
 	}
 }
 
+// runFieldFromEntity converts an [entitygraph.Entity] to a [RunField] value type.
+// The Options field is unmarshalled from its JSON-string storage representation.
+func runFieldFromEntity(e entitygraph.Entity) RunField {
+	p := e.Properties
+	return RunField{
+		ID:         e.ID,
+		Fieldname:  strProp(p, "fieldname"),
+		Type:       strProp(p, "type"),
+		Label:      strProp(p, "label"),
+		Required:   boolProp(p, "required"),
+		Options:    unmarshalOptions(strProp(p, "options")),
+		Ordinality: intProp(p, "ordinality"),
+	}
+}
+
 // agentRunFromEntity converts an [entitygraph.Entity] to an [AgentRun] value type.
 func agentRunFromEntity(e entitygraph.Entity) AgentRun {
 	p := e.Properties
@@ -563,6 +566,12 @@ func toRunErr(err error) error {
 		return ErrRunNotFound
 	}
 	return err
+}
+
+// boolProp extracts a bool property value; returns false when absent or wrong type.
+func boolProp(p map[string]any, key string) bool {
+	v, _ := p[key].(bool)
+	return v
 }
 
 // strProp extracts a string property value; returns "" when absent or wrong type.

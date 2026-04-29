@@ -220,6 +220,20 @@ message ListRunsResponse {
   repeated AgentRun runs = 1;
 }
 
+// ExecuteRunStreamingResponse is the per-message type for the
+// ExecuteRunStreaming server-streaming RPC. The stream sends zero or more
+// chunk messages followed by exactly one run message.
+message ExecuteRunStreamingResponse {
+  oneof payload {
+    // chunk is a partial output fragment from the LLM. Multiple chunks
+    // arrive in order; concatenated they equal the final AgentRun.output.
+    string chunk = 1;
+
+    // run is the terminal AgentRun, sent once after the last chunk.
+    AgentRun run = 2;
+  }
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 // AIService exposes provider catalogue, agent catalogue, and run lifecycle RPCs.
@@ -265,8 +279,17 @@ service AIService {
   rpc IntakeRun (IntakeRunRequest) returns (IntakeRunResponse);
 
   // ExecuteRun transitions a run from pending_intake to running and calls
-  // the LLM with the submitted inputs.
+  // the LLM with the submitted inputs. Returns the terminal AgentRun once
+  // the LLM call completes. Equivalent to ExecuteRunStreaming with a
+  // buffering callback.
   rpc ExecuteRun (ExecuteRunRequest) returns (AgentRun);
+
+  // ExecuteRunStreaming transitions a run from pending_intake to running,
+  // calls the LLM, and streams output chunks to the client as they arrive.
+  // Sends a final ExecuteRunStreamingResponse containing the terminal
+  // AgentRun once the stream completes. The AgentRun is persisted exactly
+  // as in ExecuteRun — the stream is supplemental, not the source of truth.
+  rpc ExecuteRunStreaming (ExecuteRunRequest) returns (stream ExecuteRunStreamingResponse);
 
   // GetRun retrieves a single AgentRun by its ID.
   rpc GetRun (GetRunRequest) returns (AgentRun);
