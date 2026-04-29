@@ -37,13 +37,13 @@ func makeOpenAIErrorServer(t *testing.T) *httptest.Server {
 }
 
 // makeSlowServer returns an httptest.Server that hangs until the client
-// disconnects (or 10 s elapses). Used to trigger context deadline tests.
+// disconnects (or 500 ms elapses). Used to trigger context deadline tests.
 func makeSlowServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
-		case <-time.After(10 * time.Second):
+		case <-time.After(500 * time.Millisecond):
 			w.WriteHeader(http.StatusOK)
 		}
 	}))

@@ -1,4 +1,4 @@
-.PHONY: build build-server build-dev server dev dev-restart kill proto test cover test-arango test-all vet lint clean
+.PHONY: build build-server build-dev server dev dev-restart kill proto test cover test-integration test-arango test-all vet lint clean
 
 export PATH := /usr/local/go/bin:$(PATH)
 
@@ -56,6 +56,10 @@ test:
 cover:
 	go test -v -race -count=1 -coverprofile=coverage.out ./...
 	go tool cover -html=coverage.out -o coverage.html
+
+## Run all tests including integration tests with race detector and verbose output.
+test-integration:
+	go test -v -race -tags integration ./...
 
 ## Run ArangoDB integration tests.
 ## Loads .env if it exists, otherwise falls back to environment variables.
