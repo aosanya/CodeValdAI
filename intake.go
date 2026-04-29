@@ -117,6 +117,15 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 		if err != nil {
 			return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: create field %d: %w", req.AgentID, i, err)
 		}
+		// Schema topology: AgentRun −has_field→ RunField (ExecuteRun traverses this).
+		if _, err := m.dm.CreateRelationship(ctx, entitygraph.CreateRelationshipRequest{
+			AgencyID: m.agencyID,
+			FromID:   runEntity.ID,
+			ToID:     fieldEntity.ID,
+			Name:     "has_field",
+		}); err != nil {
+			return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: link field %d: %w", req.AgentID, i, err)
+		}
 		runFields = append(runFields, runFieldFromEntity(fieldEntity))
 	}
 
