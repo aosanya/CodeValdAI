@@ -255,17 +255,16 @@ func (m *aiManager) UpdateProvider(ctx context.Context, providerID string, req U
 // Returns [ErrProviderNotFound] if the provider does not exist.
 // Returns [ErrProviderInUse] if any Agent holds a uses_provider edge to it.
 func (m *aiManager) DeleteProvider(ctx context.Context, providerID string) error {
-	agents, err := m.dm.ListEntities(ctx, entitygraph.EntityFilter{
+	rels, err := m.dm.ListRelationships(ctx, entitygraph.RelationshipFilter{
 		AgencyID: m.agencyID,
-		TypeID:   "Agent",
+		ToID:     providerID,
+		Name:     "uses_provider",
 	})
 	if err != nil {
-		return fmt.Errorf("DeleteProvider %s: list agents: %w", providerID, err)
+		return fmt.Errorf("DeleteProvider %s: check usage: %w", providerID, err)
 	}
-	for _, a := range agents {
-		if strProp(a.Properties, "provider_id") == providerID {
-			return ErrProviderInUse
-		}
+	if len(rels) > 0 {
+		return ErrProviderInUse
 	}
 	if err := m.dm.DeleteEntity(ctx, m.agencyID, providerID); err != nil {
 		return fmt.Errorf("DeleteProvider %s: %w", providerID, toProviderErr(err))
