@@ -24,7 +24,7 @@ func TestDefaultAISchema_NonZero(t *testing.T) {
 func TestDefaultAISchema_AllTypeIDs(t *testing.T) {
 	s := codevaldai.DefaultAISchema()
 
-	want := []string{"LLMProvider", "Agent", "AgentRun", "RunField", "RunInput"}
+	want := []string{"LLMProvider", "Agent", "AgentRun", "RunField", "RunInput", "ReceivedEvent"}
 	found := make(map[string]bool)
 	for _, td := range s.Types {
 		found[td.Name] = true
@@ -120,14 +120,21 @@ func TestDefaultAISchema_AgentRunRelationships(t *testing.T) {
 	}
 }
 
-// TestDefaultAISchema_StorageCollection verifies that all types route to
-// ai_entities.
+// TestDefaultAISchema_StorageCollection verifies that non-event types route to
+// ai_entities and ReceivedEvent routes to ai_received_events.
 func TestDefaultAISchema_StorageCollection(t *testing.T) {
 	s := codevaldai.DefaultAISchema()
 	for _, td := range s.Types {
-		if td.StorageCollection != "ai_entities" {
+		var want string
+		switch td.Name {
+		case "ReceivedEvent":
+			want = "ai_received_events"
+		default:
+			want = "ai_entities"
+		}
+		if td.StorageCollection != want {
 			t.Errorf("TypeDefinition %q: StorageCollection = %q, want %q",
-				td.Name, td.StorageCollection, "ai_entities")
+				td.Name, td.StorageCollection, want)
 		}
 	}
 }
