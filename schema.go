@@ -28,21 +28,29 @@
 // RunInput  ──belongs_to_run──►   AgentRun
 package codevaldai
 
-import "github.com/aosanya/CodeValdSharedLib/types"
+import (
+	"github.com/aosanya/CodeValdSharedLib/eventreceiver"
+	"github.com/aosanya/CodeValdSharedLib/types"
+)
 
 // DefaultAISchema returns the pre-delivered [types.Schema] seeded by
 // internal/app on startup via [entitygraph.SeedSchema]. The operation is
 // idempotent — calling it multiple times with the same schema ID is safe.
 //
 // The returned schema contains TypeDefinitions for LLMProvider, Agent,
-// AgentRun, RunField, and RunInput, matching the specification in
-// documentation/2-SoftwareDesignAndArchitecture/architecture-graph.md §4.
+// AgentRun, RunField, RunInput, and ReceivedEvent, matching the specification
+// in documentation/2-SoftwareDesignAndArchitecture/architecture-graph.md §4.
 func DefaultAISchema() types.Schema {
 	return types.Schema{
 		ID:      "ai-schema-v1",
 		Version: 1,
 		Tag:     "v1",
-		Types: []types.TypeDefinition{
+		Types: append(aiTypes(), eventreceiver.ReceivedEventTypeDefinition("ai")),
+	}
+}
+
+func aiTypes() []types.TypeDefinition {
+	return []types.TypeDefinition{
 			{
 				Name:              "LLMProvider",
 				DisplayName:       "LLM Provider",
@@ -212,6 +220,5 @@ func DefaultAISchema() types.Schema {
 					},
 				},
 			},
-		},
 	}
 }

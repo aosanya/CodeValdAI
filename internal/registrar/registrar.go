@@ -54,7 +54,7 @@ func New(
 			"cross.ai.{agencyID}.run.completed",
 			"cross.ai.{agencyID}.run.failed",
 		},
-		[]string{},
+		[]string{"work.task.status.changed"},
 		routes,
 		pingInterval,
 		pingTimeout,
