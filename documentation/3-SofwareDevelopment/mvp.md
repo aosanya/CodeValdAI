@@ -44,7 +44,7 @@ The MVP delivers:
 | MVP-AI-016 | LLMProvider/Agent schema additions — `ProviderRoute` (HF backend pin), `TimeoutSeconds` (per-Agent override), `huggingface` provider type | ✅ Done | MVP-AI-002, MVP-AI-004 |
 | MVP-AI-017 | LLM dispatcher refactor — `callOpenAICompatible` (OpenAI + HuggingFace), `callAnthropic`, per-Agent timeout, startup `running`-run sweep with `run.failed` publish | ✅ Done | MVP-AI-016 |
 | MVP-AI-018 | Streaming RPC — `ExecuteRunStreaming` server-streaming gRPC, dispatcher chunk callback, dual unary+streaming entrypoints sharing one dispatcher | ✅ Done | MVP-AI-017 |
-| MVP-AI-019 | `EventReceiverService` handler — write `ReceivedEvent` first, return error on failure; add `consumes` to registrar | 🚀 In Progress | ~~SHAREDLIB-018~~ ✅, ~~PUBSUB-005d~~ ✅, ~~CROSS-011c~~ ✅ |
+| ~~MVP-AI-019~~ ✅ | `EventReceiverService` handler — write `ReceivedEvent` first, return error on failure; add `consumes` to registrar | ✅ Done | ~~SHAREDLIB-018~~ ✅, ~~PUBSUB-005d~~ ✅, ~~CROSS-011c~~ ✅ |
 
 ---
 

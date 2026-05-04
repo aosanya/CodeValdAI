@@ -18,3 +18,4 @@ Completed tasks are removed from `mvp.md` and recorded here with their completio
 | MVP-AI-014 | Provider CRUD — `CreateProvider`, `GetProvider`, `ListProviders`, `UpdateProvider`, `DeleteProvider` implementations in `ai.go` | 2026-03-24 | feature/AI-007_anthropic-implementation |
 | MVP-AI-016 | LLMProvider/Agent schema additions — `ProviderRoute` (HF backend pin), `TimeoutSeconds` (per-Agent override), `huggingface` provider type | 2026-04-27 | feature/AI-016_schema_huggingface_timeout |
 | MVP-AI-017 | LLM dispatcher refactor — `callOpenAICompatible` (OpenAI + HuggingFace), `callAnthropic`, per-Agent timeout, startup `running`-run sweep with `run.failed` publish | 2026-04-28 | feature/AI-017_dispatcher_timeout |
+| MVP-AI-019 | `EventReceiverService` handler — write `ReceivedEvent` first, return error on failure; add `consumes` to registrar | 2026-05-04 | feature/AI-019_event-receiver-service |
