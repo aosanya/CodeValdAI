@@ -23,6 +23,7 @@ import (
 	aiarangodb "github.com/aosanya/CodeValdAI/storage/arangodb"
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
 	healthpb "github.com/aosanya/CodeValdSharedLib/gen/go/codevaldhealth/v1"
+	sharedev1 "github.com/aosanya/CodeValdSharedLib/gen/go/codevaldshared/v1"
 	entitygraphpb "github.com/aosanya/CodeValdSharedLib/gen/go/entitygraph/v1"
 	"github.com/aosanya/CodeValdSharedLib/health"
 	"github.com/aosanya/CodeValdSharedLib/serverutil"
@@ -101,6 +102,7 @@ func Run(cfg config.Config) error {
 	grpcServer, _ := serverutil.NewGRPCServer()
 	pb.RegisterAIServiceServer(grpcServer, server.New(mgr))
 	entitygraphpb.RegisterEntityServiceServer(grpcServer, server.NewEntityServer(backend))
+	sharedev1.RegisterEventReceiverServiceServer(grpcServer, server.NewEventReceiver(backend, cfg.AgencyID))
 	healthpb.RegisterHealthServiceServer(grpcServer, health.New("codevaldai"))
 
 	// ── Signal handling ───────────────────────────────────────────────────────
