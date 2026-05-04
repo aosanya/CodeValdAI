@@ -24,10 +24,6 @@ type Config struct {
 	// ArangoDatabase is the ArangoDB database name (default "codevaldai").
 	ArangoDatabase string
 
-	// PubSubGRPCAddr is the CodeValdPubSub gRPC address for event subscriptions.
-	// Empty string disables the subscriber.
-	PubSubGRPCAddr string
-
 	// CrossGRPCAddr is the CodeValdCross gRPC address for registration heartbeats.
 	// Empty string disables registration.
 	CrossGRPCAddr string
@@ -55,7 +51,6 @@ func Load() Config {
 		ArangoUser:     serverutil.EnvOrDefault("AI_ARANGO_USER", "root"),
 		ArangoPassword: serverutil.EnvOrDefault("AI_ARANGO_PASSWORD", ""),
 		ArangoDatabase: serverutil.EnvOrDefault("AI_ARANGO_DATABASE", "codevaldai"),
-		PubSubGRPCAddr: serverutil.EnvOrDefault("PUBSUB_GRPC_ADDR", ""),
 		CrossGRPCAddr:  serverutil.EnvOrDefault("CROSS_GRPC_ADDR", ""),
 		AdvertiseAddr:  serverutil.EnvOrDefault("AI_GRPC_ADVERTISE_ADDR", ":"+port),
 		AgencyID:       serverutil.EnvOrDefault("CODEVALDAI_AGENCY_ID", ""),

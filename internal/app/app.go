@@ -20,7 +20,6 @@ import (
 	"github.com/aosanya/CodeValdAI/internal/recovery"
 	"github.com/aosanya/CodeValdAI/internal/registrar"
 	"github.com/aosanya/CodeValdAI/internal/server"
-	"github.com/aosanya/CodeValdAI/internal/subscriber"
 	aiarangodb "github.com/aosanya/CodeValdAI/storage/arangodb"
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
 	healthpb "github.com/aosanya/CodeValdSharedLib/gen/go/codevaldhealth/v1"
@@ -88,19 +87,6 @@ func Run(cfg config.Config) error {
 			// continue — reconcile failure must not block startup
 		}
 		sweepCancel()
-	}
-
-	// ── PubSub subscriber ─────────────────────────────────────────────────────
-	if cfg.PubSubGRPCAddr != "" && cfg.AgencyID != "" {
-		sub, err := subscriber.New(cfg.PubSubGRPCAddr)
-		if err != nil {
-			log.Printf("codevaldai: pubsub subscriber: dial failed: %v — skipping", err)
-		} else {
-			defer sub.Close()
-			go sub.Run(ctx, cfg.AgencyID)
-		}
-	} else {
-		log.Println("codevaldai: PUBSUB_GRPC_ADDR not set — skipping PubSub subscription")
 	}
 
 	// ── AIManager ────────────────────────────────────────────────────────────
