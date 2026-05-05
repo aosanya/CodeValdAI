@@ -4,8 +4,11 @@ go 1.25.3
 
 replace github.com/aosanya/CodeValdSharedLib => ../CodeValdSharedLib
 
+replace github.com/aosanya/CodeValdAgency => ../CodeValdAgency
+
 require (
-	github.com/aosanya/CodeValdSharedLib v0.0.0-20260324114722-2ab98458026d
+	github.com/aosanya/CodeValdAgency v0.0.0-00010101000000-000000000000
+	github.com/aosanya/CodeValdSharedLib v0.0.0
 	github.com/arangodb/go-driver v1.6.0
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11

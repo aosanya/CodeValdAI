@@ -45,6 +45,7 @@ The MVP delivers:
 | MVP-AI-017 | LLM dispatcher refactor — `callOpenAICompatible` (OpenAI + HuggingFace), `callAnthropic`, per-Agent timeout, startup `running`-run sweep with `run.failed` publish | ✅ Done | MVP-AI-016 |
 | MVP-AI-018 | Streaming RPC — `ExecuteRunStreaming` server-streaming gRPC, dispatcher chunk callback, dual unary+streaming entrypoints sharing one dispatcher | ✅ Done | MVP-AI-017 |
 | ~~MVP-AI-019~~ ✅ | `EventReceiverService` handler — write `ReceivedEvent` first, return error on failure; add `consumes` to registrar | ✅ Done | ~~SHAREDLIB-018~~ ✅, ~~PUBSUB-005d~~ ✅, ~~CROSS-011c~~ ✅ |
+| **MVP-AI-020** | Event Dispatch Engine — RACI-driven AgentRun triggering | 🚀 In Progress | ~~MVP-AGENCY-012~~ ✅, ~~MVP-AI-019~~ ✅ |
 
 ---
 

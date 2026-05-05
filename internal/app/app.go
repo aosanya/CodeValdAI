@@ -21,12 +21,15 @@ import (
 	"github.com/aosanya/CodeValdAI/internal/registrar"
 	"github.com/aosanya/CodeValdAI/internal/server"
 	aiarangodb "github.com/aosanya/CodeValdAI/storage/arangodb"
+	agencypb "github.com/aosanya/CodeValdAgency/gen/go/codevaldagency/v1"
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
 	healthpb "github.com/aosanya/CodeValdSharedLib/gen/go/codevaldhealth/v1"
 	sharedev1 "github.com/aosanya/CodeValdSharedLib/gen/go/codevaldshared/v1"
 	entitygraphpb "github.com/aosanya/CodeValdSharedLib/gen/go/entitygraph/v1"
 	"github.com/aosanya/CodeValdSharedLib/health"
 	"github.com/aosanya/CodeValdSharedLib/serverutil"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Run starts all CodeValdAI subsystems (Cross registrar, ArangoDB
@@ -94,6 +97,20 @@ func Run(cfg config.Config) error {
 	// ── AIManager ────────────────────────────────────────────────────────────
 	mgr := codevaldai.NewAIManager(backend, backend, pub, cfg.AgencyID)
 
+	// ── Agency gRPC client + RACI dispatcher (optional) ──────────────────────
+	var dispatcher server.EventDispatcher
+	if cfg.AgencyGRPCAddr != "" {
+		agencyConn, err := grpc.NewClient(cfg.AgencyGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Printf("codevaldai: agency client: %v — dispatch disabled", err)
+		} else {
+			dispatcher = server.NewRACIDispatcher(agencypb.NewAgencyServiceClient(agencyConn), mgr, cfg.AgencyID)
+			defer agencyConn.Close()
+		}
+	} else {
+		log.Println("codevaldai: AGENCY_GRPC_ADDR not set — event dispatch disabled")
+	}
+
 	// ── gRPC server ───────────────────────────────────────────────────────────
 	lis, err := net.Listen("tcp", ":"+cfg.GRPCPort)
 	if err != nil {
@@ -103,7 +120,7 @@ func Run(cfg config.Config) error {
 	grpcServer, _ := serverutil.NewGRPCServer()
 	pb.RegisterAIServiceServer(grpcServer, server.New(mgr))
 	entitygraphpb.RegisterEntityServiceServer(grpcServer, server.NewEntityServer(backend))
-	sharedev1.RegisterEventReceiverServiceServer(grpcServer, server.NewEventReceiver(backend, cfg.AgencyID))
+	sharedev1.RegisterEventReceiverServiceServer(grpcServer, server.NewEventReceiver(backend, cfg.AgencyID, dispatcher))
 	healthpb.RegisterHealthServiceServer(grpcServer, health.New("codevaldai"))
 
 	// ── Signal handling ───────────────────────────────────────────────────────

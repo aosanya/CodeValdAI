@@ -44,6 +44,10 @@ type Config struct {
 	// SubscribeTopics is the list of pub/sub topics CodeValdAI subscribes to
 	// (comma-separated AI_SUBSCRIBE_TOPICS env var).
 	SubscribeTopics []string
+
+	// AgencyGRPCAddr is the CodeValdAgency gRPC address used to call MatchRoles
+	// for RACI-driven event dispatch. Empty string disables dispatch.
+	AgencyGRPCAddr string
 }
 
 func parseTopics(raw string) []string {
@@ -72,5 +76,6 @@ func Load() Config {
 		PingInterval:    serverutil.ParseDurationString("CROSS_PING_INTERVAL", 20*time.Second),
 		PingTimeout:     serverutil.ParseDurationString("CROSS_PING_TIMEOUT", 5*time.Second),
 		SubscribeTopics: parseTopics(serverutil.EnvOrDefault("AI_SUBSCRIBE_TOPICS", "")),
+		AgencyGRPCAddr:  serverutil.EnvOrDefault("AGENCY_GRPC_ADDR", ""),
 	}
 }
