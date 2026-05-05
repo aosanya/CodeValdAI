@@ -76,7 +76,7 @@ func (f *fakeDataManager) TraverseGraph(_ context.Context, _ entitygraph.Travers
 
 func TestNotifyEvent_WritesReceivedEventAndReturnsSuccess(t *testing.T) {
 	dm := &fakeDataManager{}
-	srv := NewEventReceiver(dm, "agency-1")
+	srv := NewEventReceiver(dm, "agency-1", nil)
 
 	req := &sharedev1.NotifyEventRequest{
 		EventId:  "evt-123",
@@ -122,7 +122,7 @@ func TestNotifyEvent_WritesReceivedEventAndReturnsSuccess(t *testing.T) {
 
 func TestNotifyEvent_DBFailureReturnsInternalError(t *testing.T) {
 	dm := &fakeDataManager{err: errors.New("arangodb unavailable")}
-	srv := NewEventReceiver(dm, "agency-1")
+	srv := NewEventReceiver(dm, "agency-1", nil)
 
 	req := &sharedev1.NotifyEventRequest{
 		EventId: "evt-456",
