@@ -61,16 +61,16 @@ func parseTopics(raw string) []string {
 func Load() Config {
 	port := serverutil.MustGetEnv("CODEVALDAI_GRPC_PORT")
 	return Config{
-		GRPCPort:       port,
-		ArangoEndpoint: serverutil.EnvOrDefault("AI_ARANGO_ENDPOINT", "http://localhost:8529"),
-		ArangoUser:     serverutil.EnvOrDefault("AI_ARANGO_USER", "root"),
-		ArangoPassword: serverutil.EnvOrDefault("AI_ARANGO_PASSWORD", ""),
-		ArangoDatabase: serverutil.EnvOrDefault("AI_ARANGO_DATABASE", "codevaldai"),
-		CrossGRPCAddr:  serverutil.EnvOrDefault("CROSS_GRPC_ADDR", ""),
-		AdvertiseAddr:  serverutil.EnvOrDefault("AI_GRPC_ADVERTISE_ADDR", ":"+port),
-		AgencyID:       serverutil.EnvOrDefault("CODEVALDAI_AGENCY_ID", ""),
+		GRPCPort:        port,
+		ArangoEndpoint:  serverutil.EnvOrDefault("AI_ARANGO_ENDPOINT", "http://localhost:8529"),
+		ArangoUser:      serverutil.EnvOrDefault("AI_ARANGO_USER", "root"),
+		ArangoPassword:  serverutil.EnvOrDefault("AI_ARANGO_PASSWORD", ""),
+		ArangoDatabase:  serverutil.EnvOrDefault("AI_ARANGO_DATABASE", "codevaldai"),
+		CrossGRPCAddr:   serverutil.EnvOrDefault("CROSS_GRPC_ADDR", ""),
+		AdvertiseAddr:   serverutil.EnvOrDefault("AI_GRPC_ADVERTISE_ADDR", ":"+port),
+		AgencyID:        serverutil.EnvOrDefault("CODEVALDAI_AGENCY_ID", ""),
 		PingInterval:    serverutil.ParseDurationString("CROSS_PING_INTERVAL", 20*time.Second),
 		PingTimeout:     serverutil.ParseDurationString("CROSS_PING_TIMEOUT", 5*time.Second),
-		SubscribeTopics: parseTopics(serverutil.EnvOrDefault("AI_SUBSCRIBE_TOPICS", "work.task.status.changed")),
+		SubscribeTopics: parseTopics(serverutil.EnvOrDefault("AI_SUBSCRIBE_TOPICS", "")),
 	}
 }
