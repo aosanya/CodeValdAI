@@ -45,6 +45,7 @@ func Run(cfg config.Config) error {
 			cfg.AgencyID,
 			cfg.PingInterval,
 			cfg.PingTimeout,
+			cfg.SubscribeTopics,
 		)
 		if err != nil {
 			log.Printf("codevaldai: registrar: failed to create: %v — continuing without registration", err)

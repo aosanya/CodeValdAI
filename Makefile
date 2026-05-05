@@ -39,6 +39,10 @@ kill:
 	-@fuser -k $${CODEVALDAI_GRPC_PORT:-50056}/tcp 2>/dev/null || true
 	@sleep 1
 
+## Stop any running instance, rebuild, and run.
+restart: dev-restart
+	
+	
 # ── Proto Codegen ─────────────────────────────────────────────────────────────
 
 ## Regenerate Go stubs from proto/codevaldai/v1/*.proto.

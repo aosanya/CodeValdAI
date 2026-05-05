@@ -42,6 +42,7 @@ var _ codevaldai.CrossPublisher = (*Registrar)(nil)
 func New(
 	crossAddr, advertiseAddr, agencyID string,
 	pingInterval, pingTimeout time.Duration,
+	subscribeTopics []string,
 ) (*Registrar, error) {
 	routes := aiRoutes()
 	hb, err := sharedregistrar.New(
@@ -54,7 +55,7 @@ func New(
 			"cross.ai.{agencyID}.run.completed",
 			"cross.ai.{agencyID}.run.failed",
 		},
-		[]string{"work.task.status.changed"},
+		subscribeTopics,
 		routes,
 		pingInterval,
 		pingTimeout,
