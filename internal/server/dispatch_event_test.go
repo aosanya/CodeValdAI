@@ -12,14 +12,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-// ── fakeRolesMatcher ──────────────────────────────────────────────────────────
+// ── fakeWorkPlansMatcher ──────────────────────────────────────────────────────
 
-type fakeRolesMatcher struct {
-	resp *agencypb.MatchRolesResponse
+type fakeWorkPlansMatcher struct {
+	resp *agencypb.MatchWorkPlansResponse
 	err  error
 }
 
-func (f *fakeRolesMatcher) MatchRoles(_ context.Context, _ *agencypb.MatchRolesRequest, _ ...grpc.CallOption) (*agencypb.MatchRolesResponse, error) {
+func (f *fakeWorkPlansMatcher) MatchWorkPlans(_ context.Context, _ *agencypb.MatchWorkPlansRequest, _ ...grpc.CallOption) (*agencypb.MatchWorkPlansResponse, error) {
 	return f.resp, f.err
 }
 
@@ -92,14 +92,14 @@ func (f *fakeAIManager) ListRuns(_ context.Context, _ codevaldai.RunFilter) ([]c
 
 // ── RACIDispatcher tests ──────────────────────────────────────────────────────
 
-func TestRACIDispatcher_Dispatch_TriggersRunForMatchedRole(t *testing.T) {
+func TestRACIDispatcher_Dispatch_TriggersRunForMatchedPlan(t *testing.T) {
 	t.Parallel()
-	client := &fakeRolesMatcher{
-		resp: &agencypb.MatchRolesResponse{
-			Matches: []*agencypb.RoleMatch{
+	client := &fakeWorkPlansMatcher{
+		resp: &agencypb.MatchWorkPlansResponse{
+			Matches: []*agencypb.WorkPlanMatch{
 				{
-					Role: &agencypb.Role{
-						Id:           "role-1",
+					WorkPlan: &agencypb.WorkPlan{
+						Id:           "plan-1",
 						AgentId:      "agent-42",
 						Instructions: "Analyze the task change.",
 					},
@@ -110,11 +110,11 @@ func TestRACIDispatcher_Dispatch_TriggersRunForMatchedRole(t *testing.T) {
 	mgr := &fakeAIManager{runID: "run-99"}
 	d := NewRACIDispatcher(client, mgr, "agency-1")
 
-	// Run synchronously by using the unexported triggerRoleRun directly.
+	// Run synchronously by using the unexported triggerPlanRun directly.
 	match := client.resp.GetMatches()[0]
-	err := d.triggerRoleRun(context.Background(), match, "work.task.status.changed", `{"task_id":"t1"}`)
+	err := d.triggerPlanRun(context.Background(), match, "work.task.status.changed", `{"task_id":"t1"}`)
 	if err != nil {
-		t.Fatalf("triggerRoleRun: %v", err)
+		t.Fatalf("triggerPlanRun: %v", err)
 	}
 
 	mgr.mu.Lock()
@@ -134,12 +134,12 @@ func TestRACIDispatcher_Dispatch_TriggersRunForMatchedRole(t *testing.T) {
 	}
 }
 
-func TestRACIDispatcher_Dispatch_SkipsRoleWithNoAgentID(t *testing.T) {
+func TestRACIDispatcher_Dispatch_SkipsPlanWithNoAgentID(t *testing.T) {
 	t.Parallel()
-	client := &fakeRolesMatcher{
-		resp: &agencypb.MatchRolesResponse{
-			Matches: []*agencypb.RoleMatch{
-				{Role: &agencypb.Role{Id: "role-1", AgentId: ""}},
+	client := &fakeWorkPlansMatcher{
+		resp: &agencypb.MatchWorkPlansResponse{
+			Matches: []*agencypb.WorkPlanMatch{
+				{WorkPlan: &agencypb.WorkPlan{Id: "plan-1", AgentId: ""}},
 			},
 		},
 	}
@@ -147,7 +147,7 @@ func TestRACIDispatcher_Dispatch_SkipsRoleWithNoAgentID(t *testing.T) {
 	d := NewRACIDispatcher(client, mgr, "agency-1")
 
 	match := client.resp.GetMatches()[0]
-	if err := d.triggerRoleRun(context.Background(), match, "work.task.status.changed", "{}"); err != nil {
+	if err := d.triggerPlanRun(context.Background(), match, "work.task.status.changed", "{}"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -158,9 +158,9 @@ func TestRACIDispatcher_Dispatch_SkipsRoleWithNoAgentID(t *testing.T) {
 	}
 }
 
-func TestRACIDispatcher_Dispatch_MatchRolesError_NoRun(t *testing.T) {
+func TestRACIDispatcher_Dispatch_MatchWorkPlansError_NoRun(t *testing.T) {
 	t.Parallel()
-	client := &fakeRolesMatcher{err: errors.New("agency unavailable")}
+	client := &fakeWorkPlansMatcher{err: errors.New("agency unavailable")}
 	mgr := &fakeAIManager{}
 	d := NewRACIDispatcher(client, mgr, "agency-1")
 
@@ -171,13 +171,13 @@ func TestRACIDispatcher_Dispatch_MatchRolesError_NoRun(t *testing.T) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
 	if len(mgr.intakeCalls) != 0 {
-		t.Errorf("expected 0 IntakeRun calls on MatchRoles error, got %d", len(mgr.intakeCalls))
+		t.Errorf("expected 0 IntakeRun calls on MatchWorkPlans error, got %d", len(mgr.intakeCalls))
 	}
 }
 
 func TestRACIDispatcher_Dispatch_NoMatches_NoRun(t *testing.T) {
 	t.Parallel()
-	client := &fakeRolesMatcher{resp: &agencypb.MatchRolesResponse{}}
+	client := &fakeWorkPlansMatcher{resp: &agencypb.MatchWorkPlansResponse{}}
 	mgr := &fakeAIManager{}
 	d := NewRACIDispatcher(client, mgr, "agency-1")
 
@@ -195,8 +195,8 @@ func TestRACIDispatcher_Dispatch_NoMatches_NoRun(t *testing.T) {
 
 func TestBuildDispatchInstructions_IncludesTopicAndPayload(t *testing.T) {
 	t.Parallel()
-	role := &agencypb.Role{Instructions: "Do the analysis."}
-	result := buildDispatchInstructions(role, nil, "work.task.status.changed", `{"task_id":"t1"}`)
+	plan := &agencypb.WorkPlan{Instructions: "Do the analysis."}
+	result := buildDispatchInstructions(plan, nil, "work.task.status.changed", `{"task_id":"t1"}`)
 
 	if result == "" {
 		t.Fatal("expected non-empty instructions")
@@ -212,10 +212,10 @@ func TestBuildDispatchInstructions_IncludesTopicAndPayload(t *testing.T) {
 	}
 }
 
-func TestBuildDispatchInstructions_NoRoleInstructions_StillIncludesEvent(t *testing.T) {
+func TestBuildDispatchInstructions_NoPlanInstructions_StillIncludesEvent(t *testing.T) {
 	t.Parallel()
-	role := &agencypb.Role{}
-	result := buildDispatchInstructions(role, nil, "work.task.status.changed", `{"x":1}`)
+	plan := &agencypb.WorkPlan{}
+	result := buildDispatchInstructions(plan, nil, "work.task.status.changed", `{"x":1}`)
 	if !contains(result, "work.task.status.changed") {
 		t.Error("missing topic")
 	}
@@ -226,14 +226,14 @@ func TestBuildDispatchInstructions_NoRoleInstructions_StillIncludesEvent(t *test
 
 func TestBuildDispatchInstructions_GitContextSource_IncludesSignals(t *testing.T) {
 	t.Parallel()
-	role := &agencypb.Role{}
+	plan := &agencypb.WorkPlan{}
 	sources := []*agencypb.ContextSource{
 		{
 			SourceType: "GitContextSource",
 			Git:        &agencypb.GitContextSource{Signals: "commit,pr"},
 		},
 	}
-	result := buildDispatchInstructions(role, sources, "t", "p")
+	result := buildDispatchInstructions(plan, sources, "t", "p")
 	if !contains(result, "GitContextSource") {
 		t.Error("missing source type")
 	}

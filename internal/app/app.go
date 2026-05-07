@@ -39,6 +39,23 @@ func Run(cfg config.Config) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// ── Agency gRPC client (shared: subscription sync + dispatcher) ──────────
+	var agencyClient agencypb.AgencyServiceClient
+	if cfg.AgencyGRPCAddr != "" {
+		agencyConn, err := grpc.NewClient(cfg.AgencyGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Printf("codevaldai: agency client: %v — dispatch and subscription sync disabled", err)
+		} else {
+			defer agencyConn.Close()
+			agencyClient = agencypb.NewAgencyServiceClient(agencyConn)
+		}
+	} else {
+		log.Println("codevaldai: AGENCY_GRPC_ADDR not set — dispatch and subscription sync disabled")
+	}
+
+	// ── Subscribe topics derived from agency work plans ───────────────────────
+	subscribeTopics := workPlanTopics(ctx, agencyClient)
+
 	// ── Cross registrar (optional) ───────────────────────────────────────────
 	var pub codevaldai.CrossPublisher
 	if cfg.CrossGRPCAddr != "" {
@@ -48,7 +65,7 @@ func Run(cfg config.Config) error {
 			cfg.AgencyID,
 			cfg.PingInterval,
 			cfg.PingTimeout,
-			cfg.SubscribeTopics,
+			subscribeTopics,
 		)
 		if err != nil {
 			log.Printf("codevaldai: registrar: failed to create: %v — continuing without registration", err)
@@ -97,18 +114,10 @@ func Run(cfg config.Config) error {
 	// ── AIManager ────────────────────────────────────────────────────────────
 	mgr := codevaldai.NewAIManager(backend, backend, pub, cfg.AgencyID)
 
-	// ── Agency gRPC client + RACI dispatcher (optional) ──────────────────────
+	// ── RACI dispatcher (reuses agency client opened above) ──────────────────
 	var dispatcher server.EventDispatcher
-	if cfg.AgencyGRPCAddr != "" {
-		agencyConn, err := grpc.NewClient(cfg.AgencyGRPCAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-		if err != nil {
-			log.Printf("codevaldai: agency client: %v — dispatch disabled", err)
-		} else {
-			dispatcher = server.NewRACIDispatcher(agencypb.NewAgencyServiceClient(agencyConn), mgr, cfg.AgencyID)
-			defer agencyConn.Close()
-		}
-	} else {
-		log.Println("codevaldai: AGENCY_GRPC_ADDR not set — event dispatch disabled")
+	if agencyClient != nil {
+		dispatcher = server.NewRACIDispatcher(agencyClient, mgr, cfg.AgencyID)
 	}
 
 	// ── gRPC server ───────────────────────────────────────────────────────────
@@ -135,4 +144,35 @@ func Run(cfg config.Config) error {
 	log.Printf("codevaldai: gRPC server listening on :%s", cfg.GRPCPort)
 	serverutil.RunWithGracefulShutdown(ctx, grpcServer, lis, 30*time.Second)
 	return nil
+}
+
+// workPlanTopics fetches all enabled work plans from the Agency service and
+// returns the deduplicated trigger_topic values for plans whose handler_service
+// is "codevaldai". Best-effort: on error it logs and returns nil so startup is
+// never blocked.
+func workPlanTopics(ctx context.Context, client agencypb.AgencyServiceClient) []string {
+	if client == nil {
+		return nil
+	}
+	fetchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := client.ListWorkPlans(fetchCtx, &agencypb.ListWorkPlansRequest{})
+	if err != nil {
+		log.Printf("codevaldai: workPlanTopics: ListWorkPlans: %v — no topics subscribed", err)
+		return nil
+	}
+
+	seen := map[string]bool{}
+	var out []string
+	for _, wp := range resp.GetWorkPlans() {
+		if wp.GetEnabled() && wp.GetHandlerService() == "codevaldai" && wp.GetTriggerTopic() != "" {
+			if !seen[wp.GetTriggerTopic()] {
+				seen[wp.GetTriggerTopic()] = true
+				out = append(out, wp.GetTriggerTopic())
+			}
+		}
+	}
+	log.Printf("codevaldai: workPlanTopics: subscribing to %d topic(s): %v", len(out), out)
+	return out
 }

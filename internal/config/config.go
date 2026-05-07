@@ -2,7 +2,6 @@
 package config
 
 import (
-	"strings"
 	"time"
 
 	"github.com/aosanya/CodeValdSharedLib/serverutil"
@@ -41,23 +40,9 @@ type Config struct {
 	// PingTimeout is the per-RPC timeout for each Register call (default 5s).
 	PingTimeout time.Duration
 
-	// SubscribeTopics is the list of pub/sub topics CodeValdAI subscribes to
-	// (comma-separated AI_SUBSCRIBE_TOPICS env var).
-	SubscribeTopics []string
-
 	// AgencyGRPCAddr is the CodeValdAgency gRPC address used to call MatchRoles
 	// for RACI-driven event dispatch. Empty string disables dispatch.
 	AgencyGRPCAddr string
-}
-
-func parseTopics(raw string) []string {
-	var out []string
-	for _, t := range strings.Split(raw, ",") {
-		if t = strings.TrimSpace(t); t != "" {
-			out = append(out, t)
-		}
-	}
-	return out
 }
 
 // Load reads configuration from environment variables, falling back to defaults
@@ -65,17 +50,16 @@ func parseTopics(raw string) []string {
 func Load() Config {
 	port := serverutil.MustGetEnv("CODEVALDAI_GRPC_PORT")
 	return Config{
-		GRPCPort:        port,
-		ArangoEndpoint:  serverutil.EnvOrDefault("AI_ARANGO_ENDPOINT", "http://localhost:8529"),
-		ArangoUser:      serverutil.EnvOrDefault("AI_ARANGO_USER", "root"),
-		ArangoPassword:  serverutil.EnvOrDefault("AI_ARANGO_PASSWORD", ""),
-		ArangoDatabase:  serverutil.EnvOrDefault("AI_ARANGO_DATABASE", "codevaldai"),
-		CrossGRPCAddr:   serverutil.EnvOrDefault("CROSS_GRPC_ADDR", ""),
-		AdvertiseAddr:   serverutil.EnvOrDefault("AI_GRPC_ADVERTISE_ADDR", ":"+port),
-		AgencyID:        serverutil.EnvOrDefault("CODEVALDAI_AGENCY_ID", ""),
-		PingInterval:    serverutil.ParseDurationString("CROSS_PING_INTERVAL", 20*time.Second),
-		PingTimeout:     serverutil.ParseDurationString("CROSS_PING_TIMEOUT", 5*time.Second),
-		SubscribeTopics: parseTopics(serverutil.EnvOrDefault("AI_SUBSCRIBE_TOPICS", "")),
-		AgencyGRPCAddr:  serverutil.EnvOrDefault("AGENCY_GRPC_ADDR", ""),
+		GRPCPort:       port,
+		ArangoEndpoint: serverutil.EnvOrDefault("AI_ARANGO_ENDPOINT", "http://localhost:8529"),
+		ArangoUser:     serverutil.EnvOrDefault("AI_ARANGO_USER", "root"),
+		ArangoPassword: serverutil.EnvOrDefault("AI_ARANGO_PASSWORD", ""),
+		ArangoDatabase: serverutil.EnvOrDefault("AI_ARANGO_DATABASE", "codevaldai"),
+		CrossGRPCAddr:  serverutil.EnvOrDefault("CROSS_GRPC_ADDR", ""),
+		AdvertiseAddr:  serverutil.EnvOrDefault("AI_GRPC_ADVERTISE_ADDR", ":"+port),
+		AgencyID:       serverutil.EnvOrDefault("CODEVALDAI_AGENCY_ID", ""),
+		PingInterval:   serverutil.ParseDurationString("CROSS_PING_INTERVAL", 20*time.Second),
+		PingTimeout:    serverutil.ParseDurationString("CROSS_PING_TIMEOUT", 5*time.Second),
+		AgencyGRPCAddr: serverutil.EnvOrDefault("AGENCY_GRPC_ADDR", ""),
 	}
 }

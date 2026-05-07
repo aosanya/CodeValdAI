@@ -12,67 +12,67 @@ import (
 )
 
 // EventDispatcher is called asynchronously after a ReceivedEvent is written.
-// The dispatcher fans out IntakeRun + ExecuteRunStreaming per matched Role.
+// The dispatcher fans out IntakeRun + ExecuteRunStreaming per matched WorkPlan.
 // A nil dispatcher disables dispatch (store-only mode).
 type EventDispatcher interface {
 	Dispatch(ctx context.Context, topic, payload string)
 }
 
-// rolesMatcher is the subset of agencypb.AgencyServiceClient used for dispatch.
-// Using a narrow interface keeps tests simple — only MatchRoles must be mocked.
-type rolesMatcher interface {
-	MatchRoles(ctx context.Context, in *agencypb.MatchRolesRequest, opts ...grpc.CallOption) (*agencypb.MatchRolesResponse, error)
+// workPlansMatcher is the subset of agencypb.AgencyServiceClient used for
+// dispatch. Using a narrow interface keeps tests simple.
+type workPlansMatcher interface {
+	MatchWorkPlans(ctx context.Context, in *agencypb.MatchWorkPlansRequest, opts ...grpc.CallOption) (*agencypb.MatchWorkPlansResponse, error)
 }
 
-// RACIDispatcher implements EventDispatcher via Agency.MatchRoles.
-// For each matched Role that has an agent_id, it triggers a full two-phase
+// RACIDispatcher implements EventDispatcher via Agency.MatchWorkPlans.
+// For each matched WorkPlan that has an agent_id, it triggers a full two-phase
 // run (IntakeRun → ExecuteRunStreaming) in a separate goroutine.
 type RACIDispatcher struct {
-	agencyClient rolesMatcher
+	agencyClient workPlansMatcher
 	mgr          codevaldai.AIManager
 	agencyID     string
 }
 
 // NewRACIDispatcher returns an EventDispatcher backed by an Agency gRPC client.
 // agencyClient is typically agencypb.NewAgencyServiceClient(conn).
-func NewRACIDispatcher(agencyClient rolesMatcher, mgr codevaldai.AIManager, agencyID string) *RACIDispatcher {
+func NewRACIDispatcher(agencyClient workPlansMatcher, mgr codevaldai.AIManager, agencyID string) *RACIDispatcher {
 	return &RACIDispatcher{agencyClient: agencyClient, mgr: mgr, agencyID: agencyID}
 }
 
-// Dispatch calls Agency.MatchRoles for the incoming topic+payload and fires
-// one goroutine per matched Role. It returns immediately so NotifyEvent is
+// Dispatch calls Agency.MatchWorkPlans for the incoming topic+payload and fires
+// one goroutine per matched WorkPlan. It returns immediately so NotifyEvent is
 // not blocked.
 func (d *RACIDispatcher) Dispatch(ctx context.Context, topic, payload string) {
-	resp, err := d.agencyClient.MatchRoles(ctx, &agencypb.MatchRolesRequest{
+	resp, err := d.agencyClient.MatchWorkPlans(ctx, &agencypb.MatchWorkPlansRequest{
 		Topic:   topic,
 		Payload: payload,
 	})
 	if err != nil {
-		log.Printf("codevaldai: dispatch: MatchRoles topic=%q: %v", topic, err)
+		log.Printf("codevaldai: dispatch: MatchWorkPlans topic=%q: %v", topic, err)
 		return
 	}
 	for _, match := range resp.GetMatches() {
 		match := match
 		go func() {
-			if err := d.triggerRoleRun(context.Background(), match, topic, payload); err != nil {
-				log.Printf("codevaldai: dispatch: role=%s agent=%s: %v",
-					match.GetRole().GetId(), match.GetRole().GetAgentId(), err)
+			if err := d.triggerPlanRun(context.Background(), match, topic, payload); err != nil {
+				log.Printf("codevaldai: dispatch: plan=%s agent=%s: %v",
+					match.GetWorkPlan().GetId(), match.GetWorkPlan().GetAgentId(), err)
 			}
 		}()
 	}
 }
 
-// triggerRoleRun runs the two-phase pipeline for a single matched role.
-func (d *RACIDispatcher) triggerRoleRun(ctx context.Context, match *agencypb.RoleMatch, topic, payload string) error {
-	role := match.GetRole()
-	if role.GetAgentId() == "" {
-		return nil // role has no agent configured; nothing to dispatch
+// triggerPlanRun runs the two-phase pipeline for a single matched work plan.
+func (d *RACIDispatcher) triggerPlanRun(ctx context.Context, match *agencypb.WorkPlanMatch, topic, payload string) error {
+	plan := match.GetWorkPlan()
+	if plan.GetAgentId() == "" {
+		return nil // plan has no agent configured; nothing to dispatch
 	}
 
-	instructions := buildDispatchInstructions(role, match.GetContextSources(), topic, payload)
+	instructions := buildDispatchInstructions(plan, match.GetContextSources(), topic, payload)
 
 	run, _, err := d.mgr.IntakeRun(ctx, codevaldai.IntakeRunRequest{
-		AgentID:      role.GetAgentId(),
+		AgentID:      plan.GetAgentId(),
 		Instructions: instructions,
 	})
 	if err != nil {
@@ -86,10 +86,10 @@ func (d *RACIDispatcher) triggerRoleRun(ctx context.Context, match *agencypb.Rol
 }
 
 // buildDispatchInstructions assembles the prompt string forwarded to IntakeRun:
-// role instructions + event topic + raw JSON payload + context source descriptions.
-func buildDispatchInstructions(role *agencypb.Role, sources []*agencypb.ContextSource, topic, payload string) string {
+// plan instructions + event topic + raw JSON payload + context source descriptions.
+func buildDispatchInstructions(plan *agencypb.WorkPlan, sources []*agencypb.ContextSource, topic, payload string) string {
 	var b strings.Builder
-	if instr := role.GetInstructions(); instr != "" {
+	if instr := plan.GetInstructions(); instr != "" {
 		b.WriteString(instr)
 		b.WriteString("\n\n")
 	}
