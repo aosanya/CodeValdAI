@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -167,7 +168,11 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string) {
 	if m.publisher == nil {
 		return
 	}
-	actions := parseActions(output)
+	actions, err := parseActions(output)
+	if err != nil {
+		log.Printf("codevaldai: dispatchActions: malformed actions block: %v", err)
+		return
+	}
 	for _, a := range actions {
 		if err := m.publisher.Publish(ctx, a.Topic, m.agencyID, "codevaldai", a.RawPayload()); err != nil {
 			_ = err // best-effort; logged by publisher

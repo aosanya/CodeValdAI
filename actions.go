@@ -2,6 +2,7 @@ package codevaldai
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 )
 
@@ -31,26 +32,30 @@ func (a Action) RawPayload() string {
 	return string(b)
 }
 
-// parseActions extracts the ```actions block from the LLM output and
-// returns the decoded slice. Returns nil when no block is present or the
-// JSON is malformed — callers treat missing actions as a no-op.
-func parseActions(output string) []Action {
+// parseActions extracts the ```actions block from the LLM output.
+// Returns (nil, nil) when no block is present — callers treat that as a no-op.
+// Returns a non-nil error when a fence is found but the block is malformed,
+// so callers can log the format violation rather than silently dropping it.
+func parseActions(output string) ([]Action, error) {
 	const fence = "```actions"
 	start := strings.Index(output, fence)
 	if start == -1 {
-		return nil
+		return nil, nil
 	}
 	rest := output[start+len(fence):]
 	end := strings.Index(rest, "```")
 	if end == -1 {
-		return nil
+		return nil, fmt.Errorf("actions block has opening fence but no closing ```")
 	}
 	raw := strings.TrimSpace(rest[:end])
+	if raw == "" {
+		return nil, fmt.Errorf("actions block is empty")
+	}
 	var actions []Action
 	if err := json.Unmarshal([]byte(raw), &actions); err != nil {
-		return nil
+		return nil, fmt.Errorf("actions block contains invalid JSON: %w", err)
 	}
-	return actions
+	return actions, nil
 }
 
 // CatalogueEntry describes one PubSub topic a service is known to consume,
