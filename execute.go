@@ -26,8 +26,8 @@ func (m *aiManager) ExecuteRun(ctx context.Context, runID string, inputs []RunIn
 // Returns ErrRunNotFound if runID does not exist.
 // Returns ErrRunNotIntaked if the run is not in pending_intake state.
 // Returns ErrProviderNotFound if the agent's linked provider does not exist.
-// Publishes "cross.ai.{agencyID}.run.completed" on success.
-// Publishes "cross.ai.{agencyID}.run.failed" on LLM error.
+// Publishes "ai.{agencyID}.run.completed" on success.
+// Publishes "ai.{agencyID}.run.failed" on LLM error.
 func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, inputs []RunInput, onChunk func(string)) (AgentRun, error) {
 	runEntity, err := m.dm.GetEntity(ctx, m.agencyID, runID)
 	if err != nil {
@@ -86,6 +86,10 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 
 	userMsg := buildExecuteUserMessage(run.Instructions, runFields, inputs)
 
+	// Build the enriched system prompt: static agent prompt + action catalogue
+	// + hydrated event context (task details, etc.) fetched just-in-time.
+	systemPrompt := m.buildSystemPrompt(ctx, agent.SystemPrompt, run.Instructions)
+
 	now = time.Now().UTC().Format(time.RFC3339)
 	if _, err := m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{
 		Properties: map[string]any{
@@ -103,7 +107,7 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 		output.WriteString(s)
 		onChunk(s)
 	}
-	inputTok, outputTok, llmErr := m.callLLM(ctx, provider, agent, agent.SystemPrompt, userMsg, wrapped)
+	inputTok, outputTok, llmErr := m.callLLM(ctx, provider, agent, systemPrompt, userMsg, wrapped)
 
 	now = time.Now().UTC().Format(time.RFC3339)
 	if llmErr != nil {
@@ -124,17 +128,19 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 				"updated_at":    now,
 			},
 		})
-		m.publish(ctx, fmt.Sprintf("cross.ai.%s.run.failed", m.agencyID))
+		m.publish(ctx, fmt.Sprintf("ai.%s.run.failed", m.agencyID), "")
 		failedEntity, _ := m.dm.GetEntity(ctx, m.agencyID, runID)
 		failed := agentRunFromEntity(failedEntity)
 		failed.AgentID = agent.ID
 		return failed, fmt.Errorf("ExecuteRun %s: %w", runID, llmErr)
 	}
 
+	finalOutput := output.String()
+
 	updated, err := m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{
 		Properties: map[string]any{
 			"status":        string(AgentRunStatusCompleted),
-			"output":        output.String(),
+			"output":        finalOutput,
 			"input_tokens":  inputTok,
 			"output_tokens": outputTok,
 			"completed_at":  now,
@@ -144,11 +150,29 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	if err != nil {
 		return AgentRun{}, fmt.Errorf("ExecuteRun %s: store output: %w", runID, err)
 	}
-	m.publish(ctx, fmt.Sprintf("cross.ai.%s.run.completed", m.agencyID))
+
+	// Dispatch any PubSub actions the LLM embedded in its output.
+	m.dispatchActions(ctx, finalOutput)
+
+	m.publish(ctx, fmt.Sprintf("ai.%s.run.completed", m.agencyID), `{"run_id":"`+runID+`"}`)
 
 	completed := agentRunFromEntity(updated)
 	completed.AgentID = agent.ID
 	return completed, nil
+}
+
+// dispatchActions parses any ```actions block from the LLM output and
+// publishes each action as a PubSub event via CodeValdCross.
+func (m *aiManager) dispatchActions(ctx context.Context, output string) {
+	if m.publisher == nil {
+		return
+	}
+	actions := parseActions(output)
+	for _, a := range actions {
+		if err := m.publisher.Publish(ctx, a.Topic, m.agencyID, "codevaldai", a.RawPayload()); err != nil {
+			_ = err // best-effort; logged by publisher
+		}
+	}
 }
 
 // resolveAgentAndProvider follows the belongs_to_agent → uses_provider edges

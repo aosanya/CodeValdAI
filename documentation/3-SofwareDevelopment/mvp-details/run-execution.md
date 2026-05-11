@@ -75,7 +75,7 @@ AIManager.ExecuteRun(ctx, runID, []RunInput)
            "updated_at":    now,
        })
        publisher.Publish(ctx,
-           fmt.Sprintf("cross.ai.%s.run.completed", agencyID), runID)
+           fmt.Sprintf("ai.%s.run.completed", agencyID), runID)
            // publish errors: log, do not return to caller
        return (AgentRun{status:"completed"}, nil)
 
@@ -92,7 +92,7 @@ AIManager.ExecuteRun(ctx, runID, []RunInput)
            "updated_at":    now,
        })
        publisher.Publish(ctx,
-           fmt.Sprintf("cross.ai.%s.run.failed", agencyID), runID)
+           fmt.Sprintf("ai.%s.run.failed", agencyID), runID)
        return (AgentRun{status:"failed"}, err)
 ```
 
@@ -129,8 +129,8 @@ Unmatched inputs (no corresponding field) are included with their fieldname only
 | Valid `ExecuteRun` — LLM errors | Run status = `failed`; error_message stored; error returned |
 | Valid `ExecuteRun` — `context.DeadlineExceeded` | Run status = `failed`; error_message contains "timeout exceeded after"; partial output preserved |
 | `completed` run token counts stored | `input_tokens >= 0`, `output_tokens >= 0` (0 when provider omits `usage` — see [llm-client/dispatcher.md](llm-client/dispatcher.md)) |
-| `cross.ai.{id}.run.completed` published | ✅ (fake publisher captures call) |
-| `cross.ai.{id}.run.failed` published on failure | ✅ |
+| `ai.{id}.run.completed` published | ✅ (fake publisher captures call) |
+| `ai.{id}.run.failed` published on failure | ✅ |
 | `completed_at` stamped on both success and failure | ✅ |
 
 ---

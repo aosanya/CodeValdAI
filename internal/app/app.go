@@ -112,7 +112,7 @@ func Run(cfg config.Config) error {
 	}
 
 	// ── AIManager ────────────────────────────────────────────────────────────
-	mgr := codevaldai.NewAIManager(backend, backend, pub, cfg.AgencyID)
+	mgr := codevaldai.NewAIManager(backend, backend, pub, cfg.AgencyID, cfg.CrossHTTPAddr)
 
 	// ── AI config bootstrap (provision providers/agents from agency.json) ────
 	if cfg.AgencyJSONPath != "" {

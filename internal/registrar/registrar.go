@@ -51,9 +51,9 @@ func New(
 		agencyID,
 		"codevaldai",
 		[]string{
-			"cross.ai.{agencyID}.agent.created",
-			"cross.ai.{agencyID}.run.completed",
-			"cross.ai.{agencyID}.run.failed",
+			"ai.{agencyID}.agent.created",
+			"ai.{agencyID}.run.completed",
+			"ai.{agencyID}.run.failed",
 		},
 		subscribeTopics,
 		routes,
@@ -80,14 +80,11 @@ func (r *Registrar) Close() {
 }
 
 // Publish implements [codevaldai.CrossPublisher].
-// It fires a best-effort notification for topic and agencyID.
-// Currently logs the event; a future iteration will call a Cross Publish RPC
-// once CodeValdCross exposes one. Errors are always nil — the operation has
-// already been persisted and must not be rolled back.
-func (r *Registrar) Publish(ctx context.Context, topic string, agencyID string) error {
-	log.Printf("registrar: publish topic=%q agencyID=%q", topic, agencyID)
-	// TODO(CROSS-007): call OrchestratorService.Publish RPC when available.
-	return nil
+// Forwards the event to CodeValdCross via the shared registrar's Publish RPC,
+// which routes it through CodeValdPubSub to all subscribers of topic.
+func (r *Registrar) Publish(ctx context.Context, topic, agencyID, source, payload string) error {
+	log.Printf("registrar: publish topic=%q agencyID=%q source=%q", topic, agencyID, source)
+	return r.heartbeat.Publish(ctx, agencyID, topic, source, payload)
 }
 
 // aiRoutes returns all HTTP routes CodeValdAI exposes via Cross.

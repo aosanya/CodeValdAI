@@ -87,37 +87,42 @@ Invalid transitions return `ErrInvalidRunStatus`.
 6. Transition: pending_intake → pending_execution
        dataManager.UpdateEntity — AgentRun{status: "pending_execution"}
 
-7. Build execution prompt:
-   System: agent.SystemPrompt
+7. buildSystemPrompt:
+       = agent.SystemPrompt
+       + FormatActionCatalogue(FetchActionCatalogue(crossHTTPAddr, agencyID))
+       + HydrateEventContext(crossHTTPAddr, agencyID, run.Instructions)
+   Build user message:
    User:   "Instructions: {instructions}
-            Inputs:
-              {fieldname}: {value}
+            Input Fields Provided:
+              {field.label} ({fieldname}): {value}
               ...
             Complete the task."
 
 8. Transition: pending_execution → running
        dataManager.UpdateEntity — AgentRun{status: "running", started_at: now}
 
-9. callLLM(ctx, provider, agent, system, user)
+9. callLLM(ctx, provider, agent, system, user) — streaming
 
 10a. On success:
        dataManager.UpdateEntity — AgentRun{
            status:        "completed",
-           output:        response.Content,
-           input_tokens:  response.InputTokens,
-           output_tokens: response.OutputTokens,
+           output:        accumulated output,
+           input_tokens:  inputTok,
+           output_tokens: outputTok,
            completed_at:  now,
        }
-       publisher.Publish(ctx, "cross.ai.{agencyID}.run.completed", runID)
+       dispatchActions(output)  → parseActions → publisher.Publish per action topic
+       publisher.Publish(ctx, "ai.{agencyID}.run.completed", {"run_id":"<id>"})
        return (AgentRun, nil)
 
 10b. On LLM error:
        dataManager.UpdateEntity — AgentRun{
            status:        "failed",
            error_message: err.Error(),
+           output:        partial output,
            completed_at:  now,
        }
-       publisher.Publish(ctx, "cross.ai.{agencyID}.run.failed", runID)
+       publisher.Publish(ctx, "ai.{agencyID}.run.failed", "")
        return (AgentRun, err)
 ```
 
@@ -138,7 +143,7 @@ Invalid transitions return `ErrInvalidRunStatus`.
    }
    dataManager.CreateRelationship — uses_provider: Agent → LLMProvider
 
-4. publisher.Publish(ctx, "cross.ai.{agencyID}.agent.created", agentID)
+4. publisher.Publish(ctx, "ai.{agencyID}.agent.created", agentID)
    (publish errors are logged; never returned to caller)
 
 5. Return (Agent, nil)

@@ -48,6 +48,10 @@ type Config struct {
 	// ai_config section is read on startup to provision LLM providers and
 	// agents. Empty string disables bootstrap.
 	AgencyJSONPath string
+
+	// CrossHTTPAddr is the base HTTP URL of CodeValdCross used by AIManager
+	// to fetch the action catalogue and hydrate event context (e.g. "http://localhost:8080").
+	CrossHTTPAddr string
 }
 
 // Load reads configuration from environment variables, falling back to defaults
@@ -67,5 +71,6 @@ func Load() Config {
 		PingTimeout:    serverutil.ParseDurationString("CROSS_PING_TIMEOUT", 5*time.Second),
 		AgencyGRPCAddr: serverutil.EnvOrDefault("AGENCY_GRPC_ADDR", ""),
 		AgencyJSONPath: serverutil.EnvOrDefault("AGENCY_JSON_PATH", ""),
+		CrossHTTPAddr:  serverutil.EnvOrDefault("CROSS_HTTP_ADDR", ""),
 	}
 }

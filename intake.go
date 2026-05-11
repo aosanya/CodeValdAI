@@ -89,12 +89,17 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 			"created_at":   now,
 			"updated_at":   now,
 		},
-		Relationships: []entitygraph.EntityRelationshipRequest{
-			{Name: "belongs_to_agent", ToID: req.AgentID},
-		},
 	})
 	if err != nil {
 		return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: create run: %w", req.AgentID, err)
+	}
+	if _, err := m.dm.CreateRelationship(ctx, entitygraph.CreateRelationshipRequest{
+		AgencyID: m.agencyID,
+		FromID:   runEntity.ID,
+		ToID:     req.AgentID,
+		Name:     "belongs_to_agent",
+	}); err != nil {
+		return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: link agent: %w", req.AgentID, err)
 	}
 
 	runFields := make([]RunField, 0, len(fields))

@@ -13,14 +13,14 @@ import (
 )
 
 // Publisher is the minimal CrossPublisher contract needed by the boot sweep.
-// codevaldai.CrossPublisher satisfies it implicitly; tests can inject a fake.
+// Matches codevaldai.CrossPublisher so the registrar can be passed directly.
 type Publisher interface {
-	Publish(ctx context.Context, topic string, agencyID string) error
+	Publish(ctx context.Context, topic, agencyID, source, payload string) error
 }
 
 // ReconcileRunningRuns transitions any AgentRun left in "running" state to
 // "failed" with error_message="interrupted by service restart" and publishes
-// "cross.ai.{agencyID}.run.failed" for each. Called once on startup before
+// "ai.{agencyID}.run.failed" for each. Called once on startup before
 // the gRPC server begins accepting requests.
 //
 // Per-run failures are logged and skipped — one bad row must not block the
@@ -52,7 +52,7 @@ func ReconcileRunningRuns(
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	topic := fmt.Sprintf("cross.ai.%s.run.failed", agencyID)
+	topic := fmt.Sprintf("ai.%s.run.failed", agencyID)
 	for _, run := range runs {
 		if _, err := dm.UpdateEntity(ctx, agencyID, run.ID, entitygraph.UpdateEntityRequest{
 			Properties: map[string]any{
@@ -66,7 +66,7 @@ func ReconcileRunningRuns(
 			continue
 		}
 		if publisher != nil {
-			if err := publisher.Publish(ctx, topic, agencyID); err != nil {
+			if err := publisher.Publish(ctx, topic, agencyID, "codevaldai", ""); err != nil {
 				logger.Warn("publish run.failed during reconcile", "run_id", run.ID, "err", err)
 			}
 		}

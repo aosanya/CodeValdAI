@@ -7,6 +7,7 @@ package codevaldai
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
@@ -46,7 +47,7 @@ type AIManager interface {
 	// Returns [ErrInvalidAgent] if required fields (Name, ProviderID, Model,
 	// SystemPrompt) are missing.
 	// Returns [ErrProviderNotFound] if the supplied ProviderID does not exist.
-	// Publishes "cross.ai.{agencyID}.agent.created" after a successful write.
+	// Publishes "ai.{agencyID}.agent.created" after a successful write.
 	CreateAgent(ctx context.Context, req CreateAgentRequest) (Agent, error)
 
 	// GetAgent retrieves a single Agent by its ID.
@@ -82,8 +83,8 @@ type AIManager interface {
 	// Equivalent to ExecuteRunStreaming with a no-op onChunk callback.
 	// Returns [ErrRunNotFound] if runID does not exist.
 	// Returns [ErrRunNotIntaked] if the run is not in pending_intake state.
-	// Publishes "cross.ai.{agencyID}.run.completed" on success.
-	// Publishes "cross.ai.{agencyID}.run.failed" on LLM error.
+	// Publishes "ai.{agencyID}.run.completed" on success.
+	// Publishes "ai.{agencyID}.run.failed" on LLM error.
 	ExecuteRun(ctx context.Context, runID string, inputs []RunInput) (AgentRun, error)
 
 	// ExecuteRunStreaming runs the same flow as ExecuteRun but invokes
@@ -91,8 +92,8 @@ type AIManager interface {
 	// The accumulated chunks equal AgentRun.Output stored in the database.
 	// Returns [ErrRunNotFound] if runID does not exist.
 	// Returns [ErrRunNotIntaked] if the run is not in pending_intake state.
-	// Publishes "cross.ai.{agencyID}.run.completed" on success.
-	// Publishes "cross.ai.{agencyID}.run.failed" on LLM error.
+	// Publishes "ai.{agencyID}.run.completed" on success.
+	// Publishes "ai.{agencyID}.run.failed" on LLM error.
 	ExecuteRunStreaming(ctx context.Context, runID string, inputs []RunInput, onChunk func(string)) (AgentRun, error)
 
 	// GetRun retrieves a single AgentRun by its ID.
@@ -111,10 +112,10 @@ type AISchemaManager = entitygraph.SchemaManager
 // Implementations must be safe for concurrent use. A nil CrossPublisher is
 // valid — publish calls are silently skipped.
 type CrossPublisher interface {
-	// Publish delivers an event for the given topic and agencyID to
-	// CodeValdCross. Errors are non-fatal: implementations should log and
-	// return nil for best-effort delivery.
-	Publish(ctx context.Context, topic string, agencyID string) error
+	// Publish delivers a PubSub event for topic to CodeValdCross.
+	// payload is the raw JSON string included in the event body.
+	// Errors are non-fatal: implementations should log and return nil.
+	Publish(ctx context.Context, topic, agencyID, source, payload string) error
 }
 
 // aiManager is the concrete implementation of [AIManager].
@@ -122,27 +123,32 @@ type CrossPublisher interface {
 // methods. LLM calls are dispatched via the unexported callLLM helper
 // based on the LLMProvider.ProviderType fetched from the graph.
 type aiManager struct {
-	dm        entitygraph.DataManager // graph CRUD — injected by cmd/main.go
-	sm        AISchemaManager         // schema versioning — injected by cmd/main.go
-	publisher CrossPublisher          // optional; nil = skip event publishing
-	agencyID  string                  // the single agency ID for this database
+	dm            entitygraph.DataManager // graph CRUD — injected by cmd/main.go
+	sm            AISchemaManager         // schema versioning — injected by cmd/main.go
+	publisher     CrossPublisher          // optional; nil = skip event publishing
+	agencyID      string                  // the single agency ID for this database
+	crossHTTPAddr string                  // base URL for Cross HTTP API, e.g. "http://localhost:8080"
 }
 
 // NewAIManager constructs an [AIManager] backed by the given
 // [entitygraph.DataManager] and [AISchemaManager].
 // agencyID is the single agency scoped to this database.
+// crossHTTPAddr is the base URL for the CodeValdCross HTTP API (used to
+// fetch the service registry and task details before each LLM run).
 // pub may be nil — cross-service events are skipped when no publisher is set.
 func NewAIManager(
 	dm entitygraph.DataManager,
 	sm AISchemaManager,
 	pub CrossPublisher,
 	agencyID string,
+	crossHTTPAddr string,
 ) AIManager {
 	return &aiManager{
-		dm:        dm,
-		sm:        sm,
-		publisher: pub,
-		agencyID:  agencyID,
+		dm:            dm,
+		sm:            sm,
+		publisher:     pub,
+		agencyID:      agencyID,
+		crossHTTPAddr: crossHTTPAddr,
 	}
 }
 
@@ -276,7 +282,7 @@ func (m *aiManager) DeleteProvider(ctx context.Context, providerID string) error
 
 // CreateAgent persists a new Agent entity in the graph.
 // Required fields: Name, ProviderID, Model, SystemPrompt.
-// Publishes "cross.ai.{agencyID}.agent.created" on success.
+// Publishes "ai.{agencyID}.agent.created" on success.
 func (m *aiManager) CreateAgent(ctx context.Context, req CreateAgentRequest) (Agent, error) {
 	if req.Name == "" || req.ProviderID == "" || req.Model == "" || req.SystemPrompt == "" {
 		return Agent{}, ErrInvalidAgent
@@ -321,7 +327,7 @@ func (m *aiManager) CreateAgent(ctx context.Context, req CreateAgentRequest) (Ag
 
 	agent := agentFromEntity(entity)
 	agent.ProviderID = req.ProviderID
-	m.publish(ctx, fmt.Sprintf("cross.ai.%s.agent.created", m.agencyID))
+	m.publish(ctx, fmt.Sprintf("ai.%s.agent.created", m.agencyID), "")
 	return agent, nil
 }
 
@@ -462,11 +468,40 @@ func (m *aiManager) ListRuns(ctx context.Context, filter RunFilter) ([]AgentRun,
 
 // publish delivers an event to CodeValdCross. Errors are swallowed —
 // events are best-effort and must not fail the originating operation.
-func (m *aiManager) publish(ctx context.Context, topic string) {
+func (m *aiManager) publish(ctx context.Context, topic, payload string) {
 	if m.publisher == nil {
 		return
 	}
-	_ = m.publisher.Publish(ctx, topic, m.agencyID)
+	_ = m.publisher.Publish(ctx, topic, m.agencyID, "codevaldai", payload)
+}
+
+// buildSystemPrompt composes the full system prompt sent to the LLM:
+//   - the agent's configured system prompt
+//   - the live action catalogue (all topics services consume = actions available)
+//   - hydrated context for any entity IDs found in the event instructions
+func (m *aiManager) buildSystemPrompt(ctx context.Context, agentSystemPrompt, instructions string) string {
+	var b strings.Builder
+	b.WriteString(agentSystemPrompt)
+
+	// Action catalogue — fetched from the live service registry.
+	if m.crossHTTPAddr != "" {
+		entries := FetchActionCatalogue(ctx, m.crossHTTPAddr, m.agencyID)
+		if catalogue := FormatActionCatalogue(entries); catalogue != "" {
+			b.WriteString("\n\n")
+			b.WriteString(catalogue)
+		}
+	}
+
+	// Hydrated event context — enriches entity IDs with readable details.
+	if m.crossHTTPAddr != "" {
+		context := HydrateEventContext(ctx, m.crossHTTPAddr, m.agencyID, instructions)
+		if context != "" {
+			b.WriteString("\n\n")
+			b.WriteString(context)
+		}
+	}
+
+	return b.String()
 }
 
 // isActiveRunStatus reports whether the status represents a non-terminal run.
