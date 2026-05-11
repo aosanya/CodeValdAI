@@ -31,10 +31,11 @@ func New(mgr codevaldai.AIManager) *Server {
 // CreateProvider implements pb.AIServiceServer.
 func (s *Server) CreateProvider(ctx context.Context, req *pb.CreateProviderRequest) (*pb.LLMProvider, error) {
 	provider, err := s.mgr.CreateProvider(ctx, codevaldai.CreateProviderRequest{
-		Name:         req.GetName(),
-		ProviderType: req.GetProviderType(),
-		APIKey:       req.GetApiKey(),
-		BaseURL:      req.GetBaseUrl(),
+		Name:          req.GetName(),
+		ProviderType:  req.GetProviderType(),
+		APIKey:        req.GetApiKey(),
+		BaseURL:       req.GetBaseUrl(),
+		ProviderRoute: req.GetProviderRoute(),
 	})
 	if err != nil {
 		return nil, toGRPCError(err)
@@ -67,9 +68,10 @@ func (s *Server) ListProviders(ctx context.Context, _ *pb.ListProvidersRequest) 
 // UpdateProvider implements pb.AIServiceServer.
 func (s *Server) UpdateProvider(ctx context.Context, req *pb.UpdateProviderRequest) (*pb.LLMProvider, error) {
 	provider, err := s.mgr.UpdateProvider(ctx, req.GetProviderId(), codevaldai.UpdateProviderRequest{
-		Name:    req.GetName(),
-		APIKey:  req.GetApiKey(),
-		BaseURL: req.GetBaseUrl(),
+		Name:          req.GetName(),
+		APIKey:        req.GetApiKey(),
+		BaseURL:       req.GetBaseUrl(),
+		ProviderRoute: req.GetProviderRoute(),
 	})
 	if err != nil {
 		return nil, toGRPCError(err)
@@ -230,13 +232,14 @@ func (s *Server) ListRuns(ctx context.Context, req *pb.ListRunsRequest) (*pb.Lis
 
 func providerToProto(p codevaldai.LLMProvider) *pb.LLMProvider {
 	return &pb.LLMProvider{
-		Id:           p.ID,
-		Name:         p.Name,
-		ProviderType: p.ProviderType,
-		ApiKey:       p.APIKey,
-		BaseUrl:      p.BaseURL,
-		CreatedAt:    parseTimestamp(p.CreatedAt),
-		UpdatedAt:    parseTimestamp(p.UpdatedAt),
+		Id:            p.ID,
+		Name:          p.Name,
+		ProviderType:  p.ProviderType,
+		ApiKey:        p.APIKey,
+		BaseUrl:       p.BaseURL,
+		ProviderRoute: p.ProviderRoute,
+		CreatedAt:     parseTimestamp(p.CreatedAt),
+		UpdatedAt:     parseTimestamp(p.UpdatedAt),
 	}
 }
 

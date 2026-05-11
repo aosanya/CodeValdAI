@@ -114,6 +114,15 @@ func Run(cfg config.Config) error {
 	// ── AIManager ────────────────────────────────────────────────────────────
 	mgr := codevaldai.NewAIManager(backend, backend, pub, cfg.AgencyID)
 
+	// ── AI config bootstrap (provision providers/agents from agency.json) ────
+	if cfg.AgencyJSONPath != "" {
+		bootstrapCtx, bootstrapCancel := context.WithTimeout(ctx, 30*time.Second)
+		bootstrapAIConfig(bootstrapCtx, cfg.AgencyJSONPath, mgr, agencyClient)
+		bootstrapCancel()
+	} else {
+		log.Println("codevaldai: AGENCY_JSON_PATH not set — skipping ai_config bootstrap")
+	}
+
 	// ── RACI dispatcher (reuses agency client opened above) ──────────────────
 	var dispatcher server.EventDispatcher
 	if agencyClient != nil {

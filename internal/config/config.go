@@ -43,6 +43,11 @@ type Config struct {
 	// AgencyGRPCAddr is the CodeValdAgency gRPC address used to call MatchRoles
 	// for RACI-driven event dispatch. Empty string disables dispatch.
 	AgencyGRPCAddr string
+
+	// AgencyJSONPath is the filesystem path to an agency.json file whose
+	// ai_config section is read on startup to provision LLM providers and
+	// agents. Empty string disables bootstrap.
+	AgencyJSONPath string
 }
 
 // Load reads configuration from environment variables, falling back to defaults
@@ -61,5 +66,6 @@ func Load() Config {
 		PingInterval:   serverutil.ParseDurationString("CROSS_PING_INTERVAL", 20*time.Second),
 		PingTimeout:    serverutil.ParseDurationString("CROSS_PING_TIMEOUT", 5*time.Second),
 		AgencyGRPCAddr: serverutil.EnvOrDefault("AGENCY_GRPC_ADDR", ""),
+		AgencyJSONPath: serverutil.EnvOrDefault("AGENCY_JSON_PATH", ""),
 	}
 }
