@@ -114,7 +114,7 @@ func TestReconcileRunningRuns_FailsAndPublishes(t *testing.T) {
 		}
 	}
 
-	wantTopic := "ai.agency-1.run.failed"
+	wantTopic := codevaldai.TopicRunFailed
 	if len(pub.calls) != 2 {
 		t.Fatalf("expected 2 publishes, got %d", len(pub.calls))
 	}
