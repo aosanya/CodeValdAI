@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
+	"github.com/google/uuid"
 )
 
 // ExecuteRun implements AIManager.ExecuteRun.
