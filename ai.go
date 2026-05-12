@@ -49,7 +49,7 @@ type AIManager interface {
 	// Returns [ErrInvalidAgent] if required fields (Name, ProviderID, Model,
 	// SystemPrompt) are missing.
 	// Returns [ErrProviderNotFound] if the supplied ProviderID does not exist.
-	// Publishes "ai.{agencyID}.agent.created" after a successful write.
+	// Publishes "ai.agent.created" after a successful write.
 	CreateAgent(ctx context.Context, req CreateAgentRequest) (Agent, error)
 
 	// GetAgent retrieves a single Agent by its ID.
@@ -85,8 +85,8 @@ type AIManager interface {
 	// Equivalent to ExecuteRunStreaming with a no-op onChunk callback.
 	// Returns [ErrRunNotFound] if runID does not exist.
 	// Returns [ErrRunNotIntaked] if the run is not in pending_intake state.
-	// Publishes "ai.{agencyID}.run.completed" on success.
-	// Publishes "ai.{agencyID}.run.failed" on LLM error.
+	// Publishes "ai.run.completed" on success.
+	// Publishes "ai.run.failed" on LLM error.
 	ExecuteRun(ctx context.Context, runID string, inputs []RunInput) (AgentRun, error)
 
 	// ExecuteRunStreaming runs the same flow as ExecuteRun but invokes
@@ -94,8 +94,8 @@ type AIManager interface {
 	// The accumulated chunks equal AgentRun.Output stored in the database.
 	// Returns [ErrRunNotFound] if runID does not exist.
 	// Returns [ErrRunNotIntaked] if the run is not in pending_intake state.
-	// Publishes "ai.{agencyID}.run.completed" on success.
-	// Publishes "ai.{agencyID}.run.failed" on LLM error.
+	// Publishes "ai.run.completed" on success.
+	// Publishes "ai.run.failed" on LLM error.
 	ExecuteRunStreaming(ctx context.Context, runID string, inputs []RunInput, onChunk func(string)) (AgentRun, error)
 
 	// GetRun retrieves a single AgentRun by its ID.
@@ -284,7 +284,7 @@ func (m *aiManager) DeleteProvider(ctx context.Context, providerID string) error
 
 // CreateAgent persists a new Agent entity in the graph.
 // Required fields: Name, ProviderID, Model, SystemPrompt.
-// Publishes "ai.{agencyID}.agent.created" on success.
+// Publishes "ai.agent.created" on success.
 func (m *aiManager) CreateAgent(ctx context.Context, req CreateAgentRequest) (Agent, error) {
 	if req.Name == "" || req.ProviderID == "" || req.Model == "" || req.SystemPrompt == "" {
 		return Agent{}, ErrInvalidAgent
@@ -329,7 +329,7 @@ func (m *aiManager) CreateAgent(ctx context.Context, req CreateAgentRequest) (Ag
 
 	agent := agentFromEntity(entity)
 	agent.ProviderID = req.ProviderID
-	m.publish(ctx, fmt.Sprintf("ai.%s.agent.created", m.agencyID), "")
+	m.publish(ctx, TopicAgentCreated, "")
 	return agent, nil
 }
 

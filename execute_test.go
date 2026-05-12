@@ -62,10 +62,9 @@ func TestExecuteRun_Success(t *testing.T) {
 		t.Fatalf("output must contain LLM response, got: %q", run.Output)
 	}
 
-	want := fmt.Sprintf("ai.%s.run.completed", testAgencyID)
 	topics := pub.published()
-	if len(topics) == 0 || topics[len(topics)-1] != want {
-		t.Fatalf("expected topic %q, got %v", want, topics)
+	if len(topics) == 0 || topics[len(topics)-1] != TopicRunCompleted {
+		t.Fatalf("expected topic %q, got %v", TopicRunCompleted, topics)
 	}
 }
 
@@ -94,10 +93,9 @@ func TestExecuteRun_LLMError_PublishesFailedEvent(t *testing.T) {
 		t.Fatal("ErrorMessage must be non-empty on failure")
 	}
 
-	want := fmt.Sprintf("ai.%s.run.failed", testAgencyID)
 	topics := pub.published()
-	if len(topics) == 0 || topics[len(topics)-1] != want {
-		t.Fatalf("expected topic %q, got %v", want, topics)
+	if len(topics) == 0 || topics[len(topics)-1] != TopicRunFailed {
+		t.Fatalf("expected topic %q, got %v", TopicRunFailed, topics)
 	}
 }
 
@@ -130,10 +128,9 @@ func TestExecuteRun_Timeout(t *testing.T) {
 		t.Fatalf("expected timeout message, got %q", storedRun.ErrorMessage)
 	}
 
-	want := fmt.Sprintf("ai.%s.run.failed", testAgencyID)
 	topics := pub.published()
-	if len(topics) == 0 || topics[len(topics)-1] != want {
-		t.Fatalf("expected topic %q, got %v", want, topics)
+	if len(topics) == 0 || topics[len(topics)-1] != TopicRunFailed {
+		t.Fatalf("expected topic %q, got %v", TopicRunFailed, topics)
 	}
 }
 
@@ -246,8 +243,7 @@ func TestIntakeToExecute_EndToEnd(t *testing.T) {
 	}
 
 	topics := pub.published()
-	wantCompleted := fmt.Sprintf("ai.%s.run.completed", testAgencyID)
-	if len(topics) == 0 || topics[len(topics)-1] != wantCompleted {
+	if len(topics) == 0 || topics[len(topics)-1] != TopicRunCompleted {
 		t.Fatalf("expected run.completed event, got %v", topics)
 	}
 }

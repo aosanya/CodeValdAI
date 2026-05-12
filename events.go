@@ -1,11 +1,19 @@
 package codevaldai
 
-// AI task lifecycle topics — CodeValdAI publishes only ai.* events.
-// CodeValdWork consumes these and bridges them to work.task.* events.
+// AI event topics — CodeValdAI publishes only ai.* events.
+// No agencyID segment: each service instance is scoped to a single agency.
 const (
+	// Run lifecycle (task-driven)
 	TopicTaskInProgress = "ai.task.in_progress"
 	TopicTaskCompleted  = "ai.task.completed"
 	TopicTaskFailed     = "ai.task.failed"
+
+	// Run lifecycle (internal / recovery)
+	TopicRunCompleted = "ai.run.completed"
+	TopicRunFailed    = "ai.run.failed"
+
+	// Agent management
+	TopicAgentCreated = "ai.agent.created"
 )
 
 // TaskInProgressPayload is published when ExecuteRunStreaming transitions to

@@ -27,8 +27,8 @@ func (m *aiManager) ExecuteRun(ctx context.Context, runID string, inputs []RunIn
 // Returns ErrRunNotFound if runID does not exist.
 // Returns ErrRunNotIntaked if the run is not in pending_intake state.
 // Returns ErrProviderNotFound if the agent's linked provider does not exist.
-// Publishes "ai.{agencyID}.run.completed" on success.
-// Publishes "ai.{agencyID}.run.failed" on LLM error.
+// Publishes "ai.run.completed" on success.
+// Publishes "ai.run.failed" on LLM error.
 func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, inputs []RunInput, onChunk func(string)) (AgentRun, error) {
 	runEntity, err := m.dm.GetEntity(ctx, m.agencyID, runID)
 	if err != nil {
@@ -143,7 +143,7 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 			RunID:  runID,
 			Reason: errMsg,
 		})
-		m.publish(ctx, fmt.Sprintf("ai.%s.run.failed", m.agencyID), "")
+		m.publish(ctx, TopicRunFailed, "")
 		failedEntity, _ := m.dm.GetEntity(ctx, m.agencyID, runID)
 		failed := agentRunFromEntity(failedEntity)
 		failed.AgentID = agent.ID
@@ -176,7 +176,7 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 		RunID:   runID,
 		AgentID: agent.ID,
 	})
-	m.publish(ctx, fmt.Sprintf("ai.%s.run.completed", m.agencyID), `{"run_id":"`+runID+`"}`)
+	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+runID+`"}`)
 
 	completed := agentRunFromEntity(updated)
 	completed.AgentID = agent.ID
