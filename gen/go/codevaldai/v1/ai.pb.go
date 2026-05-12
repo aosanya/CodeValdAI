@@ -32,6 +32,10 @@ const (
 	AgentRunStatus_AGENT_RUN_STATUS_RUNNING           AgentRunStatus = 3
 	AgentRunStatus_AGENT_RUN_STATUS_COMPLETED         AgentRunStatus = 4
 	AgentRunStatus_AGENT_RUN_STATUS_FAILED            AgentRunStatus = 5
+	// AGENT_RUN_STATUS_YIELDED: the run hit a wall-clock or token limit before
+	// producing a final result. partial_output is stored; a successor run
+	// continues in the same chain.
+	AgentRunStatus_AGENT_RUN_STATUS_YIELDED AgentRunStatus = 6
 )
 
 // Enum value maps for AgentRunStatus.
@@ -43,6 +47,7 @@ var (
 		3: "AGENT_RUN_STATUS_RUNNING",
 		4: "AGENT_RUN_STATUS_COMPLETED",
 		5: "AGENT_RUN_STATUS_FAILED",
+		6: "AGENT_RUN_STATUS_YIELDED",
 	}
 	AgentRunStatus_value = map[string]int32{
 		"AGENT_RUN_STATUS_UNSPECIFIED":       0,
@@ -51,6 +56,7 @@ var (
 		"AGENT_RUN_STATUS_RUNNING":           3,
 		"AGENT_RUN_STATUS_COMPLETED":         4,
 		"AGENT_RUN_STATUS_FAILED":            5,
+		"AGENT_RUN_STATUS_YIELDED":           6,
 	}
 )
 
@@ -561,21 +567,27 @@ func (*DeleteProviderResponse) Descriptor() ([]byte, []int) {
 //
 // timeout_seconds overrides the system default LLM-call timeout for this
 // Agent. Zero means "use the system default".
+//
+// session_max_seconds, session_max_tokens, session_max_sessions control the
+// yielded-session behaviour. Zero values mean "use the system default".
 type Agent struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	ProviderId     string                 `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	Model          string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
-	SystemPrompt   string                 `protobuf:"bytes,6,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
-	Temperature    float64                `protobuf:"fixed64,7,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	MaxTokens      int32                  `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	UpdatedAt      *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	TimeoutSeconds int32                  `protobuf:"varint,11,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"` // 0 = system default
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description        string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	ProviderId         string                 `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Model              string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	SystemPrompt       string                 `protobuf:"bytes,6,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
+	Temperature        float64                `protobuf:"fixed64,7,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	MaxTokens          int32                  `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	TimeoutSeconds     int32                  `protobuf:"varint,11,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`               // 0 = system default
+	SessionMaxSeconds  int32                  `protobuf:"varint,12,opt,name=session_max_seconds,json=sessionMaxSeconds,proto3" json:"session_max_seconds,omitempty"`    // 0 = 300 s default
+	SessionMaxTokens   int32                  `protobuf:"varint,13,opt,name=session_max_tokens,json=sessionMaxTokens,proto3" json:"session_max_tokens,omitempty"`       // 0 = no token limit
+	SessionMaxSessions int32                  `protobuf:"varint,14,opt,name=session_max_sessions,json=sessionMaxSessions,proto3" json:"session_max_sessions,omitempty"` // 0 = 1 (no yielding)
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *Agent) Reset() {
@@ -685,20 +697,44 @@ func (x *Agent) GetTimeoutSeconds() int32 {
 	return 0
 }
 
+func (x *Agent) GetSessionMaxSeconds() int32 {
+	if x != nil {
+		return x.SessionMaxSeconds
+	}
+	return 0
+}
+
+func (x *Agent) GetSessionMaxTokens() int32 {
+	if x != nil {
+		return x.SessionMaxTokens
+	}
+	return 0
+}
+
+func (x *Agent) GetSessionMaxSessions() int32 {
+	if x != nil {
+		return x.SessionMaxSessions
+	}
+	return 0
+}
+
 // CreateAgentRequest carries the data required to create a new Agent.
 // name, provider_id, model, and system_prompt are required.
 type CreateAgentRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description    string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	ProviderId     string                 `protobuf:"bytes,3,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	Model          string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
-	SystemPrompt   string                 `protobuf:"bytes,5,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
-	Temperature    float64                `protobuf:"fixed64,6,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	MaxTokens      int32                  `protobuf:"varint,7,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	TimeoutSeconds int32                  `protobuf:"varint,8,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	Name               string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description        string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	ProviderId         string                 `protobuf:"bytes,3,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Model              string                 `protobuf:"bytes,4,opt,name=model,proto3" json:"model,omitempty"`
+	SystemPrompt       string                 `protobuf:"bytes,5,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
+	Temperature        float64                `protobuf:"fixed64,6,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	MaxTokens          int32                  `protobuf:"varint,7,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	TimeoutSeconds     int32                  `protobuf:"varint,8,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	SessionMaxSeconds  int32                  `protobuf:"varint,9,opt,name=session_max_seconds,json=sessionMaxSeconds,proto3" json:"session_max_seconds,omitempty"`
+	SessionMaxTokens   int32                  `protobuf:"varint,10,opt,name=session_max_tokens,json=sessionMaxTokens,proto3" json:"session_max_tokens,omitempty"`
+	SessionMaxSessions int32                  `protobuf:"varint,11,opt,name=session_max_sessions,json=sessionMaxSessions,proto3" json:"session_max_sessions,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CreateAgentRequest) Reset() {
@@ -783,6 +819,27 @@ func (x *CreateAgentRequest) GetMaxTokens() int32 {
 func (x *CreateAgentRequest) GetTimeoutSeconds() int32 {
 	if x != nil {
 		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *CreateAgentRequest) GetSessionMaxSeconds() int32 {
+	if x != nil {
+		return x.SessionMaxSeconds
+	}
+	return 0
+}
+
+func (x *CreateAgentRequest) GetSessionMaxTokens() int32 {
+	if x != nil {
+		return x.SessionMaxTokens
+	}
+	return 0
+}
+
+func (x *CreateAgentRequest) GetSessionMaxSessions() int32 {
+	if x != nil {
+		return x.SessionMaxSessions
 	}
 	return 0
 }
@@ -917,18 +974,21 @@ func (x *ListAgentsResponse) GetAgents() []*Agent {
 // UpdateAgentRequest carries mutable fields for an Agent.
 // Only non-empty / non-zero fields are applied.
 type UpdateAgentRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	AgentId        string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
-	Name           string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description    string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	ProviderId     string                 `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	Model          string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
-	SystemPrompt   string                 `protobuf:"bytes,6,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
-	Temperature    float64                `protobuf:"fixed64,7,opt,name=temperature,proto3" json:"temperature,omitempty"`
-	MaxTokens      int32                  `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
-	TimeoutSeconds int32                  `protobuf:"varint,9,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	AgentId            string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`
+	Name               string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description        string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	ProviderId         string                 `protobuf:"bytes,4,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Model              string                 `protobuf:"bytes,5,opt,name=model,proto3" json:"model,omitempty"`
+	SystemPrompt       string                 `protobuf:"bytes,6,opt,name=system_prompt,json=systemPrompt,proto3" json:"system_prompt,omitempty"`
+	Temperature        float64                `protobuf:"fixed64,7,opt,name=temperature,proto3" json:"temperature,omitempty"`
+	MaxTokens          int32                  `protobuf:"varint,8,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"`
+	TimeoutSeconds     int32                  `protobuf:"varint,9,opt,name=timeout_seconds,json=timeoutSeconds,proto3" json:"timeout_seconds,omitempty"`
+	SessionMaxSeconds  int32                  `protobuf:"varint,10,opt,name=session_max_seconds,json=sessionMaxSeconds,proto3" json:"session_max_seconds,omitempty"`
+	SessionMaxTokens   int32                  `protobuf:"varint,11,opt,name=session_max_tokens,json=sessionMaxTokens,proto3" json:"session_max_tokens,omitempty"`
+	SessionMaxSessions int32                  `protobuf:"varint,12,opt,name=session_max_sessions,json=sessionMaxSessions,proto3" json:"session_max_sessions,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *UpdateAgentRequest) Reset() {
@@ -1020,6 +1080,27 @@ func (x *UpdateAgentRequest) GetMaxTokens() int32 {
 func (x *UpdateAgentRequest) GetTimeoutSeconds() int32 {
 	if x != nil {
 		return x.TimeoutSeconds
+	}
+	return 0
+}
+
+func (x *UpdateAgentRequest) GetSessionMaxSeconds() int32 {
+	if x != nil {
+		return x.SessionMaxSeconds
+	}
+	return 0
+}
+
+func (x *UpdateAgentRequest) GetSessionMaxTokens() int32 {
+	if x != nil {
+		return x.SessionMaxTokens
+	}
+	return 0
+}
+
+func (x *UpdateAgentRequest) GetSessionMaxSessions() int32 {
+	if x != nil {
+		return x.SessionMaxSessions
 	}
 	return 0
 }
@@ -1121,7 +1202,10 @@ type AgentRun struct {
 	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	TaskId        string                 `protobuf:"bytes,13,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"` // Work task ID; empty for manually triggered runs
+	TaskId        string                 `protobuf:"bytes,13,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`                       // Work task ID; empty for manually triggered runs
+	ChainId       string                 `protobuf:"bytes,14,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`                    // Shared across all sessions in a chain; empty if not chained
+	SegmentNumber int32                  `protobuf:"varint,15,opt,name=segment_number,json=segmentNumber,proto3" json:"segment_number,omitempty"` // 1-based position in the chain; 0 if not chained
+	PartialOutput string                 `protobuf:"bytes,16,opt,name=partial_output,json=partialOutput,proto3" json:"partial_output,omitempty"`  // Output captured before a YIELDED limit; empty otherwise
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1243,6 +1327,27 @@ func (x *AgentRun) GetUpdatedAt() *timestamppb.Timestamp {
 func (x *AgentRun) GetTaskId() string {
 	if x != nil {
 		return x.TaskId
+	}
+	return ""
+}
+
+func (x *AgentRun) GetChainId() string {
+	if x != nil {
+		return x.ChainId
+	}
+	return ""
+}
+
+func (x *AgentRun) GetSegmentNumber() int32 {
+	if x != nil {
+		return x.SegmentNumber
+	}
+	return 0
+}
+
+func (x *AgentRun) GetPartialOutput() string {
+	if x != nil {
+		return x.PartialOutput
 	}
 	return ""
 }
@@ -1829,7 +1934,7 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\x15DeleteProviderRequest\x12\x1f\n" +
 	"\vprovider_id\x18\x01 \x01(\tR\n" +
 	"providerId\"\x18\n" +
-	"\x16DeleteProviderResponse\"\x89\x03\n" +
+	"\x16DeleteProviderResponse\"\x99\x04\n" +
 	"\x05Agent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1846,7 +1951,10 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12'\n" +
-	"\x0ftimeout_seconds\x18\v \x01(\x05R\x0etimeoutSeconds\"\x90\x02\n" +
+	"\x0ftimeout_seconds\x18\v \x01(\x05R\x0etimeoutSeconds\x12.\n" +
+	"\x13session_max_seconds\x18\f \x01(\x05R\x11sessionMaxSeconds\x12,\n" +
+	"\x12session_max_tokens\x18\r \x01(\x05R\x10sessionMaxTokens\x120\n" +
+	"\x14session_max_sessions\x18\x0e \x01(\x05R\x12sessionMaxSessions\"\xa0\x03\n" +
 	"\x12CreateAgentRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1f\n" +
@@ -1857,12 +1965,16 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\vtemperature\x18\x06 \x01(\x01R\vtemperature\x12\x1d\n" +
 	"\n" +
 	"max_tokens\x18\a \x01(\x05R\tmaxTokens\x12'\n" +
-	"\x0ftimeout_seconds\x18\b \x01(\x05R\x0etimeoutSeconds\",\n" +
+	"\x0ftimeout_seconds\x18\b \x01(\x05R\x0etimeoutSeconds\x12.\n" +
+	"\x13session_max_seconds\x18\t \x01(\x05R\x11sessionMaxSeconds\x12,\n" +
+	"\x12session_max_tokens\x18\n" +
+	" \x01(\x05R\x10sessionMaxTokens\x120\n" +
+	"\x14session_max_sessions\x18\v \x01(\x05R\x12sessionMaxSessions\",\n" +
 	"\x0fGetAgentRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x13\n" +
 	"\x11ListAgentsRequest\"B\n" +
 	"\x12ListAgentsResponse\x12,\n" +
-	"\x06agents\x18\x01 \x03(\v2\x14.codevaldai.v1.AgentR\x06agents\"\xab\x02\n" +
+	"\x06agents\x18\x01 \x03(\v2\x14.codevaldai.v1.AgentR\x06agents\"\xbb\x03\n" +
 	"\x12UpdateAgentRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
@@ -1874,10 +1986,14 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\vtemperature\x18\a \x01(\x01R\vtemperature\x12\x1d\n" +
 	"\n" +
 	"max_tokens\x18\b \x01(\x05R\tmaxTokens\x12'\n" +
-	"\x0ftimeout_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\"/\n" +
+	"\x0ftimeout_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\x12.\n" +
+	"\x13session_max_seconds\x18\n" +
+	" \x01(\x05R\x11sessionMaxSeconds\x12,\n" +
+	"\x12session_max_tokens\x18\v \x01(\x05R\x10sessionMaxTokens\x120\n" +
+	"\x14session_max_sessions\x18\f \x01(\x05R\x12sessionMaxSessions\"/\n" +
 	"\x12DeleteAgentRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x15\n" +
-	"\x13DeleteAgentResponse\"\x9e\x04\n" +
+	"\x13DeleteAgentResponse\"\x87\x05\n" +
 	"\bAgentRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\"\n" +
@@ -1895,7 +2011,10 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
 	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x17\n" +
-	"\atask_id\x18\r \x01(\tR\x06taskId\"\xb8\x01\n" +
+	"\atask_id\x18\r \x01(\tR\x06taskId\x12\x19\n" +
+	"\bchain_id\x18\x0e \x01(\tR\achainId\x12%\n" +
+	"\x0esegment_number\x18\x0f \x01(\x05R\rsegmentNumber\x12%\n" +
+	"\x0epartial_output\x18\x10 \x01(\tR\rpartialOutput\"\xb8\x01\n" +
 	"\bRunField\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tfieldname\x18\x02 \x01(\tR\tfieldname\x12\x12\n" +
@@ -1929,14 +2048,15 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\x1bExecuteRunStreamingResponse\x12\x16\n" +
 	"\x05chunk\x18\x01 \x01(\tH\x00R\x05chunk\x12+\n" +
 	"\x03run\x18\x02 \x01(\v2\x17.codevaldai.v1.AgentRunH\x00R\x03runB\t\n" +
-	"\apayload*\xda\x01\n" +
+	"\apayload*\xf8\x01\n" +
 	"\x0eAgentRunStatus\x12 \n" +
 	"\x1cAGENT_RUN_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fAGENT_RUN_STATUS_PENDING_INTAKE\x10\x01\x12&\n" +
 	"\"AGENT_RUN_STATUS_PENDING_EXECUTION\x10\x02\x12\x1c\n" +
 	"\x18AGENT_RUN_STATUS_RUNNING\x10\x03\x12\x1e\n" +
 	"\x1aAGENT_RUN_STATUS_COMPLETED\x10\x04\x12\x1b\n" +
-	"\x17AGENT_RUN_STATUS_FAILED\x10\x052\xc5\t\n" +
+	"\x17AGENT_RUN_STATUS_FAILED\x10\x05\x12\x1c\n" +
+	"\x18AGENT_RUN_STATUS_YIELDED\x10\x062\xc5\t\n" +
 	"\tAIService\x12R\n" +
 	"\x0eCreateProvider\x12$.codevaldai.v1.CreateProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12L\n" +
 	"\vGetProvider\x12!.codevaldai.v1.GetProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12Z\n" +

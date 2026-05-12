@@ -145,15 +145,18 @@ message ListAgentsResponse {
 // UpdateAgentRequest carries mutable fields for an Agent.
 // Only non-empty / non-zero fields are applied.
 message UpdateAgentRequest {
-  string agent_id        = 1;
-  string name            = 2;
-  string description     = 3;
-  string provider_id     = 4;
-  string model           = 5;
-  string system_prompt   = 6;
-  double temperature     = 7;
-  int32  max_tokens      = 8;
-  int32  timeout_seconds = 9;
+  string agent_id             = 1;
+  string name                 = 2;
+  string description          = 3;
+  string provider_id          = 4;
+  string model                = 5;
+  string system_prompt        = 6;
+  double temperature          = 7;
+  int32  max_tokens           = 8;
+  int32  timeout_seconds      = 9;
+  int32  session_max_seconds  = 10;
+  int32  session_max_tokens   = 11;
+  int32  session_max_sessions = 12;
 }
 
 // DeleteAgentRequest selects an agent to remove.
@@ -168,19 +171,22 @@ message DeleteAgentResponse {}
 
 // AgentRun is the execution record for a single LLM interaction.
 message AgentRun {
-  string                    id            = 1;
-  string                    agent_id      = 2;
-  string                    instructions  = 3;
-  AgentRunStatus            status        = 4;
-  string                    output        = 5;
-  string                    error_message = 6;
-  int32                     input_tokens  = 7;
-  int32                     output_tokens = 8;
-  google.protobuf.Timestamp started_at    = 9;
-  google.protobuf.Timestamp completed_at  = 10;
-  google.protobuf.Timestamp created_at    = 11;
-  google.protobuf.Timestamp updated_at    = 12;
-  string                    task_id       = 13; // Work task ID; empty for manually triggered runs
+  string                    id             = 1;
+  string                    agent_id       = 2;
+  string                    instructions   = 3;
+  AgentRunStatus            status         = 4;
+  string                    output         = 5;
+  string                    error_message  = 6;
+  int32                     input_tokens   = 7;
+  int32                     output_tokens  = 8;
+  google.protobuf.Timestamp started_at     = 9;
+  google.protobuf.Timestamp completed_at   = 10;
+  google.protobuf.Timestamp created_at     = 11;
+  google.protobuf.Timestamp updated_at     = 12;
+  string                    task_id        = 13; // Work task ID; empty for manually triggered runs
+  string                    chain_id       = 14; // Shared across all sessions in a chain; empty if not chained
+  int32                     segment_number = 15; // 1-based position in the chain; 0 if not chained
+  string                    partial_output = 16; // Output captured before a YIELDED limit; empty otherwise
 }
 
 // RunField is a single input field inferred by the LLM during the Intake phase.

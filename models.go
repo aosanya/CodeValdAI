@@ -28,37 +28,49 @@ UpdatedAt     string `json:"updated_at"`
 // TimeoutSeconds overrides the system default LLM-call timeout for this
 // Agent. A zero value (or absent field) means "use the system default"
 // (see [defaultLLMCallTimeout]).
+//
+// Session limit fields (SessionMax*) control yielded-session behaviour.
+// Zero values mean "use the system default" for each field individually.
 type Agent struct {
-ID             string  `json:"id"`
-Name           string  `json:"name"`
-Description    string  `json:"description,omitempty"`
-ProviderID     string  `json:"provider_id"` // resolved from uses_provider edge
-Model          string  `json:"model"`         // e.g. "claude-3-5-sonnet-20241022"
-SystemPrompt   string  `json:"system_prompt"` // Persona / task instructions for the LLM
-Temperature    float64 `json:"temperature,omitempty"`
-MaxTokens      int     `json:"max_tokens,omitempty"`
-TimeoutSeconds int     `json:"timeout_seconds,omitempty"` // 0 = system default
-CreatedAt      string  `json:"created_at"`
-UpdatedAt      string  `json:"updated_at"`
+ID                  string  `json:"id"`
+Name                string  `json:"name"`
+Description         string  `json:"description,omitempty"`
+ProviderID          string  `json:"provider_id"` // resolved from uses_provider edge
+Model               string  `json:"model"`         // e.g. "claude-3-5-sonnet-20241022"
+SystemPrompt        string  `json:"system_prompt"` // Persona / task instructions for the LLM
+Temperature         float64 `json:"temperature,omitempty"`
+MaxTokens          int     `json:"max_tokens,omitempty"`
+TimeoutSeconds      int     `json:"timeout_seconds,omitempty"`      // 0 = system default
+SessionMaxSeconds   int     `json:"session_max_seconds,omitempty"`  // 0 = 300 s default
+SessionMaxTokens    int     `json:"session_max_tokens,omitempty"`   // 0 = no token limit
+SessionMaxSessions  int     `json:"session_max_sessions,omitempty"` // 0 = 1 (no yielding)
+CreatedAt           string  `json:"created_at"`
+UpdatedAt           string  `json:"updated_at"`
 }
 
 // AgentRun is the execution record for a single LLM interaction.
 // The agent_id is resolved at read time from the belongs_to_agent edge —
 // it is not stored as a flat property on the AgentRun document.
+//
+// Chain fields (ChainID, SegmentNumber, PartialOutput) are populated only on
+// yielded sessions. Non-yielded runs have zero values for all three.
 type AgentRun struct {
-ID           string         `json:"id"`
-AgentID      string         `json:"agent_id"`             // resolved from belongs_to_agent edge
-TaskID       string         `json:"task_id,omitempty"`    // Work task ID; empty for manually triggered runs
-Instructions string         `json:"instructions"`
-Status       AgentRunStatus `json:"status"`
-Output       string         `json:"output,omitempty"`
-ErrorMessage string         `json:"error_message,omitempty"`
-InputTokens  int            `json:"input_tokens,omitempty"`
-OutputTokens int            `json:"output_tokens,omitempty"`
-StartedAt    string         `json:"started_at,omitempty"`
-CompletedAt  string         `json:"completed_at,omitempty"`
-CreatedAt    string         `json:"created_at"`
-UpdatedAt    string         `json:"updated_at"`
+ID            string         `json:"id"`
+AgentID       string         `json:"agent_id"`             // resolved from belongs_to_agent edge
+TaskID        string         `json:"task_id,omitempty"`    // Work task ID; empty for manually triggered runs
+Instructions  string         `json:"instructions"`
+Status        AgentRunStatus `json:"status"`
+Output        string         `json:"output,omitempty"`
+PartialOutput string         `json:"partial_output,omitempty"` // non-empty only on YIELDED runs
+ErrorMessage  string         `json:"error_message,omitempty"`
+InputTokens   int            `json:"input_tokens,omitempty"`
+OutputTokens  int            `json:"output_tokens,omitempty"`
+ChainID       string         `json:"chain_id,omitempty"`       // shared across all sessions in a chain
+SegmentNumber int            `json:"segment_number,omitempty"` // 1-based position; 0 if not chained
+StartedAt     string         `json:"started_at,omitempty"`
+CompletedAt   string         `json:"completed_at,omitempty"`
+CreatedAt     string         `json:"created_at"`
+UpdatedAt     string         `json:"updated_at"`
 }
 
 // AgentRunStatus enumerates the valid states of an AgentRun lifecycle.
@@ -85,6 +97,11 @@ AgentRunStatusCompleted AgentRunStatus = "completed"
 // AgentRunStatusFailed indicates the Execute phase encountered an
 // unrecoverable error (e.g. LLM call failed).
 AgentRunStatusFailed AgentRunStatus = "failed"
+
+// AgentRunStatusYielded indicates the Execute phase hit a wall-clock or
+// token limit before producing a final result. PartialOutput is stored;
+// a successor run continues in the same chain.
+AgentRunStatusYielded AgentRunStatus = "yielded"
 )
 
 // RunField is a single input field inferred by the LLM during the Intake
@@ -136,27 +153,33 @@ ProviderRoute string `json:"provider_route,omitempty"`
 // CreateAgentRequest carries the data required to create a new Agent.
 // Name, ProviderID, Model, and SystemPrompt are required fields.
 type CreateAgentRequest struct {
-Name           string  `json:"name"`
-Description    string  `json:"description,omitempty"`
-ProviderID     string  `json:"provider_id"`
-Model          string  `json:"model"`
-SystemPrompt   string  `json:"system_prompt"`
-Temperature    float64 `json:"temperature,omitempty"`
-MaxTokens      int     `json:"max_tokens,omitempty"`
-TimeoutSeconds int     `json:"timeout_seconds,omitempty"` // 0 = system default
+Name                string  `json:"name"`
+Description         string  `json:"description,omitempty"`
+ProviderID          string  `json:"provider_id"`
+Model               string  `json:"model"`
+SystemPrompt        string  `json:"system_prompt"`
+Temperature         float64 `json:"temperature,omitempty"`
+MaxTokens          int     `json:"max_tokens,omitempty"`
+TimeoutSeconds      int     `json:"timeout_seconds,omitempty"`
+SessionMaxSeconds   int     `json:"session_max_seconds,omitempty"`
+SessionMaxTokens    int     `json:"session_max_tokens,omitempty"`
+SessionMaxSessions  int     `json:"session_max_sessions,omitempty"`
 }
 
 // UpdateAgentRequest carries the mutable fields that may be changed on an
 // existing Agent. Only non-empty / non-zero fields are applied.
 type UpdateAgentRequest struct {
-Name           string  `json:"name,omitempty"`
-Description    string  `json:"description,omitempty"`
-ProviderID     string  `json:"provider_id,omitempty"`
-Model          string  `json:"model,omitempty"`
-SystemPrompt   string  `json:"system_prompt,omitempty"`
-Temperature    float64 `json:"temperature,omitempty"`
-MaxTokens      int     `json:"max_tokens,omitempty"`
-TimeoutSeconds int     `json:"timeout_seconds,omitempty"`
+Name                string  `json:"name,omitempty"`
+Description         string  `json:"description,omitempty"`
+ProviderID          string  `json:"provider_id,omitempty"`
+Model               string  `json:"model,omitempty"`
+SystemPrompt        string  `json:"system_prompt,omitempty"`
+Temperature         float64 `json:"temperature,omitempty"`
+MaxTokens          int     `json:"max_tokens,omitempty"`
+TimeoutSeconds      int     `json:"timeout_seconds,omitempty"`
+SessionMaxSeconds   int     `json:"session_max_seconds,omitempty"`
+SessionMaxTokens    int     `json:"session_max_tokens,omitempty"`
+SessionMaxSessions  int     `json:"session_max_sessions,omitempty"`
 }
 
 // IntakeRunRequest carries the data required to start the Intake phase of
@@ -169,6 +192,12 @@ Instructions string `json:"instructions"`
 // the AgentRun entity and included in all ai.task.* lifecycle events so
 // downstream services (e.g. CodeValdWork) can correlate runs back to tasks.
 TaskID       string `json:"task_id,omitempty"`
+// Work-plan session limit overrides. Zero means "use the agent default".
+// These are stored on the AgentRun entity so ExecuteRunStreaming can apply
+// them without needing the WorkPlan in scope.
+WPSessionMaxSeconds  int `json:"wp_session_max_seconds,omitempty"`
+WPSessionMaxTokens   int `json:"wp_session_max_tokens,omitempty"`
+WPSessionMaxSessions int `json:"wp_session_max_sessions,omitempty"`
 }
 
 // RunFilter constrains a ListRuns query. Zero values mean "no filter".

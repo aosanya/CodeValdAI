@@ -7,6 +7,9 @@ const (
 	TopicTaskInProgress = "ai.task.in_progress"
 	TopicTaskCompleted  = "ai.task.completed"
 	TopicTaskFailed     = "ai.task.failed"
+	// TopicTaskYielded is published when a session hits its wall-clock or token
+	// limit and a successor session has been created to continue the chain.
+	TopicTaskYielded = "ai.task.yielded"
 
 	// Run lifecycle (internal / recovery)
 	TopicRunCompleted = "ai.run.completed"
@@ -38,4 +41,15 @@ type TaskFailedPayload struct {
 	TaskID  string
 	RunID   string
 	Reason  string
+}
+
+// TaskYieldedPayload is published when a session hits its wall-clock or token
+// limit. A successor run has already been created at publish time.
+type TaskYieldedPayload struct {
+	TaskID        string
+	RunID         string
+	ChainID       string
+	SegmentNumber int
+	TokensUsed    int
+	PartialOutput string
 }

@@ -100,6 +100,11 @@ func aiTypes() []types.TypeDefinition {
 					// timeout_seconds: per-Agent override of the system default
 					// LLM-call timeout. Zero means use the default.
 					{Name: "timeout_seconds", Type: types.PropertyTypeInteger},
+					// session_max_* control yielded-session behaviour.
+					// Zero means use the system default for each field.
+					{Name: "session_max_seconds", Type: types.PropertyTypeInteger},
+					{Name: "session_max_tokens", Type: types.PropertyTypeInteger},
+					{Name: "session_max_sessions", Type: types.PropertyTypeInteger},
 					{Name: "created_at", Type: types.PropertyTypeString},
 					{Name: "updated_at", Type: types.PropertyTypeString},
 				},
@@ -132,12 +137,22 @@ func aiTypes() []types.TypeDefinition {
 				Properties: []types.PropertyDefinition{
 					{Name: "ref_code", Type: types.PropertyTypeUUID, Required: true},
 					{Name: "code", Type: types.PropertyTypeString, Required: false},
+					{Name: "task_id", Type: types.PropertyTypeString},
 					{Name: "instructions", Type: types.PropertyTypeString, Required: true},
 					{Name: "status", Type: types.PropertyTypeString, Required: true},
 					{Name: "output", Type: types.PropertyTypeString},
+					{Name: "partial_output", Type: types.PropertyTypeString},
 					{Name: "error_message", Type: types.PropertyTypeString},
 					{Name: "input_tokens", Type: types.PropertyTypeInteger},
 					{Name: "output_tokens", Type: types.PropertyTypeInteger},
+					// chain_id + segment_number are set only on yielded-session chains.
+					{Name: "chain_id", Type: types.PropertyTypeString},
+					{Name: "segment_number", Type: types.PropertyTypeInteger},
+					// wp_session_max_* are work-plan overrides stored at IntakeRun time
+					// so ExecuteRunStreaming can apply them without the WorkPlan in scope.
+					{Name: "wp_session_max_seconds", Type: types.PropertyTypeInteger},
+					{Name: "wp_session_max_tokens", Type: types.PropertyTypeInteger},
+					{Name: "wp_session_max_sessions", Type: types.PropertyTypeInteger},
 					{Name: "started_at", Type: types.PropertyTypeString},
 					{Name: "completed_at", Type: types.PropertyTypeString},
 					{Name: "created_at", Type: types.PropertyTypeString},
@@ -168,6 +183,12 @@ func aiTypes() []types.TypeDefinition {
 						ToType:      "RunInput",
 						ToMany:      true,
 						Inverse:     "belongs_to_run",
+					},
+					{
+						Name:   "continues_from",
+						Label:  "Predecessor",
+						ToType: "AgentRun",
+						ToMany: false,
 					},
 				},
 			},

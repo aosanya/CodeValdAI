@@ -297,15 +297,18 @@ func (m *aiManager) CreateAgent(ctx context.Context, req CreateAgentRequest) (Ag
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	props := map[string]any{
-		"name":            req.Name,
-		"description":     req.Description,
-		"model":           req.Model,
-		"system_prompt":   req.SystemPrompt,
-		"temperature":     req.Temperature,
-		"max_tokens":      req.MaxTokens,
-		"timeout_seconds": req.TimeoutSeconds,
-		"created_at":      now,
-		"updated_at":      now,
+		"name":                 req.Name,
+		"description":          req.Description,
+		"model":                req.Model,
+		"system_prompt":        req.SystemPrompt,
+		"temperature":          req.Temperature,
+		"max_tokens":           req.MaxTokens,
+		"timeout_seconds":      req.TimeoutSeconds,
+		"session_max_seconds":  req.SessionMaxSeconds,
+		"session_max_tokens":   req.SessionMaxTokens,
+		"session_max_sessions": req.SessionMaxSessions,
+		"created_at":           now,
+		"updated_at":           now,
 	}
 
 	entity, err := m.dm.CreateEntity(ctx, entitygraph.CreateEntityRequest{
@@ -389,6 +392,15 @@ func (m *aiManager) UpdateAgent(ctx context.Context, agentID string, req UpdateA
 	}
 	if req.TimeoutSeconds != 0 {
 		props["timeout_seconds"] = req.TimeoutSeconds
+	}
+	if req.SessionMaxSeconds != 0 {
+		props["session_max_seconds"] = req.SessionMaxSeconds
+	}
+	if req.SessionMaxTokens != 0 {
+		props["session_max_tokens"] = req.SessionMaxTokens
+	}
+	if req.SessionMaxSessions != 0 {
+		props["session_max_sessions"] = req.SessionMaxSessions
 	}
 	props["updated_at"] = now
 
@@ -557,16 +569,19 @@ func providerFromEntity(e entitygraph.Entity) LLMProvider {
 func agentFromEntity(e entitygraph.Entity) Agent {
 	p := e.Properties
 	return Agent{
-		ID:             e.ID,
-		Name:           strProp(p, "name"),
-		Description:    strProp(p, "description"),
-		Model:          strProp(p, "model"),
-		SystemPrompt:   strProp(p, "system_prompt"),
-		Temperature:    float64Prop(p, "temperature"),
-		MaxTokens:      intProp(p, "max_tokens"),
-		TimeoutSeconds: intProp(p, "timeout_seconds"),
-		CreatedAt:      strProp(p, "created_at"),
-		UpdatedAt:      strProp(p, "updated_at"),
+		ID:                 e.ID,
+		Name:               strProp(p, "name"),
+		Description:        strProp(p, "description"),
+		Model:              strProp(p, "model"),
+		SystemPrompt:       strProp(p, "system_prompt"),
+		Temperature:        float64Prop(p, "temperature"),
+		MaxTokens:          intProp(p, "max_tokens"),
+		TimeoutSeconds:     intProp(p, "timeout_seconds"),
+		SessionMaxSeconds:  intProp(p, "session_max_seconds"),
+		SessionMaxTokens:   intProp(p, "session_max_tokens"),
+		SessionMaxSessions: intProp(p, "session_max_sessions"),
+		CreatedAt:          strProp(p, "created_at"),
+		UpdatedAt:          strProp(p, "updated_at"),
 	}
 }
 
@@ -589,18 +604,21 @@ func runFieldFromEntity(e entitygraph.Entity) RunField {
 func agentRunFromEntity(e entitygraph.Entity) AgentRun {
 	p := e.Properties
 	return AgentRun{
-		ID:           e.ID,
-		TaskID:       strProp(p, "task_id"),
-		Instructions: strProp(p, "instructions"),
-		Status:       AgentRunStatus(strProp(p, "status")),
-		Output:       strProp(p, "output"),
-		ErrorMessage: strProp(p, "error_message"),
-		InputTokens:  intProp(p, "input_tokens"),
-		OutputTokens: intProp(p, "output_tokens"),
-		StartedAt:    strProp(p, "started_at"),
-		CompletedAt:  strProp(p, "completed_at"),
-		CreatedAt:    strProp(p, "created_at"),
-		UpdatedAt:    strProp(p, "updated_at"),
+		ID:            e.ID,
+		TaskID:        strProp(p, "task_id"),
+		Instructions:  strProp(p, "instructions"),
+		Status:        AgentRunStatus(strProp(p, "status")),
+		Output:        strProp(p, "output"),
+		PartialOutput: strProp(p, "partial_output"),
+		ErrorMessage:  strProp(p, "error_message"),
+		InputTokens:   intProp(p, "input_tokens"),
+		OutputTokens:  intProp(p, "output_tokens"),
+		ChainID:       strProp(p, "chain_id"),
+		SegmentNumber: intProp(p, "segment_number"),
+		StartedAt:     strProp(p, "started_at"),
+		CompletedAt:   strProp(p, "completed_at"),
+		CreatedAt:     strProp(p, "created_at"),
+		UpdatedAt:     strProp(p, "updated_at"),
 	}
 }
 

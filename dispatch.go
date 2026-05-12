@@ -25,10 +25,21 @@ const (
 // per-call context.WithTimeout in callLLM enforces deadlines.
 var httpClient = &http.Client{}
 
+// ConversationTurn is a single prior-session turn passed to the LLM for chain
+// history replay. Yielded sessions prepend all prior turns so the model sees
+// the full conversation before continuing.
+type ConversationTurn struct {
+	Role    string // "user" | "assistant"
+	Content string
+}
+
 // callLLM dispatches a completion request to the configured provider.
 // Always streams from the provider internally; onChunk is invoked once per
 // streamed delta. Pass a buffering callback for unary RPCs, or a forwarding
 // callback for streaming RPCs.
+//
+// history contains prior-session turns for chain replay; pass nil for the
+// first (or only) session.
 //
 // Wraps the call in context.WithTimeout. The timeout is Agent.TimeoutSeconds
 // when non-zero, otherwise [defaultLLMCallTimeout]. The returned token counts
@@ -38,6 +49,7 @@ func (m *aiManager) callLLM(
 	provider LLMProvider,
 	agent Agent,
 	system, user string,
+	history []ConversationTurn,
 	onChunk func(string),
 ) (inputTok, outputTok int, err error) {
 	timeout := defaultLLMCallTimeout
@@ -49,9 +61,9 @@ func (m *aiManager) callLLM(
 
 	switch provider.ProviderType {
 	case "anthropic":
-		return callAnthropic(ctx, provider, agent, system, user, onChunk)
+		return callAnthropic(ctx, provider, agent, system, user, history, onChunk)
 	case "openai", "huggingface":
-		return callOpenAICompatible(ctx, provider, agent, system, user, onChunk)
+		return callOpenAICompatible(ctx, provider, agent, system, user, history, onChunk)
 	default:
 		return 0, 0, fmt.Errorf("unsupported provider_type %q", provider.ProviderType)
 	}
