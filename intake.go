@@ -96,11 +96,15 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 		AgencyID: m.agencyID,
 		TypeID:   "AgentRun",
 		Properties: map[string]any{
-			"task_id":      req.TaskID,
-			"instructions": req.Instructions,
-			"status":       string(AgentRunStatusPendingIntake),
-			"created_at":   now,
-			"updated_at":   now,
+			"task_id":                 req.TaskID,
+			"instructions":            req.Instructions,
+			"status":                  string(AgentRunStatusPendingIntake),
+			"segment_number":          1,
+			"wp_session_max_seconds":  req.WPSessionMaxSeconds,
+			"wp_session_max_tokens":   req.WPSessionMaxTokens,
+			"wp_session_max_sessions": req.WPSessionMaxSessions,
+			"created_at":              now,
+			"updated_at":              now,
 		},
 	})
 	if err != nil {
