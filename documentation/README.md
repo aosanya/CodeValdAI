@@ -28,7 +28,7 @@ It owns two concerns:
 | **Storage** | ArangoDB — `ai_entities`, `ai_relationships`, `ai_schemas` collections |
 | **Registers with** | CodeValdCross `OrchestratorService.Register` |
 | **Produces** | `ai.run.completed`, `ai.run.failed`, `ai.agent.created` |
-| **Consumes** | `cross.agency.created`, `work.task.dispatched` |
+| **Consumes** | `agency.created`, `work.task.dispatched` |
 | **LLM Provider (MVP)** | Anthropic — injected via `LLMClient` interface |
 | **Module** | `github.com/aosanya/CodeValdAI` |
 ```

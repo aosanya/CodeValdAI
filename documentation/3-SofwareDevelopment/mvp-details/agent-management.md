@@ -241,7 +241,7 @@ Produces: []string{
     fmt.Sprintf("ai.%s.agent.created",  agencyID),
 },
 Consumes: []string{
-    "cross.agency.created",
+    "agency.created",
     "work.task.dispatched",
 },
 ```

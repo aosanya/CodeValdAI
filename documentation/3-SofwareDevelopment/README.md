@@ -103,6 +103,6 @@ LLM dispatch has **no interface** — `aiManager.callLLM` switches on
 | `ai.run.completed` | Successful `ExecuteRun` / `ExecuteRunStreaming` |
 | `ai.run.failed` | Failed `ExecuteRun`, timeout, or boot-sweep reconciliation |
 
-Inbound subscription topics (`cross.agency.created`, `work.task.dispatched`)
+Inbound subscription topics (`agency.created`, `work.task.dispatched`)
 are not in MVP scope — see Future Work in
 [mvp-details/run-execution.md](mvp-details/run-execution.md).

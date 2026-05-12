@@ -259,7 +259,7 @@ git branch -d feature/AI-XXX_description
 >   - `ai.agent.created`
 >   - `ai.run.completed`
 >   - `ai.run.failed`
-> - Cross event topics consumed by AI: `cross.agency.created`,
+> - Cross event topics consumed by AI: `agency.created`,
 >   `work.task.dispatched`
 > - Schema seeding flow — `DefaultAISchema` is sent to Cross on startup via the
 >   `entitygraph` schema route helpers
