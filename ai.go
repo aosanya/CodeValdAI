@@ -463,6 +463,9 @@ func (m *aiManager) ListRuns(ctx context.Context, filter RunFilter) ([]AgentRun,
 		if filter.Status != "" && run.Status != filter.Status {
 			continue
 		}
+		if filter.TaskID != "" && run.TaskID != filter.TaskID {
+			continue
+		}
 		runs = append(runs, run)
 	}
 	return runs, nil

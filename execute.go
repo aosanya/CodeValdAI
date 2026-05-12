@@ -111,12 +111,16 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	})
 
 	// Accumulate output for DB storage while also forwarding chunks to the caller.
+	// Chunks are also written directly to stdout so the stream is visible in terminal logs.
 	var output strings.Builder
+	log.Printf("codevaldai: stream run=%s agent=%s ── begin ──────────────────────────────", runID, agent.ID)
 	wrapped := func(s string) {
 		output.WriteString(s)
 		onChunk(s)
+		fmt.Print(s)
 	}
 	inputTok, outputTok, llmErr := m.callLLM(ctx, provider, agent, systemPrompt, userMsg, wrapped)
+	fmt.Println()
 
 	now = time.Now().UTC().Format(time.RFC3339)
 	if llmErr != nil {

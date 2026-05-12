@@ -262,7 +262,7 @@ func agentRunToProto(r codevaldai.AgentRun) *pb.AgentRun {
 	return &pb.AgentRun{
 		Id:           r.ID,
 		AgentId:      r.AgentID,
-		Instructions: r.Instructions,
+Instructions: r.Instructions,
 		Status:       domainStatusToProto(r.Status),
 		Output:       r.Output,
 		ErrorMessage: r.ErrorMessage,

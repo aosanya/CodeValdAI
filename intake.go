@@ -71,11 +71,17 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 
 	userMsg := "Instructions: " + req.Instructions + "\nWhat input fields do you need to complete this task?"
 	log.Printf("codevaldai: IntakeRun agent=%s provider=%s instructions_len=%d", req.AgentID, provider.Name, len(req.Instructions))
+	log.Printf("codevaldai: intake stream agent=%s ── begin ──────────────────────────────", req.AgentID)
 	var buf strings.Builder
-	if _, _, err := m.callLLM(ctx, provider, agent, intakeSystemMessage, userMsg, func(chunk string) { buf.WriteString(chunk) }); err != nil {
+	if _, _, err := m.callLLM(ctx, provider, agent, intakeSystemMessage, userMsg, func(chunk string) {
+		buf.WriteString(chunk)
+		fmt.Print(chunk)
+	}); err != nil {
+		fmt.Println()
 		log.Printf("codevaldai: IntakeRun agent=%s llm error: %v", req.AgentID, err)
 		return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: llm: %w", req.AgentID, err)
 	}
+	fmt.Println()
 	log.Printf("codevaldai: IntakeRun agent=%s llm response_len=%d", req.AgentID, buf.Len())
 
 	fields, err := parseIntakeFields(buf.String())

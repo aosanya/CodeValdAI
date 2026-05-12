@@ -175,4 +175,5 @@ TaskID       string `json:"task_id,omitempty"`
 type RunFilter struct {
 AgentID string
 Status  AgentRunStatus
+TaskID  string
 }

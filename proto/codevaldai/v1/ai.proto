@@ -167,6 +167,7 @@ message AgentRun {
   google.protobuf.Timestamp completed_at  = 10;
   google.protobuf.Timestamp created_at    = 11;
   google.protobuf.Timestamp updated_at    = 12;
+  string                    task_id       = 13; // Work task ID; empty for manually triggered runs
 }
 
 // RunField is a single input field inferred by the LLM during the Intake phase.
@@ -213,6 +214,7 @@ message GetRunRequest {
 message ListRunsRequest {
   string         agent_id = 1; // empty = no filter
   AgentRunStatus status   = 2; // UNSPECIFIED = no filter
+  string         task_id  = 3; // empty = no filter
 }
 
 // ListRunsResponse wraps the list of agent runs.

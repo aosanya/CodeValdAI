@@ -219,6 +219,7 @@ func callOpenAICompatible(
 	}
 
 	usageSeen := false
+	thinkingOpen := false
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -237,7 +238,8 @@ func callOpenAICompatible(
 		var frame struct {
 			Choices []struct {
 				Delta struct {
-					Content string `json:"content"`
+					Content          string `json:"content"`
+					ReasoningContent string `json:"reasoning_content"`
 				} `json:"delta"`
 			} `json:"choices"`
 			Usage *struct {
@@ -249,7 +251,18 @@ func callOpenAICompatible(
 			return inputTok, outputTok, fmt.Errorf("%s: decode SSE: %w", provider.ProviderType, err)
 		}
 		for _, ch := range frame.Choices {
+			if ch.Delta.ReasoningContent != "" {
+				if !thinkingOpen {
+					onChunk("<think>\n")
+					thinkingOpen = true
+				}
+				onChunk(ch.Delta.ReasoningContent)
+			}
 			if ch.Delta.Content != "" {
+				if thinkingOpen {
+					onChunk("\n</think>\n\n")
+					thinkingOpen = false
+				}
 				onChunk(ch.Delta.Content)
 			}
 		}
@@ -258,6 +271,9 @@ func callOpenAICompatible(
 			outputTok = frame.Usage.CompletionTokens
 			usageSeen = true
 		}
+	}
+	if thinkingOpen {
+		onChunk("\n</think>\n\n")
 	}
 	if err := scanner.Err(); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
