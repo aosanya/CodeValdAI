@@ -47,6 +47,7 @@ func TestCallOpenAICompatible_StreamsAndUsage(t *testing.T) {
 		LLMProvider{ProviderType: "openai", APIKey: "k", BaseURL: srv.URL},
 		Agent{Model: "gpt-test"},
 		"sys", "usr",
+		nil,
 		func(s string) { got.WriteString(s) },
 	)
 	if err != nil {
@@ -71,6 +72,7 @@ func TestCallOpenAICompatible_MissingUsageReturnsZero(t *testing.T) {
 		LLMProvider{ProviderType: "huggingface", APIKey: "k", BaseURL: srv.URL},
 		Agent{Model: "deepseek-ai/DeepSeek-V4"},
 		"sys", "usr",
+		nil,
 		func(string) {},
 	)
 	if err != nil {
@@ -101,6 +103,7 @@ func TestCallOpenAICompatible_HuggingFaceProviderRouteSuffix(t *testing.T) {
 		LLMProvider{ProviderType: "huggingface", APIKey: "k", BaseURL: srv.URL, ProviderRoute: "fireworks-ai"},
 		Agent{Model: "deepseek-ai/DeepSeek-V4"},
 		"sys", "usr",
+		nil,
 		func(string) {},
 	)
 	if err != nil {
@@ -132,6 +135,7 @@ func TestCallOpenAICompatible_OpenAIIgnoresProviderRoute(t *testing.T) {
 		LLMProvider{ProviderType: "openai", APIKey: "k", BaseURL: srv.URL, ProviderRoute: "fireworks-ai"},
 		Agent{Model: "gpt-test"},
 		"sys", "usr",
+		nil,
 		func(string) {},
 	)
 	if err != nil {
@@ -153,6 +157,7 @@ func TestCallOpenAICompatible_HTTP404ReferencesModel(t *testing.T) {
 		LLMProvider{ProviderType: "huggingface", APIKey: "k", BaseURL: srv.URL, ProviderRoute: "fireworks-ai"},
 		Agent{Model: "deepseek-ai/DeepSeek-V4"},
 		"sys", "usr",
+		nil,
 		func(string) {},
 	)
 	if err == nil {
@@ -178,6 +183,7 @@ func TestCallOpenAICompatible_HTTP401(t *testing.T) {
 		LLMProvider{ProviderType: "openai", APIKey: "k", BaseURL: srv.URL},
 		Agent{Model: "gpt-test"},
 		"sys", "usr",
+		nil,
 		func(string) {},
 	)
 	if err == nil || !strings.Contains(err.Error(), "unauthorized") {
@@ -201,6 +207,7 @@ func TestCallAnthropic_StreamsAndUsage(t *testing.T) {
 		LLMProvider{ProviderType: "anthropic", APIKey: "k", BaseURL: srv.URL},
 		Agent{Model: "claude-test"},
 		"sys", "usr",
+		nil,
 		func(s string) { got.WriteString(s) },
 	)
 	if err != nil {
@@ -226,6 +233,7 @@ func TestCallAnthropic_HTTP401(t *testing.T) {
 		LLMProvider{ProviderType: "anthropic", APIKey: "k", BaseURL: srv.URL},
 		Agent{Model: "claude-test"},
 		"sys", "usr",
+		nil,
 		func(string) { chunks++ },
 	)
 	if err == nil || !strings.Contains(err.Error(), "unauthorized") {
@@ -275,6 +283,7 @@ func TestCallLLM_RoutesByProviderType(t *testing.T) {
 				LLMProvider{ProviderType: tc.providerType, APIKey: "k", BaseURL: srv.URL},
 				Agent{Model: "x"},
 				"sys", "usr",
+				nil,
 				func(string) {},
 			)
 			if err != nil {
@@ -294,6 +303,7 @@ func TestCallLLM_UnknownProviderType(t *testing.T) {
 		LLMProvider{ProviderType: "bogus", APIKey: "k"},
 		Agent{Model: "x"},
 		"sys", "usr",
+		nil,
 		func(string) {},
 	)
 	if err == nil || !strings.Contains(err.Error(), `unsupported provider_type "bogus"`) {
@@ -319,6 +329,7 @@ func TestCallLLM_PerAgentTimeoutFires(t *testing.T) {
 		LLMProvider{ProviderType: "openai", APIKey: "k", BaseURL: srv.URL},
 		Agent{Model: "x", TimeoutSeconds: 1},
 		"sys", "usr",
+		nil,
 		func(string) {},
 	)
 	elapsed := time.Since(start)

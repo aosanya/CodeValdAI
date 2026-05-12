@@ -92,13 +92,17 @@ func (s *Server) DeleteProvider(ctx context.Context, req *pb.DeleteProviderReque
 // CreateAgent implements pb.AIServiceServer.
 func (s *Server) CreateAgent(ctx context.Context, req *pb.CreateAgentRequest) (*pb.Agent, error) {
 	agent, err := s.mgr.CreateAgent(ctx, codevaldai.CreateAgentRequest{
-		Name:         req.GetName(),
-		Description:  req.GetDescription(),
-		ProviderID:   req.GetProviderId(),
-		Model:        req.GetModel(),
-		SystemPrompt: req.GetSystemPrompt(),
-		Temperature:  req.GetTemperature(),
-		MaxTokens:    int(req.GetMaxTokens()),
+		Name:               req.GetName(),
+		Description:        req.GetDescription(),
+		ProviderID:         req.GetProviderId(),
+		Model:              req.GetModel(),
+		SystemPrompt:       req.GetSystemPrompt(),
+		Temperature:        req.GetTemperature(),
+		MaxTokens:          int(req.GetMaxTokens()),
+		TimeoutSeconds:     int(req.GetTimeoutSeconds()),
+		SessionMaxSeconds:  int(req.GetSessionMaxSeconds()),
+		SessionMaxTokens:   int(req.GetSessionMaxTokens()),
+		SessionMaxSessions: int(req.GetSessionMaxSessions()),
 	})
 	if err != nil {
 		return nil, toGRPCError(err)
@@ -131,13 +135,17 @@ func (s *Server) ListAgents(ctx context.Context, _ *pb.ListAgentsRequest) (*pb.L
 // UpdateAgent implements pb.AIServiceServer.
 func (s *Server) UpdateAgent(ctx context.Context, req *pb.UpdateAgentRequest) (*pb.Agent, error) {
 	agent, err := s.mgr.UpdateAgent(ctx, req.GetAgentId(), codevaldai.UpdateAgentRequest{
-		Name:         req.GetName(),
-		Description:  req.GetDescription(),
-		ProviderID:   req.GetProviderId(),
-		Model:        req.GetModel(),
-		SystemPrompt: req.GetSystemPrompt(),
-		Temperature:  req.GetTemperature(),
-		MaxTokens:    int(req.GetMaxTokens()),
+		Name:               req.GetName(),
+		Description:        req.GetDescription(),
+		ProviderID:         req.GetProviderId(),
+		Model:              req.GetModel(),
+		SystemPrompt:       req.GetSystemPrompt(),
+		Temperature:        req.GetTemperature(),
+		MaxTokens:          int(req.GetMaxTokens()),
+		TimeoutSeconds:     int(req.GetTimeoutSeconds()),
+		SessionMaxSeconds:  int(req.GetSessionMaxSeconds()),
+		SessionMaxTokens:   int(req.GetSessionMaxTokens()),
+		SessionMaxSessions: int(req.GetSessionMaxSessions()),
 	})
 	if err != nil {
 		return nil, toGRPCError(err)
@@ -246,34 +254,41 @@ func providerToProto(p codevaldai.LLMProvider) *pb.LLMProvider {
 
 func agentToProto(a codevaldai.Agent) *pb.Agent {
 	return &pb.Agent{
-		Id:           a.ID,
-		Name:         a.Name,
-		Description:  a.Description,
-		ProviderId:   a.ProviderID,
-		Model:        a.Model,
-		SystemPrompt: a.SystemPrompt,
-		Temperature:  a.Temperature,
-		MaxTokens:    int32(a.MaxTokens),
-		CreatedAt:    parseTimestamp(a.CreatedAt),
-		UpdatedAt:    parseTimestamp(a.UpdatedAt),
+		Id:                 a.ID,
+		Name:               a.Name,
+		Description:        a.Description,
+		ProviderId:         a.ProviderID,
+		Model:              a.Model,
+		SystemPrompt:       a.SystemPrompt,
+		Temperature:        a.Temperature,
+		MaxTokens:          int32(a.MaxTokens),
+		TimeoutSeconds:     int32(a.TimeoutSeconds),
+		SessionMaxSeconds:  int32(a.SessionMaxSeconds),
+		SessionMaxTokens:   int32(a.SessionMaxTokens),
+		SessionMaxSessions: int32(a.SessionMaxSessions),
+		CreatedAt:          parseTimestamp(a.CreatedAt),
+		UpdatedAt:          parseTimestamp(a.UpdatedAt),
 	}
 }
 
 func agentRunToProto(r codevaldai.AgentRun) *pb.AgentRun {
 	return &pb.AgentRun{
-		Id:           r.ID,
-		AgentId:      r.AgentID,
-		TaskId:       r.TaskID,
-		Instructions: r.Instructions,
-		Status:       domainStatusToProto(r.Status),
-		Output:       r.Output,
-		ErrorMessage: r.ErrorMessage,
-		InputTokens:  int32(r.InputTokens),
-		OutputTokens: int32(r.OutputTokens),
-		StartedAt:    parseTimestamp(r.StartedAt),
-		CompletedAt:  parseTimestamp(r.CompletedAt),
-		CreatedAt:    parseTimestamp(r.CreatedAt),
-		UpdatedAt:    parseTimestamp(r.UpdatedAt),
+		Id:            r.ID,
+		AgentId:       r.AgentID,
+		TaskId:        r.TaskID,
+		Instructions:  r.Instructions,
+		Status:        domainStatusToProto(r.Status),
+		Output:        r.Output,
+		PartialOutput: r.PartialOutput,
+		ErrorMessage:  r.ErrorMessage,
+		InputTokens:   int32(r.InputTokens),
+		OutputTokens:  int32(r.OutputTokens),
+		ChainId:       r.ChainID,
+		SegmentNumber: int32(r.SegmentNumber),
+		StartedAt:     parseTimestamp(r.StartedAt),
+		CompletedAt:   parseTimestamp(r.CompletedAt),
+		CreatedAt:     parseTimestamp(r.CreatedAt),
+		UpdatedAt:     parseTimestamp(r.UpdatedAt),
 	}
 }
 
@@ -309,6 +324,8 @@ func domainStatusToProto(s codevaldai.AgentRunStatus) pb.AgentRunStatus {
 		return pb.AgentRunStatus_AGENT_RUN_STATUS_COMPLETED
 	case codevaldai.AgentRunStatusFailed:
 		return pb.AgentRunStatus_AGENT_RUN_STATUS_FAILED
+	case codevaldai.AgentRunStatusYielded:
+		return pb.AgentRunStatus_AGENT_RUN_STATUS_YIELDED
 	default:
 		return pb.AgentRunStatus_AGENT_RUN_STATUS_UNSPECIFIED
 	}
@@ -326,6 +343,8 @@ func protoStatusToDomain(s pb.AgentRunStatus) codevaldai.AgentRunStatus {
 		return codevaldai.AgentRunStatusCompleted
 	case pb.AgentRunStatus_AGENT_RUN_STATUS_FAILED:
 		return codevaldai.AgentRunStatusFailed
+	case pb.AgentRunStatus_AGENT_RUN_STATUS_YIELDED:
+		return codevaldai.AgentRunStatusYielded
 	default:
 		return ""
 	}

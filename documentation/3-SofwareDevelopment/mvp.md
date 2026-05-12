@@ -46,10 +46,10 @@ The MVP delivers:
 | MVP-AI-018 | Streaming RPC — `ExecuteRunStreaming` server-streaming gRPC, dispatcher chunk callback, dual unary+streaming entrypoints sharing one dispatcher | ✅ Done | MVP-AI-017 |
 | ~~MVP-AI-019~~ ✅ | `EventReceiverService` handler — write `ReceivedEvent` first, return error on failure; add `consumes` to registrar | ✅ Done | ~~SHAREDLIB-018~~ ✅, ~~PUBSUB-005d~~ ✅, ~~CROSS-011c~~ ✅ |
 | **MVP-AI-020** | Event Dispatch Engine — RACI-driven AgentRun triggering | ✅ Done | ~~MVP-AGENCY-012~~ ✅, ~~MVP-AI-019~~ ✅ |
-| **MVP-AI-021** | Yielded sessions — schema & domain model additions (`chain_id`, `segment_number`, `partial_output` on AgentRun; `max_seconds`, `max_tokens`, `max_sessions` on Agent + WorkPlan; `AGENT_RUN_STATUS_YIELDED`; proto updates) | 🔲 Not Started | MVP-AI-018 |
-| **MVP-AI-022** | Yielded execution engine — wall-clock + token limit enforcement inside `ExecuteRunStreaming`; yield path (partial capture → YIELDED → `ai.task.yielded` → successor AgentRun) | 🔲 Not Started | MVP-AI-021 |
-| **MVP-AI-023** | Chain history replay — `loadChainHistory` by `chain_id`; multi-turn conversation construction for session N+1; `continues_from` edge; `chain_id` allocation | 🔲 Not Started | MVP-AI-022 |
-| **MVP-AI-024** | Yielded sessions tests — full lifecycle, max sessions exhaustion, work plan overrides, history replay verification, backward-compat (`max_sessions=1`) | 🔲 Not Started | MVP-AI-021, MVP-AI-022, MVP-AI-023 |
+| **MVP-AI-021** | Yielded sessions — schema & domain model additions (`chain_id`, `segment_number`, `partial_output` on AgentRun; `max_seconds`, `max_tokens`, `max_sessions` on Agent + WorkPlan; `AGENT_RUN_STATUS_YIELDED`; proto updates) | ✅ Done | MVP-AI-018 |
+| **MVP-AI-022** | Yielded execution engine — wall-clock + token limit enforcement inside `ExecuteRunStreaming`; yield path (partial capture → YIELDED → `ai.task.yielded` → successor AgentRun) | ✅ Done | MVP-AI-021 |
+| **MVP-AI-023** | Chain history replay — `loadChainHistory` by `chain_id`; multi-turn conversation construction for session N+1; `continues_from` edge; `chain_id` allocation | ✅ Done | MVP-AI-022 |
+| **MVP-AI-024** | Yielded sessions tests — full lifecycle, max sessions exhaustion, work plan overrides, history replay verification, backward-compat (`max_sessions=1`) | ✅ Done | MVP-AI-021, MVP-AI-022, MVP-AI-023 |
 
 ---
 

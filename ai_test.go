@@ -298,8 +298,9 @@ func seedRunInPendingIntake(t *testing.T, dm *fakeDataManager, agentID string) s
 		AgencyID: testAgencyID,
 		TypeID:   "AgentRun",
 		Properties: map[string]any{
-			"instructions": "test instructions",
-			"status":       string(AgentRunStatusPendingIntake),
+			"instructions":   "test instructions",
+			"status":         string(AgentRunStatusPendingIntake),
+			"segment_number": 1,
 		},
 	}
 	relID := dm.nextID()
