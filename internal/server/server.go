@@ -213,6 +213,7 @@ func (s *Server) GetRun(ctx context.Context, req *pb.GetRunRequest) (*pb.AgentRu
 func (s *Server) ListRuns(ctx context.Context, req *pb.ListRunsRequest) (*pb.ListRunsResponse, error) {
 	filter := codevaldai.RunFilter{
 		AgentID: req.GetAgentId(),
+		TaskID:  req.GetTaskId(),
 	}
 	if req.GetStatus() != pb.AgentRunStatus_AGENT_RUN_STATUS_UNSPECIFIED {
 		filter.Status = protoStatusToDomain(req.GetStatus())
@@ -262,7 +263,8 @@ func agentRunToProto(r codevaldai.AgentRun) *pb.AgentRun {
 	return &pb.AgentRun{
 		Id:           r.ID,
 		AgentId:      r.AgentID,
-Instructions: r.Instructions,
+		TaskId:       r.TaskID,
+		Instructions: r.Instructions,
 		Status:       domainStatusToProto(r.Status),
 		Output:       r.Output,
 		ErrorMessage: r.ErrorMessage,

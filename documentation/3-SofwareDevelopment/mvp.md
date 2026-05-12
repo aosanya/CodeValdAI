@@ -46,6 +46,10 @@ The MVP delivers:
 | MVP-AI-018 | Streaming RPC — `ExecuteRunStreaming` server-streaming gRPC, dispatcher chunk callback, dual unary+streaming entrypoints sharing one dispatcher | ✅ Done | MVP-AI-017 |
 | ~~MVP-AI-019~~ ✅ | `EventReceiverService` handler — write `ReceivedEvent` first, return error on failure; add `consumes` to registrar | ✅ Done | ~~SHAREDLIB-018~~ ✅, ~~PUBSUB-005d~~ ✅, ~~CROSS-011c~~ ✅ |
 | **MVP-AI-020** | Event Dispatch Engine — RACI-driven AgentRun triggering | ✅ Done | ~~MVP-AGENCY-012~~ ✅, ~~MVP-AI-019~~ ✅ |
+| **MVP-AI-021** | Yielded sessions — schema & domain model additions (`chain_id`, `segment_number`, `partial_output` on AgentRun; `max_seconds`, `max_tokens`, `max_sessions` on Agent + WorkPlan; `AGENT_RUN_STATUS_YIELDED`; proto updates) | 🔲 Not Started | MVP-AI-018 |
+| **MVP-AI-022** | Yielded execution engine — wall-clock + token limit enforcement inside `ExecuteRunStreaming`; yield path (partial capture → YIELDED → `ai.task.yielded` → successor AgentRun) | 🔲 Not Started | MVP-AI-021 |
+| **MVP-AI-023** | Chain history replay — `loadChainHistory` by `chain_id`; multi-turn conversation construction for session N+1; `continues_from` edge; `chain_id` allocation | 🔲 Not Started | MVP-AI-022 |
+| **MVP-AI-024** | Yielded sessions tests — full lifecycle, max sessions exhaustion, work plan overrides, history replay verification, backward-compat (`max_sessions=1`) | 🔲 Not Started | MVP-AI-021, MVP-AI-022, MVP-AI-023 |
 
 ---
 
@@ -68,6 +72,16 @@ The HuggingFace + DeepSeek V4 work is split across MVP-AI-016/017/018 with
 strict ordering: schema first, dispatcher second, streaming RPC third. See
 [mvp-details/llm-client/README.md](mvp-details/llm-client/README.md) for
 the architecture and per-task detail files.
+
+Yielded sessions build strictly on top of the streaming RPC:
+
+```
+MVP-AI-018 (streaming RPC)
+    └── MVP-AI-021 (schema + models)
+            └── MVP-AI-022 (execution engine)
+                    └── MVP-AI-023 (chain history)
+                            └── MVP-AI-024 (tests)
+```
 
 ---
 
@@ -92,6 +106,12 @@ the architecture and per-task detail files.
 - [ ] Startup `ReconcileRunningRuns` transitions any `running` run to `failed` with `error_message = "interrupted by service restart"` and publishes `ai.run.failed`
 - [ ] `ExecuteRunStreaming` server-streaming RPC delivers chunks live; persists the same `AgentRun` as unary `ExecuteRun`
 - [ ] DeepSeek V4 via HuggingFace Router (`deepseek-ai/DeepSeek-V4` model id, optional `:fireworks-ai` route) end-to-end run succeeds
+- [ ] `AgentRun` persists `chain_id`, `segment_number`, `partial_output` fields
+- [ ] `AGENT_RUN_STATUS_YIELDED` is a valid status; `ai.task.yielded` is published with correct payload when a session hits its wall-clock or token limit
+- [ ] Session N+1 receives the full conversation history from sessions 1..N via `loadChainHistory`
+- [ ] `continues_from` edge is written between each successor and its predecessor `AgentRun`
+- [ ] When `segment_number == max_sessions` and no final result, `ai.task.failed` is published directly (no prior `ai.task.yielded`)
+- [ ] `Agent.max_seconds/max_tokens/max_sessions` defaults are overridable per `WorkPlan`; `max_sessions=1` preserves existing single-session behaviour
 
 ---
 

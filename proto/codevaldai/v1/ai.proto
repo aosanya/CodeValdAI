@@ -16,6 +16,10 @@ enum AgentRunStatus {
   AGENT_RUN_STATUS_RUNNING             = 3;
   AGENT_RUN_STATUS_COMPLETED           = 4;
   AGENT_RUN_STATUS_FAILED              = 5;
+  // AGENT_RUN_STATUS_YIELDED: the run hit a wall-clock or token limit before
+  // producing a final result. partial_output is stored; a successor run
+  // continues in the same chain.
+  AGENT_RUN_STATUS_YIELDED             = 6;
 }
 
 // ── LLMProvider ───────────────────────────────────────────────────────────────
@@ -89,31 +93,40 @@ message DeleteProviderResponse {}
 //
 // timeout_seconds overrides the system default LLM-call timeout for this
 // Agent. Zero means "use the system default".
+//
+// session_max_seconds, session_max_tokens, session_max_sessions control the
+// yielded-session behaviour. Zero values mean "use the system default".
 message Agent {
-  string                    id              = 1;
-  string                    name            = 2;
-  string                    description     = 3;
-  string                    provider_id     = 4;
-  string                    model           = 5;
-  string                    system_prompt   = 6;
-  double                    temperature     = 7;
-  int32                     max_tokens      = 8;
-  google.protobuf.Timestamp created_at      = 9;
-  google.protobuf.Timestamp updated_at      = 10;
-  int32                     timeout_seconds = 11; // 0 = system default
+  string                    id                   = 1;
+  string                    name                 = 2;
+  string                    description          = 3;
+  string                    provider_id          = 4;
+  string                    model                = 5;
+  string                    system_prompt        = 6;
+  double                    temperature          = 7;
+  int32                     max_tokens           = 8;
+  google.protobuf.Timestamp created_at           = 9;
+  google.protobuf.Timestamp updated_at           = 10;
+  int32                     timeout_seconds      = 11; // 0 = system default
+  int32                     session_max_seconds  = 12; // 0 = 300 s default
+  int32                     session_max_tokens   = 13; // 0 = no token limit
+  int32                     session_max_sessions = 14; // 0 = 1 (no yielding)
 }
 
 // CreateAgentRequest carries the data required to create a new Agent.
 // name, provider_id, model, and system_prompt are required.
 message CreateAgentRequest {
-  string name            = 1;
-  string description     = 2;
-  string provider_id     = 3;
-  string model           = 4;
-  string system_prompt   = 5;
-  double temperature     = 6;
-  int32  max_tokens      = 7;
-  int32  timeout_seconds = 8;
+  string name                 = 1;
+  string description          = 2;
+  string provider_id          = 3;
+  string model                = 4;
+  string system_prompt        = 5;
+  double temperature          = 6;
+  int32  max_tokens           = 7;
+  int32  timeout_seconds      = 8;
+  int32  session_max_seconds  = 9;
+  int32  session_max_tokens   = 10;
+  int32  session_max_sessions = 11;
 }
 
 // GetAgentRequest selects an agent by its ID.

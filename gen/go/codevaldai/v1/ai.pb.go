@@ -1121,6 +1121,7 @@ type AgentRun struct {
 	CompletedAt   *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	TaskId        string                 `protobuf:"bytes,13,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"` // Work task ID; empty for manually triggered runs
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1237,6 +1238,13 @@ func (x *AgentRun) GetUpdatedAt() *timestamppb.Timestamp {
 		return x.UpdatedAt
 	}
 	return nil
+}
+
+func (x *AgentRun) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
 }
 
 // RunField is a single input field inferred by the LLM during the Intake phase.
@@ -1594,6 +1602,7 @@ type ListRunsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AgentId       string                 `protobuf:"bytes,1,opt,name=agent_id,json=agentId,proto3" json:"agent_id,omitempty"`                   // empty = no filter
 	Status        AgentRunStatus         `protobuf:"varint,2,opt,name=status,proto3,enum=codevaldai.v1.AgentRunStatus" json:"status,omitempty"` // UNSPECIFIED = no filter
+	TaskId        string                 `protobuf:"bytes,3,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`                      // empty = no filter
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1640,6 +1649,13 @@ func (x *ListRunsRequest) GetStatus() AgentRunStatus {
 		return x.Status
 	}
 	return AgentRunStatus_AGENT_RUN_STATUS_UNSPECIFIED
+}
+
+func (x *ListRunsRequest) GetTaskId() string {
+	if x != nil {
+		return x.TaskId
+	}
+	return ""
 }
 
 // ListRunsResponse wraps the list of agent runs.
@@ -1861,7 +1877,7 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\x0ftimeout_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\"/\n" +
 	"\x12DeleteAgentRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x15\n" +
-	"\x13DeleteAgentResponse\"\x85\x04\n" +
+	"\x13DeleteAgentResponse\"\x9e\x04\n" +
 	"\bAgentRun\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
 	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\"\n" +
@@ -1878,7 +1894,8 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\xb8\x01\n" +
+	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x17\n" +
+	"\atask_id\x18\r \x01(\tR\x06taskId\"\xb8\x01\n" +
 	"\bRunField\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\tfieldname\x18\x02 \x01(\tR\tfieldname\x12\x12\n" +
@@ -1902,10 +1919,11 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12/\n" +
 	"\x06inputs\x18\x02 \x03(\v2\x17.codevaldai.v1.RunInputR\x06inputs\"&\n" +
 	"\rGetRunRequest\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\"c\n" +
+	"\x06run_id\x18\x01 \x01(\tR\x05runId\"|\n" +
 	"\x0fListRunsRequest\x12\x19\n" +
 	"\bagent_id\x18\x01 \x01(\tR\aagentId\x125\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x1d.codevaldai.v1.AgentRunStatusR\x06status\"?\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x1d.codevaldai.v1.AgentRunStatusR\x06status\x12\x17\n" +
+	"\atask_id\x18\x03 \x01(\tR\x06taskId\"?\n" +
 	"\x10ListRunsResponse\x12+\n" +
 	"\x04runs\x18\x01 \x03(\v2\x17.codevaldai.v1.AgentRunR\x04runs\"m\n" +
 	"\x1bExecuteRunStreamingResponse\x12\x16\n" +

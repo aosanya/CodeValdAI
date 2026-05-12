@@ -112,12 +112,26 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 
 	// Accumulate output for DB storage while also forwarding chunks to the caller.
 	// Chunks are also written directly to stdout so the stream is visible in terminal logs.
+	// Every outputFlushInterval chunks the partial output is flushed to the DB so that
+	// a service restart mid-stream still leaves a readable partial transcript.
+	const outputFlushInterval = 50
 	var output strings.Builder
+	chunksSinceFlush := 0
 	log.Printf("codevaldai: stream run=%s agent=%s ── begin ──────────────────────────────", runID, agent.ID)
 	wrapped := func(s string) {
 		output.WriteString(s)
 		onChunk(s)
 		fmt.Print(s)
+		chunksSinceFlush++
+		if chunksSinceFlush >= outputFlushInterval {
+			chunksSinceFlush = 0
+			m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{ //nolint:errcheck
+				Properties: map[string]any{
+					"output":     output.String(),
+					"updated_at": time.Now().UTC().Format(time.RFC3339),
+				},
+			})
+		}
 	}
 	inputTok, outputTok, llmErr := m.callLLM(ctx, provider, agent, systemPrompt, userMsg, wrapped)
 	fmt.Println()
