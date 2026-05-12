@@ -85,7 +85,7 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 	log.Printf("codevaldai: IntakeRun agent=%s llm response_len=%d", req.AgentID, buf.Len())
 
 	fields, err := parseIntakeFields(buf.String())
-	if err != nil || len(fields) == 0 {
+	if err != nil {
 		log.Printf("codevaldai: IntakeRun agent=%s parse failed: err=%v raw=%q", req.AgentID, err, buf.String())
 		return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: %w", req.AgentID, ErrInvalidLLMResponse)
 	}
@@ -158,10 +158,11 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 }
 
 // parseIntakeFields unmarshals the LLM response into a slice of intakeField.
-// If the response contains prose wrapping the JSON array, it extracts the
-// [...] portion before parsing. Returns ErrInvalidLLMResponse on failure.
+// Strips <think>...</think> reasoning blocks emitted by some models before
+// extracting the JSON array. An empty array [] is valid (no fields needed).
+// Returns ErrInvalidLLMResponse only when no parseable JSON array is found.
 func parseIntakeFields(response string) ([]intakeField, error) {
-	raw := extractJSONArray(response)
+	raw := extractJSONArray(stripThinkBlocks(response))
 	if raw == "" {
 		return nil, ErrInvalidLLMResponse
 	}
@@ -172,18 +173,46 @@ func parseIntakeFields(response string) ([]intakeField, error) {
 	return fields, nil
 }
 
-// extractJSONArray extracts the first [...] substring from s.
-// Returns "" if no balanced array is found.
+// stripThinkBlocks removes <think>...</think> reasoning blocks that some
+// models (e.g. DeepSeek via Novita) emit before their actual output.
+func stripThinkBlocks(s string) string {
+	for {
+		open := strings.Index(s, "<think>")
+		if open == -1 {
+			break
+		}
+		close := strings.Index(s[open:], "</think>")
+		if close == -1 {
+			s = s[:open]
+			break
+		}
+		s = s[:open] + s[open+close+len("</think>"):]
+	}
+	return strings.TrimSpace(s)
+}
+
+// extractJSONArray extracts the last [...] substring from s, finding the
+// last ']' then scanning back for its matching '['. Using the last array
+// avoids accidentally picking up [...] references inside prose or think blocks.
 func extractJSONArray(s string) string {
-	start := strings.Index(s, "[")
-	if start == -1 {
-		return ""
-	}
 	end := strings.LastIndex(s, "]")
-	if end == -1 || end < start {
+	if end == -1 {
 		return ""
 	}
-	return s[start : end+1]
+	// Walk backwards from end to find the matching '['.
+	depth := 0
+	for i := end; i >= 0; i-- {
+		switch s[i] {
+		case ']':
+			depth++
+		case '[':
+			depth--
+			if depth == 0 {
+				return s[i : end+1]
+			}
+		}
+	}
+	return ""
 }
 
 // marshalOptions encodes a []string to a JSON string for ArangoDB storage.

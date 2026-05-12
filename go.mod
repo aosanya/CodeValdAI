@@ -10,13 +10,13 @@ require (
 	github.com/aosanya/CodeValdAgency v0.0.0-00010101000000-000000000000
 	github.com/aosanya/CodeValdSharedLib v0.0.0
 	github.com/arangodb/go-driver v1.6.0
+	github.com/google/uuid v1.6.0
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
 )
 
 require (
 	github.com/arangodb/go-velocypack v0.0.0-20200318135517-5af53c29c67e // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
