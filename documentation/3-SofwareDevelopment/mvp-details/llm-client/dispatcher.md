@@ -82,7 +82,7 @@ if err != nil {
         "updated_at":    now,
     })
     m.publisher.Publish(ctx,
-        fmt.Sprintf("cross.ai.%s.run.failed", m.agencyID), runID)
+        fmt.Sprintf("ai.%s.run.failed", m.agencyID), runID)
     return AgentRun{Status: "failed"}, err
 }
 ```
@@ -104,7 +104,7 @@ left in `running` state to `failed`.
 
 // ReconcileRunningRuns transitions any AgentRun left in "running" state to
 // "failed" with error_message="interrupted by service restart" and
-// publishes cross.ai.{agencyID}.run.failed for each. Called once on
+// publishes ai.{agencyID}.run.failed for each. Called once on
 // startup before the gRPC server begins accepting requests.
 func ReconcileRunningRuns(
     ctx context.Context,
@@ -132,7 +132,7 @@ func ReconcileRunningRuns(
             continue
         }
         if err := publisher.Publish(ctx,
-            fmt.Sprintf("cross.ai.%s.run.failed", agencyID), run.ID); err != nil {
+            fmt.Sprintf("ai.%s.run.failed", agencyID), run.ID); err != nil {
             log.Warn("publish run.failed during reconcile", "run_id", run.ID, "err", err)
         }
         log.Info("reconciled interrupted run", "run_id", run.ID)

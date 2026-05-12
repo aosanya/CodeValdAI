@@ -2,9 +2,13 @@
 
 ## Overview
 
-CodeValdAI subscribes to `work.task.status.changed` so it can react when a
-task goes `pending → in_progress`. Everything flows via Cross — CodeValdAI
-never dials PubSub directly.
+CodeValdAI subscribes to `work.task.assigned` (and related `work.task.*` topics)
+so it can react when a task is assigned to an AI agent. Everything flows via Cross
+— CodeValdAI never dials PubSub directly.
+
+**Domain rule:** CodeValdAI only publishes `ai.*` events. It never publishes into
+`work.*`, `git.*`, or `comm.*`. The task status feedback loop is handled by a bridge:
+CodeValdAI publishes `ai.task.*` → CodeValdWork consumes and publishes `work.task.*`.
 
 ---
 
@@ -14,7 +18,7 @@ never dials PubSub directly.
 |---|---|
 | Subscribe registration | Cross handles it — AI declares `consumes` in heartbeat; Cross calls `PubSub.Subscribe` on its behalf |
 | Push delivery | Cross calls `EventReceiverService.NotifyEvent` on CodeValdAI |
-| Write order | AI writes `ReceivedEvent` to `ai_received_events` **first**, then returns success |
+| Write order | AI writes `ReceivedEvent` to `ai_received_events` **first**, then dispatches |
 | On DB write failure | Return gRPC error to Cross — delivery stays `pending` |
 | Who calls `Ack` | Cross, immediately after a successful `NotifyEvent` response |
 | `NotifyEvent` proto | Shared `EventReceiverService` from SharedLib — not defined in `ai.proto` |
@@ -22,40 +26,63 @@ never dials PubSub directly.
 
 ---
 
-## 2. Declaring Intent — `consumes` in Registrar
+## 2. Topics Produced by CodeValdAI
 
-In `internal/registrar/registrar.go`, add `"work.task.status.changed"` to the
-`consumes` list passed to `sharedregistrar.New`:
+| Topic | Published when | Payload |
+|---|---|---|
+| `ai.task.in_progress` | `ExecuteRunStreaming` transitions run to `running` (before LLM call) | `{task_id, run_id, agent_id}` |
+| `ai.task.completed` | LLM finishes successfully and actions dispatched | `{task_id, run_id, agent_id}` |
+| `ai.task.failed` | LLM errors, times out, or produces no actions block | `{task_id, run_id, reason, failed_by{agent_id, work_plan_id, work_plan_code}}` |
+| `ai.{agencyID}.run.completed` | Same as `ai.task.completed` — for AI-internal consumers | `{run_id}` |
+| `ai.{agencyID}.run.failed` | Same as `ai.task.failed` — for AI-internal consumers | `""` |
+| `ai.{agencyID}.agent.created` | New Agent entity created | `agentID` |
+
+---
+
+## 3. Topics Consumed by CodeValdAI
+
+| Topic | Publisher | What CodeValdAI does |
+|---|---|---|
+| `work.task.assigned` | CodeValdWork | RACIDispatcher matches payload against work plans; triggers AgentRun if `agent_id` set |
+| `git.branch.fetched` | CodeValdGit | RACIDispatcher — triggers AI Code Reviewer run |
+| `git.branch.merged` | CodeValdGit | RACIDispatcher — triggers AI Documentor run |
+| `work.task.status.changed` | CodeValdWork | Logged as ReceivedEvent; no dispatch yet |
+
+---
+
+## 4. Declaring Intent — `consumes` in Registrar
+
+In `internal/registrar/registrar.go`, the `consumes` list passed to `sharedregistrar.New`:
 
 ```go
 hb, err := sharedregistrar.New(
     crossAddr, advertiseAddr, agencyID,
     "codevaldai",
     []string{  // produces
-        "cross.ai.{agencyID}.agent.created",
-        "cross.ai.{agencyID}.run.completed",
-        "cross.ai.{agencyID}.run.failed",
+        "ai.task.in_progress",
+        "ai.task.completed",
+        "ai.task.failed",
+        "ai.{agencyID}.agent.created",
+        "ai.{agencyID}.run.completed",
+        "ai.{agencyID}.run.failed",
     },
-    []string{  // consumes ← NEW
+    []string{  // consumes
+        "work.task.assigned",
+        "git.branch.fetched",
+        "git.branch.merged",
         "work.task.status.changed",
     },
     routes, pingInterval, pingTimeout,
 )
 ```
 
-On every heartbeat, Cross reads this list and calls `PubSub.Subscribe` on
-CodeValdAI's behalf. PubSub is idempotent on `(subscriber_service, topic_pattern)`,
-so repeat calls are safe.
-
 ---
 
-## 3. Schema Addition
+## 5. Schema Addition
 
-Add `ReceivedEvent` to `DefaultAISchema()` in `schema.go`:
+`ReceivedEvent` is seeded in `DefaultAISchema()` via the SharedLib helper:
 
 ```go
-import "github.com/aosanya/CodeValdSharedLib/eventreceiver"
-
 func DefaultAISchema() types.Schema {
     return types.Schema{
         ID:      "ai-schema-v1",
@@ -66,33 +93,22 @@ func DefaultAISchema() types.Schema {
 }
 ```
 
-This seeds the `ai_received_events` ArangoDB collection on startup (idempotent).
-
 ### `ReceivedEvent` fields
 
 | Field | Type | Description |
 |---|---|---|
 | `event_id` | string | PubSub event ID |
-| `topic` | string | e.g. `work.task.status.changed` |
+| `topic` | string | e.g. `work.task.assigned` |
 | `agency_id` | string | Owning agency |
 | `source` | string | Originating service, e.g. `codevaldwork` |
 | `payload` | string | Raw JSON from the publisher |
 | `received_at` | string | RFC3339 UTC timestamp of receipt |
 
-No `status` field for MVP — pure log.
-
 ---
 
-## 4. `EventReceiverService` gRPC Registration
-
-Register the SharedLib `EventReceiverService` alongside the existing `AIService`
-in `internal/app/app.go`:
+## 6. `EventReceiverService` gRPC Registration
 
 ```go
-import (
-    sharedev1 "github.com/aosanya/CodeValdSharedLib/gen/go/codevaldshared/v1"
-)
-
 sharedev1.RegisterEventReceiverServiceServer(grpcServer, server.NewEventReceiver(backend, cfg.AgencyID))
 ```
 
@@ -104,100 +120,52 @@ The fully-qualified gRPC path Cross calls:
 
 ---
 
-## 5. `NotifyEvent` Handler
-
-Create `internal/server/event_receiver.go`:
-
-```go
-// EventReceiverServer implements sharedev1.EventReceiverServiceServer.
-type EventReceiverServer struct {
-    sharedev1.UnimplementedEventReceiverServiceServer
-    backend  entitygraph.DataManager
-    agencyID string
-}
-
-func NewEventReceiver(backend entitygraph.DataManager, agencyID string) *EventReceiverServer {
-    return &EventReceiverServer{backend: backend, agencyID: agencyID}
-}
-
-// NotifyEvent receives a pushed event from Cross.
-// Writes a ReceivedEvent record FIRST; returns error if the write fails so
-// Cross leaves the delivery in "pending" state.
-func (s *EventReceiverServer) NotifyEvent(ctx context.Context, req *sharedev1.NotifyEventRequest) (*sharedev1.NotifyEventResponse, error) {
-    _, err := s.backend.CreateEntity(ctx, s.agencyID, entitygraph.CreateEntityRequest{
-        TypeID: "ReceivedEvent",
-        Properties: map[string]any{
-            "event_id":    req.GetEventId(),
-            "topic":       req.GetTopic(),
-            "agency_id":   req.GetAgencyId(),
-            "source":      req.GetSource(),
-            "payload":     req.GetPayload(),
-            "received_at": time.Now().UTC().Format(time.RFC3339),
-        },
-    })
-    if err != nil {
-        log.Printf("codevaldai: NotifyEvent: write ReceivedEvent: %v", err)
-        return nil, status.Errorf(codes.Internal, "log received event: %v", err)
-    }
-    log.Printf("codevaldai: NotifyEvent: ACK event_id=%s topic=%s source=%s",
-        req.GetEventId(), req.GetTopic(), req.GetSource())
-    return &sharedev1.NotifyEventResponse{}, nil
-}
-```
-
----
-
-## 6. `work.task.status.changed` Payload Shape
+## 7. `work.task.assigned` Payload Shape
 
 Published by CodeValdWork. JSON-encoded in `NotifyEventRequest.payload`:
 
 ```json
 {
-  "task_id": "4ac83b8b-a42b-4e3a-a308-519e3a1bcdae",
-  "from":    "pending",
-  "to":      "in_progress"
+  "TaskID":    "4ac83b8b-a42b-4e3a-a308-519e3a1bcdae",
+  "AgentID":   "5e367e1b-4c56-407b-849c-98d2481d2fd3",
+  "RoleName":  "Developer",
+  "TaskCode":  "UTIL-001",
+  "Title":     "Add dark mode toggle",
+  "Description": "..."
 }
 ```
 
-For MVP, the payload is stored verbatim in `ReceivedEvent.payload`. Future
-iterations will parse it and trigger an `AgentRun` when `to == "in_progress"`.
+RACIDispatcher uses `RoleName` (via `payload_condition`) and the plan's `agent_id` to
+decide whether to trigger a run. The `TaskID` is carried through the run lifecycle and
+included in all `ai.task.*` publish payloads.
 
 ---
 
-## 7. Full Sequence (Happy Path)
+## 8. Full Sequence (Happy Path — task assigned → run completes)
 
 ```
-CodeValdWork → Cross.Publish("work.task.status.changed", payload)
+CodeValdWork → Cross.Publish("work.task.assigned", payload)
     │
-    └── Cross → CodeValdAI.EventReceiverService/NotifyEvent(event_id, topic, payload)
+    └── Cross → CodeValdAI.EventReceiverService/NotifyEvent
                     │
                     ├── write ReceivedEvent to ai_received_events ✓
-                    ├── log: "ACK event_id=... topic=work.task.status.changed"
+                    ├── dispatcher.Dispatch() → RACIDispatcher
+                    │       ├── MatchWorkPlans(topic, payload)
+                    │       └── triggerPlanRun(plan, payload)
+                    │               ├── IntakeRun()  → AgentRun{pending_intake}
+                    │               └── ExecuteRunStreaming()
+                    │                       ├── → running
+                    │                       ├── Publish "ai.task.in_progress"
+                    │                       ├── callLLM()
+                    │                       ├── → completed
+                    │                       ├── dispatchActions()
+                    │                       ├── Publish "ai.task.completed"
+                    │                       └── Publish "ai.{agencyID}.run.completed"
                     └── return NotifyEventResponse{}
-                            │
-                            └── Cross → PubSub.Ack(subscriptionID, eventID)
-                                            └── Delivery.status → "acked"
+
+CodeValdWork (EventReceiver) ←── Cross fans out "ai.task.in_progress"
+    └── UpdateTask(status=in_progress) → Publish "work.task.in_progress"
+
+CodeValdWork (EventReceiver) ←── Cross fans out "ai.task.completed"
+    └── UpdateTask(status=completed) → Publish "work.task.completed"
 ```
-
-On DB write failure:
-
-```
-NotifyEvent returns gRPC Internal error
-    └── Cross logs error, does nothing
-            └── Delivery stays "pending" (retry mechanism picks up later)
-```
-
----
-
-## 8. Definition of Done
-
-- [ ] `"work.task.status.changed"` added to `consumes` in `internal/registrar/registrar.go`
-- [ ] `eventreceiver.ReceivedEventTypeDefinition("ai")` added to `DefaultAISchema()`
-- [ ] `ai_received_events` collection seeded idempotently on startup
-- [ ] `EventReceiverServiceServer` registered on gRPC server in `internal/app/app.go`
-- [ ] `internal/server/event_receiver.go` created with `NotifyEvent` handler
-- [ ] Handler writes `ReceivedEvent` first; returns `codes.Internal` on failure
-- [ ] Handler logs `ACK event_id=... topic=... source=...` on success
-- [ ] Unit test: success path writes entity and returns success
-- [ ] Unit test: DB failure returns gRPC Internal error
-- [ ] SharedLib dependency (`SHAREDLIB-018`) must be complete before this task

@@ -47,7 +47,8 @@ UpdatedAt      string  `json:"updated_at"`
 // it is not stored as a flat property on the AgentRun document.
 type AgentRun struct {
 ID           string         `json:"id"`
-AgentID      string         `json:"agent_id"`     // resolved from belongs_to_agent edge
+AgentID      string         `json:"agent_id"`             // resolved from belongs_to_agent edge
+TaskID       string         `json:"task_id,omitempty"`    // Work task ID; empty for manually triggered runs
 Instructions string         `json:"instructions"`
 Status       AgentRunStatus `json:"status"`
 Output       string         `json:"output,omitempty"`
@@ -164,6 +165,10 @@ TimeoutSeconds int     `json:"timeout_seconds,omitempty"`
 type IntakeRunRequest struct {
 AgentID      string `json:"agent_id"`
 Instructions string `json:"instructions"`
+// TaskID is the Work task this run is acting on. When set it is stored on
+// the AgentRun entity and included in all ai.task.* lifecycle events so
+// downstream services (e.g. CodeValdWork) can correlate runs back to tasks.
+TaskID       string `json:"task_id,omitempty"`
 }
 
 // RunFilter constrains a ListRuns query. Zero values mean "no filter".

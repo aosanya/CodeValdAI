@@ -30,14 +30,33 @@ func NewEventReceiver(backend entitygraph.DataManager, agencyID string, dispatch
 }
 
 // NotifyEvent receives a pushed event from Cross.
-// It writes a ReceivedEvent record first; on DB failure it returns
+// It deduplicates by event_id — if a ReceivedEvent with the same event_id
+// already exists the delivery is ACKed immediately without re-dispatching.
+// On a new event it writes the ReceivedEvent first; on DB failure it returns
 // codes.Internal so Cross leaves the delivery in "pending" state.
 func (s *EventReceiverServer) NotifyEvent(ctx context.Context, req *sharedev1.NotifyEventRequest) (*sharedev1.NotifyEventResponse, error) {
+	eventID := req.GetEventId()
+
+	// Idempotency check: ACK without re-dispatching if already processed.
+	if eventID != "" {
+		existing, err := s.backend.ListEntities(ctx, entitygraph.EntityFilter{
+			AgencyID: s.agencyID,
+			TypeID:   "ReceivedEvent",
+			Properties: map[string]any{
+				"event_id": eventID,
+			},
+		})
+		if err == nil && len(existing) > 0 {
+			log.Printf("codevaldai: NotifyEvent: duplicate event_id=%s topic=%s — skipping dispatch", eventID, req.GetTopic())
+			return &sharedev1.NotifyEventResponse{}, nil
+		}
+	}
+
 	_, err := s.backend.CreateEntity(ctx, entitygraph.CreateEntityRequest{
 		AgencyID: s.agencyID,
 		TypeID:   "ReceivedEvent",
 		Properties: map[string]any{
-			"event_id":    req.GetEventId(),
+			"event_id":    eventID,
 			"topic":       req.GetTopic(),
 			"agency_id":   req.GetAgencyId(),
 			"source":      req.GetSource(),
@@ -50,7 +69,7 @@ func (s *EventReceiverServer) NotifyEvent(ctx context.Context, req *sharedev1.No
 		return nil, status.Errorf(codes.Internal, "log received event: %v", err)
 	}
 	log.Printf("codevaldai: NotifyEvent: ACK event_id=%s topic=%s source=%s",
-		req.GetEventId(), req.GetTopic(), req.GetSource())
+		eventID, req.GetTopic(), req.GetSource())
 
 	if s.dispatcher != nil {
 		go s.dispatcher.Dispatch(context.Background(), req.GetTopic(), req.GetPayload())

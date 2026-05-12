@@ -90,10 +90,10 @@ These apply to every provider and are detailed in the per-task files:
 - **Timeout** (MVP-AI-017): every dispatcher call is wrapped in
   `context.WithTimeout`. Default `5 * time.Minute`, overridable per-Agent
   via `Agent.TimeoutSeconds`. On expiry: status → `failed`, publish
-  `cross.ai.{agencyID}.run.failed`.
+  `ai.{agencyID}.run.failed`.
 - **Crash recovery** (MVP-AI-017): startup sweep transitions any `running`
   run to `failed` with `error_message = "interrupted by service restart"`
-  and publishes `cross.ai.{agencyID}.run.failed`. Same code path as
+  and publishes `ai.{agencyID}.run.failed`. Same code path as
   timeout — no new FSM state.
 - **Token-counting tolerance**: if the provider response omits `usage`
   (some HF Router backends do this on streaming), store `0` for both

@@ -510,7 +510,7 @@ func TestCreateAgent_Success_PublishesEvent(t *testing.T) {
 		t.Fatalf("ProviderID: got %q want %q", a.ProviderID, p.ID)
 	}
 	topics := pub.published()
-	want := fmt.Sprintf("cross.ai.%s.agent.created", testAgencyID)
+	want := fmt.Sprintf("ai.%s.agent.created", testAgencyID)
 	if len(topics) != 1 || topics[0] != want {
 		t.Fatalf("expected topic %q, got %v", want, topics)
 	}

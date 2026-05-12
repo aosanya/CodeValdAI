@@ -49,7 +49,7 @@ type AIManager interface {
     // CreateAgent persists a new Agent configuration.
     // Returns ErrInvalidAgent if required fields (name, model, system_prompt)
     // are missing, or if providerID does not exist.
-    // Publishes "cross.ai.{agencyID}.agent.created" after a successful write.
+    // Publishes "ai.{agencyID}.agent.created" after a successful write.
     CreateAgent(ctx context.Context, req CreateAgentRequest) (Agent, error)
 
     // GetAgent retrieves a single Agent by its ID.
@@ -84,8 +84,8 @@ type AIManager interface {
     // stores the output, and transitions to completed or failed.
     // Returns ErrRunNotFound if runID does not exist.
     // Returns ErrRunNotIntaked if the run is not in pending_intake state.
-    // Publishes "cross.ai.{agencyID}.run.completed" on success.
-    // Publishes "cross.ai.{agencyID}.run.failed" on LLM error.
+    // Publishes "ai.{agencyID}.run.completed" on success.
+    // Publishes "ai.{agencyID}.run.failed" on LLM error.
     ExecuteRun(ctx context.Context, runID string, inputs []RunInput) (AgentRun, error)
 
     // GetRun retrieves a single AgentRun by its ID.

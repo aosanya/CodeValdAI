@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -74,6 +75,7 @@ func (d *RACIDispatcher) triggerPlanRun(ctx context.Context, match *agencypb.Wor
 	run, _, err := d.mgr.IntakeRun(ctx, codevaldai.IntakeRunRequest{
 		AgentID:      plan.GetAgentId(),
 		Instructions: instructions,
+		TaskID:       extractTaskID(payload),
 	})
 	if err != nil {
 		return fmt.Errorf("IntakeRun: %w", err)
@@ -83,6 +85,18 @@ func (d *RACIDispatcher) triggerPlanRun(ctx context.Context, match *agencypb.Wor
 		return fmt.Errorf("ExecuteRunStreaming run=%s: %w", run.ID, err)
 	}
 	return nil
+}
+
+// extractTaskID parses the TaskID field from a JSON event payload.
+// Returns "" if the payload is not valid JSON or the field is absent.
+func extractTaskID(payload string) string {
+	var p struct {
+		TaskID string `json:"TaskID"`
+	}
+	if err := json.Unmarshal([]byte(payload), &p); err != nil {
+		return ""
+	}
+	return p.TaskID
 }
 
 // buildDispatchInstructions assembles the prompt string forwarded to IntakeRun:

@@ -236,9 +236,9 @@ type Config struct {
 
 ```go
 Produces: []string{
-    fmt.Sprintf("cross.ai.%s.run.completed",  agencyID),
-    fmt.Sprintf("cross.ai.%s.run.failed",     agencyID),
-    fmt.Sprintf("cross.ai.%s.agent.created",  agencyID),
+    fmt.Sprintf("ai.%s.run.completed",  agencyID),
+    fmt.Sprintf("ai.%s.run.failed",     agencyID),
+    fmt.Sprintf("ai.%s.agent.created",  agencyID),
 },
 Consumes: []string{
     "cross.agency.created",

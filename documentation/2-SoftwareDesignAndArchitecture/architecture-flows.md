@@ -100,6 +100,9 @@ Invalid transitions return `ErrInvalidRunStatus`.
 
 8. Transition: pending_execution → running
        dataManager.UpdateEntity — AgentRun{status: "running", started_at: now}
+       publisher.Publish(ctx, "ai.task.in_progress", {task_id, run_id, agent_id})
+       ← Domain rule: CodeValdAI publishes ai.task.* only.
+         CodeValdWork consumes this and transitions task pending → in_progress.
 
 9. callLLM(ctx, provider, agent, system, user) — streaming
 
@@ -112,16 +115,18 @@ Invalid transitions return `ErrInvalidRunStatus`.
            completed_at:  now,
        }
        dispatchActions(output)  → parseActions → publisher.Publish per action topic
+       publisher.Publish(ctx, "ai.task.completed", {task_id, run_id, agent_id})
        publisher.Publish(ctx, "ai.{agencyID}.run.completed", {"run_id":"<id>"})
        return (AgentRun, nil)
 
-10b. On LLM error:
+10b. On LLM error or no actions block:
        dataManager.UpdateEntity — AgentRun{
            status:        "failed",
            error_message: err.Error(),
            output:        partial output,
            completed_at:  now,
        }
+       publisher.Publish(ctx, "ai.task.failed", {task_id, run_id, reason, failed_by})
        publisher.Publish(ctx, "ai.{agencyID}.run.failed", "")
        return (AgentRun, err)
 ```

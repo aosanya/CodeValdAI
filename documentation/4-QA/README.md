@@ -26,8 +26,8 @@ CodeValdAI follows the same testing strategy as CodeValdAgency:
 - [ ] `IntakeRun` with unknown agent returns `ErrAgentNotFound` → gRPC `NOT_FOUND`
 - [ ] `ExecuteRun` on completed run returns `ErrRunNotIntaked` → gRPC `FAILED_PRECONDITION`
 - [ ] `ExecuteRun` stores output and token counts correctly
-- [ ] `cross.ai.{agencyID}.run.completed` published after successful execution
-- [ ] `cross.ai.{agencyID}.run.failed` published after failed execution
+- [ ] `ai.{agencyID}.run.completed` published after successful execution
+- [ ] `ai.{agencyID}.run.failed` published after failed execution
 - [ ] CodeValdCross registration fires within 30 s of startup
 
 ---

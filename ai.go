@@ -6,7 +6,9 @@ package codevaldai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -475,6 +477,16 @@ func (m *aiManager) publish(ctx context.Context, topic, payload string) {
 	_ = m.publisher.Publish(ctx, topic, m.agencyID, "codevaldai", payload)
 }
 
+// publishJSON marshals v to JSON and calls publish. Errors are swallowed.
+func (m *aiManager) publishJSON(ctx context.Context, topic string, v any) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		log.Printf("codevaldai: publishJSON: marshal %s: %v", topic, err)
+		return
+	}
+	m.publish(ctx, topic, string(b))
+}
+
 // buildSystemPrompt composes the full system prompt sent to the LLM:
 //   - the agent's configured system prompt
 //   - the live action catalogue (all topics services consume = actions available)
@@ -575,6 +587,7 @@ func agentRunFromEntity(e entitygraph.Entity) AgentRun {
 	p := e.Properties
 	return AgentRun{
 		ID:           e.ID,
+		TaskID:       strProp(p, "task_id"),
 		Instructions: strProp(p, "instructions"),
 		Status:       AgentRunStatus(strProp(p, "status")),
 		Output:       strProp(p, "output"),

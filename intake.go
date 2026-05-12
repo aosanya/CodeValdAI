@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -69,21 +70,27 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 	provider := providerFromEntity(providerEntity)
 
 	userMsg := "Instructions: " + req.Instructions + "\nWhat input fields do you need to complete this task?"
+	log.Printf("codevaldai: IntakeRun agent=%s provider=%s instructions_len=%d", req.AgentID, provider.Name, len(req.Instructions))
 	var buf strings.Builder
 	if _, _, err := m.callLLM(ctx, provider, agent, intakeSystemMessage, userMsg, func(chunk string) { buf.WriteString(chunk) }); err != nil {
+		log.Printf("codevaldai: IntakeRun agent=%s llm error: %v", req.AgentID, err)
 		return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: llm: %w", req.AgentID, err)
 	}
+	log.Printf("codevaldai: IntakeRun agent=%s llm response_len=%d", req.AgentID, buf.Len())
 
 	fields, err := parseIntakeFields(buf.String())
 	if err != nil || len(fields) == 0 {
+		log.Printf("codevaldai: IntakeRun agent=%s parse failed: err=%v raw=%q", req.AgentID, err, buf.String())
 		return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: %w", req.AgentID, ErrInvalidLLMResponse)
 	}
+	log.Printf("codevaldai: IntakeRun agent=%s parsed fields=%d", req.AgentID, len(fields))
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	runEntity, err := m.dm.CreateEntity(ctx, entitygraph.CreateEntityRequest{
 		AgencyID: m.agencyID,
 		TypeID:   "AgentRun",
 		Properties: map[string]any{
+			"task_id":      req.TaskID,
 			"instructions": req.Instructions,
 			"status":       string(AgentRunStatusPendingIntake),
 			"created_at":   now,
@@ -136,6 +143,7 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 
 	run := agentRunFromEntity(runEntity)
 	run.AgentID = req.AgentID
+	log.Printf("codevaldai: IntakeRun agent=%s run_id=%s created with %d fields", req.AgentID, run.ID, len(runFields))
 	return run, runFields, nil
 }
 

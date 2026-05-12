@@ -102,6 +102,14 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 		return AgentRun{}, fmt.Errorf("ExecuteRun %s: transition to running: %w", runID, err)
 	}
 
+	log.Printf("codevaldai: ExecuteRun run=%s agent=%s provider=%s system_prompt_len=%d user_msg_len=%d",
+		runID, agent.ID, provider.Name, len(systemPrompt), len(userMsg))
+	m.publishJSON(ctx, TopicTaskInProgress, TaskInProgressPayload{
+		TaskID:  run.TaskID,
+		RunID:   runID,
+		AgentID: agent.ID,
+	})
+
 	// Accumulate output for DB storage while also forwarding chunks to the caller.
 	var output strings.Builder
 	wrapped := func(s string) {
@@ -129,6 +137,12 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 				"updated_at":    now,
 			},
 		})
+		log.Printf("codevaldai: ExecuteRun run=%s agent=%s llm error: %v", runID, agent.ID, llmErr)
+		m.publishJSON(ctx, TopicTaskFailed, TaskFailedPayload{
+			TaskID: run.TaskID,
+			RunID:  runID,
+			Reason: errMsg,
+		})
 		m.publish(ctx, fmt.Sprintf("ai.%s.run.failed", m.agencyID), "")
 		failedEntity, _ := m.dm.GetEntity(ctx, m.agencyID, runID)
 		failed := agentRunFromEntity(failedEntity)
@@ -137,6 +151,8 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	}
 
 	finalOutput := output.String()
+	log.Printf("codevaldai: ExecuteRun run=%s agent=%s llm ok: input_tokens=%d output_tokens=%d output_len=%d",
+		runID, agent.ID, inputTok, outputTok, len(finalOutput))
 
 	updated, err := m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{
 		Properties: map[string]any{
@@ -155,6 +171,11 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	// Dispatch any PubSub actions the LLM embedded in its output.
 	m.dispatchActions(ctx, finalOutput)
 
+	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
+		TaskID:  run.TaskID,
+		RunID:   runID,
+		AgentID: agent.ID,
+	})
 	m.publish(ctx, fmt.Sprintf("ai.%s.run.completed", m.agencyID), `{"run_id":"`+runID+`"}`)
 
 	completed := agentRunFromEntity(updated)
@@ -173,9 +194,15 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string) {
 		log.Printf("codevaldai: dispatchActions: malformed actions block: %v", err)
 		return
 	}
+	if len(actions) == 0 {
+		log.Printf("codevaldai: dispatchActions: no actions block in output")
+		return
+	}
+	log.Printf("codevaldai: dispatchActions: dispatching %d action(s)", len(actions))
 	for _, a := range actions {
+		log.Printf("codevaldai: dispatchActions: publishing topic=%s", a.Topic)
 		if err := m.publisher.Publish(ctx, a.Topic, m.agencyID, "codevaldai", a.RawPayload()); err != nil {
-			_ = err // best-effort; logged by publisher
+			log.Printf("codevaldai: dispatchActions: publish topic=%s error: %v", a.Topic, err)
 		}
 	}
 }
