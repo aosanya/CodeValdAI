@@ -343,7 +343,9 @@ func (m *aiManager) GetAgent(ctx context.Context, agentID string) (Agent, error)
 	if err != nil {
 		return Agent{}, fmt.Errorf("GetAgent %s: %w", agentID, toAgentErr(err))
 	}
-	return agentFromEntity(entity), nil
+	agent := agentFromEntity(entity)
+	agent.ProviderID = m.resolveProviderID(ctx, agentID)
+	return agent, nil
 }
 
 // ListAgents returns all Agent entities for this agency.
@@ -357,7 +359,9 @@ func (m *aiManager) ListAgents(ctx context.Context) ([]Agent, error) {
 	}
 	agents := make([]Agent, 0, len(entities))
 	for _, e := range entities {
-		agents = append(agents, agentFromEntity(e))
+		agent := agentFromEntity(e)
+		agent.ProviderID = m.resolveProviderID(ctx, e.ID)
+		agents = append(agents, agent)
 	}
 	return agents, nil
 }
@@ -412,10 +416,55 @@ func (m *aiManager) UpdateAgent(ctx context.Context, agentID string, req UpdateA
 	}
 
 	agent := agentFromEntity(updated)
+
 	if req.ProviderID != "" {
+		// Verify the new provider exists.
+		if _, err := m.GetProvider(ctx, req.ProviderID); err != nil {
+			return Agent{}, fmt.Errorf("UpdateAgent %s: %w", agentID, err)
+		}
+		// Replace the uses_provider edge: delete the existing one (if any), then create the new one.
+		existing, err := m.dm.ListRelationships(ctx, entitygraph.RelationshipFilter{
+			AgencyID: m.agencyID,
+			FromID:   agentID,
+			Name:     "uses_provider",
+		})
+		if err != nil {
+			return Agent{}, fmt.Errorf("UpdateAgent %s: list provider edges: %w", agentID, err)
+		}
+		for _, rel := range existing {
+			if err := m.dm.DeleteRelationship(ctx, m.agencyID, rel.ID); err != nil {
+				return Agent{}, fmt.Errorf("UpdateAgent %s: remove old provider edge: %w", agentID, err)
+			}
+		}
+		if _, err := m.dm.CreateRelationship(ctx, entitygraph.CreateRelationshipRequest{
+			AgencyID: m.agencyID,
+			FromID:   agentID,
+			ToID:     req.ProviderID,
+			Name:     "uses_provider",
+		}); err != nil {
+			return Agent{}, fmt.Errorf("UpdateAgent %s: link provider: %w", agentID, err)
+		}
 		agent.ProviderID = req.ProviderID
+	} else {
+		// Resolve current provider from the uses_provider edge.
+		agent.ProviderID = m.resolveProviderID(ctx, agentID)
 	}
+
 	return agent, nil
+}
+
+// resolveProviderID reads the uses_provider edge for an agent and returns the target provider ID.
+// Returns empty string if no edge exists or on error.
+func (m *aiManager) resolveProviderID(ctx context.Context, agentID string) string {
+	rels, err := m.dm.ListRelationships(ctx, entitygraph.RelationshipFilter{
+		AgencyID: m.agencyID,
+		FromID:   agentID,
+		Name:     "uses_provider",
+	})
+	if err != nil || len(rels) == 0 {
+		return ""
+	}
+	return rels[0].ToID
 }
 
 // DeleteAgent removes an Agent entity from the graph.
