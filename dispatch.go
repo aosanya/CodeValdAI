@@ -79,6 +79,7 @@ func callAnthropic(
 	provider LLMProvider,
 	agent Agent,
 	system, user string,
+	history []ConversationTurn,
 	onChunk func(string),
 ) (inputTok, outputTok int, err error) {
 	url := provider.BaseURL
@@ -86,11 +87,12 @@ func callAnthropic(
 		url = defaultAnthropicURL
 	}
 
+	messages := buildMessages(history, user)
 	body := map[string]any{
 		"model":      agent.Model,
 		"max_tokens": maxTokensOrDefault(agent.MaxTokens),
 		"system":     system,
-		"messages":   []any{map[string]any{"role": "user", "content": user}},
+		"messages":   messages,
 		"stream":     true,
 	}
 	if agent.Temperature != 0 {
@@ -187,6 +189,7 @@ func callOpenAICompatible(
 	provider LLMProvider,
 	agent Agent,
 	system, user string,
+	history []ConversationTurn,
 	onChunk func(string),
 ) (inputTok, outputTok int, err error) {
 	url := provider.BaseURL
@@ -204,12 +207,11 @@ func callOpenAICompatible(
 		effectiveModel += ":" + provider.ProviderRoute
 	}
 
+	messages := append([]any{map[string]any{"role": "system", "content": system}},
+		buildMessages(history, user)...)
 	body := map[string]any{
-		"model": effectiveModel,
-		"messages": []any{
-			map[string]any{"role": "system", "content": system},
-			map[string]any{"role": "user", "content": user},
-		},
+		"model":          effectiveModel,
+		"messages":       messages,
 		"stream":         true,
 		"stream_options": map[string]any{"include_usage": true},
 		"max_tokens":     maxTokensOrDefault(agent.MaxTokens),
@@ -343,4 +345,16 @@ func maxTokensOrDefault(n int) int {
 		return 4096
 	}
 	return n
+}
+
+// buildMessages constructs the messages slice from prior-session history turns
+// plus the current user message. For sessions with no history (nil or empty),
+// it returns a single-element slice containing the user message.
+func buildMessages(history []ConversationTurn, user string) []any {
+	msgs := make([]any, 0, len(history)+1)
+	for _, t := range history {
+		msgs = append(msgs, map[string]any{"role": t.Role, "content": t.Content})
+	}
+	msgs = append(msgs, map[string]any{"role": "user", "content": user})
+	return msgs
 }
