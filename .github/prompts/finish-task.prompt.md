@@ -56,7 +56,7 @@ Before marking the task complete:
 - Update `documentation/3-SofwareDevelopment/mvp.md` — mark task as complete
 - Update `documentation/3-SofwareDevelopment/mvp_done.md` — add row with today's date
 - Update `/workspaces/CodeVald-AIProject/CodeValdCross/documentation/3-SofwareDevelopment/prioritization.md` — remove the completed task's row (completed tasks are not shown in the prioritization table)
-- If new Cross topics were introduced (`cross.ai.{agencyID}.…`), document them in `documentation/2-SoftwareDesignAndArchitecture/`
+- If new Cross topics were introduced (`ai.{resource}.{event}`), document them in `documentation/2-SoftwareDesignAndArchitecture/`
 - If new entity types or edges were added, update `schema.go` AND the architecture doc together
 - If new gRPC methods were added, update the proto and the architecture doc
 

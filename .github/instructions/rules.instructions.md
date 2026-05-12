@@ -119,11 +119,11 @@ client.Publish(ctx, ...)
 **Topic naming for events produced by CodeValdAI:**
 
 ```
-cross.ai.{agencyID}.{resource}.{event}
+ai.{resource}.{event}
 
-cross.ai.{agencyID}.agent.created
-cross.ai.{agencyID}.run.completed
-cross.ai.{agencyID}.run.failed
+ai.agent.created
+ai.run.completed
+ai.run.failed
 ```
 
 **Cross publish failures must NOT fail the originating operation.** A successful
@@ -254,7 +254,7 @@ if ctx.Err() != nil {
 // stores the output, and transitions to completed or failed.
 // Returns ErrRunNotFound if runID does not exist.
 // Returns ErrRunNotIntaked if the run is not in pending_intake state.
-// Publishes "cross.ai.{agencyID}.run.completed" on success.
+// Publishes "ai.run.completed" on success.
 func (m *aiManager) ExecuteRun(ctx context.Context, runID string, inputs []RunInput) (AgentRun, error) {
 ```
 
@@ -354,7 +354,7 @@ Before adding new code:
 5. ✅ Am I injecting `LLMClient`, `CrossPublisher`, and `DataManager` instead of hardcoding?
 6. ✅ Does every new exported symbol have a godoc comment?
 7. ✅ Are run status transitions going through `AgentRunStatus` constants?
-8. ✅ Does this flow publish the correct `cross.ai.{agencyID}.{...}` event on success?
+8. ✅ Does this flow publish the correct `ai.{...}` event on success?
 
 ### Code Review Requirements
 

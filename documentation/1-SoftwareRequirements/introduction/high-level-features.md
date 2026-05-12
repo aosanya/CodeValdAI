@@ -150,7 +150,7 @@ workflow. Explicit triggering via the HTTP/gRPC API is always available.
 
 | Topic | Trigger |
 |---|---|
-| `ai.{agencyID}.run.completed` | `ExecuteRun` completes successfully |
-| `ai.{agencyID}.run.failed` | `ExecuteRun` transitions to `failed` |
-| `ai.{agencyID}.agent.created` | `CreateAgent` succeeds |
+| `ai.run.completed` | `ExecuteRun` completes successfully |
+| `ai.run.failed` | `ExecuteRun` transitions to `failed` |
+| `ai.agent.created` | `CreateAgent` succeeds |
 ```

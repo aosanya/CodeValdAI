@@ -20,7 +20,7 @@ type Publisher interface {
 
 // ReconcileRunningRuns transitions any AgentRun left in "running" state to
 // "failed" with error_message="interrupted by service restart" and publishes
-// "ai.{agencyID}.run.failed" for each. Called once on startup before
+// "ai.run.failed" for each. Called once on startup before
 // the gRPC server begins accepting requests.
 //
 // Per-run failures are logged and skipped — one bad row must not block the
@@ -52,7 +52,7 @@ func ReconcileRunningRuns(
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	topic := fmt.Sprintf("ai.%s.run.failed", agencyID)
+	topic := codevaldai.TopicRunFailed
 	for _, run := range runs {
 		if _, err := dm.UpdateEntity(ctx, agencyID, run.ID, entitygraph.UpdateEntityRequest{
 			Properties: map[string]any{

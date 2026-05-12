@@ -114,10 +114,10 @@ exploration**. Ask ONE question at a time, wait for the response, then decide wh
 - Is the `LLMClient` provider-agnostic — would swapping Anthropic for OpenAI require domain changes?
 
 #### Cross Publisher
-- Which Cross topic(s) does this feature publish to (`cross.ai.{agencyID}.{...}`)?
+- Which Cross topic(s) does this feature publish to (`ai.{resource}.{event}`)?
 - What is the payload shape for each topic?
 - Are publish failures logged and ignored (correct) or treated as fatal (incorrect)?
-- Are topics consumed by AI (`cross.agency.created`, `work.task.dispatched`) wired up?
+- Are topics consumed by AI (`agency.created`, `work.task.dispatched`) wired up?
 
 #### Storage / Schema
 - What entity types and edges are involved (see `schema.go`)?

@@ -219,7 +219,7 @@ type fakePublisher struct {
 	topics []string
 }
 
-func (f *fakePublisher) Publish(_ context.Context, topic, _ string) error {
+func (f *fakePublisher) Publish(_ context.Context, topic, _, _, _ string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.topics = append(f.topics, topic)
@@ -238,7 +238,7 @@ func (f *fakePublisher) published() []string {
 
 func newTestManager(dm *fakeDataManager) (AIManager, *fakePublisher) {
 	pub := &fakePublisher{}
-	return NewAIManager(dm, fakeSchemaManager{}, pub, testAgencyID), pub
+	return NewAIManager(dm, fakeSchemaManager{}, pub, testAgencyID, ""), pub
 }
 
 // seedAgentWithProvider adds a LLMProvider and Agent directly into the fake DM

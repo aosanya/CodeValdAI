@@ -68,7 +68,7 @@ type fakePublisher struct {
 	err   error    // returned from Publish
 }
 
-func (p *fakePublisher) Publish(_ context.Context, topic string, _ string) error {
+func (p *fakePublisher) Publish(_ context.Context, topic, _, _, _ string) error {
 	p.calls = append(p.calls, topic)
 	return p.err
 }
@@ -114,7 +114,7 @@ func TestReconcileRunningRuns_FailsAndPublishes(t *testing.T) {
 		}
 	}
 
-	wantTopic := codevaldai.TopicRunFailed
+	wantTopic := "ai.run.failed"
 	if len(pub.calls) != 2 {
 		t.Fatalf("expected 2 publishes, got %d", len(pub.calls))
 	}

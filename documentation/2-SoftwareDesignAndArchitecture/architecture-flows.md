@@ -116,7 +116,7 @@ Invalid transitions return `ErrInvalidRunStatus`.
        }
        dispatchActions(output)  → parseActions → publisher.Publish per action topic
        publisher.Publish(ctx, "ai.task.completed", {task_id, run_id, agent_id})
-       publisher.Publish(ctx, "ai.{agencyID}.run.completed", {"run_id":"<id>"})
+       publisher.Publish(ctx, "ai.run.completed", {"run_id":"<id>"})
        return (AgentRun, nil)
 
 10b. On LLM error or no actions block:
@@ -127,7 +127,7 @@ Invalid transitions return `ErrInvalidRunStatus`.
            completed_at:  now,
        }
        publisher.Publish(ctx, "ai.task.failed", {task_id, run_id, reason, failed_by})
-       publisher.Publish(ctx, "ai.{agencyID}.run.failed", "")
+       publisher.Publish(ctx, "ai.run.failed", "")
        return (AgentRun, err)
 ```
 
@@ -148,7 +148,7 @@ Invalid transitions return `ErrInvalidRunStatus`.
    }
    dataManager.CreateRelationship — uses_provider: Agent → LLMProvider
 
-4. publisher.Publish(ctx, "ai.{agencyID}.agent.created", agentID)
+4. publisher.Publish(ctx, "ai.agent.created", agentID)
    (publish errors are logged; never returned to caller)
 
 5. Return (Agent, nil)

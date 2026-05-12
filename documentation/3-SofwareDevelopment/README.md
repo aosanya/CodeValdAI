@@ -87,7 +87,7 @@ MVP-AI-001
 |---|---|
 | `AIManager` | Provider CRUD: `CreateProvider`, `GetProvider`, `ListProviders`, `UpdateProvider`, `DeleteProvider`. Agent CRUD: `CreateAgent`, `GetAgent`, `ListAgents`, `UpdateAgent`, `DeleteAgent`. Run lifecycle: `IntakeRun`, `ExecuteRun`, `ExecuteRunStreaming` (post-MVP-AI-018), `GetRun`, `ListRuns` |
 | `AISchemaManager` | alias for `entitygraph.SchemaManager` |
-| `CrossPublisher` | Publishes `ai.{agencyID}.*` events to CodeValdCross |
+| `CrossPublisher` | Publishes `ai.*` events to CodeValdCross |
 
 LLM dispatch has **no interface** — `aiManager.callLLM` switches on
 `LLMProvider.ProviderType` from the graph entity. See
@@ -99,9 +99,9 @@ LLM dispatch has **no interface** — `aiManager.callLLM` switches on
 
 | Topic | Trigger |
 |---|---|
-| `ai.{agencyID}.agent.created` | Successful `CreateAgent` |
-| `ai.{agencyID}.run.completed` | Successful `ExecuteRun` / `ExecuteRunStreaming` |
-| `ai.{agencyID}.run.failed` | Failed `ExecuteRun`, timeout, or boot-sweep reconciliation |
+| `ai.agent.created` | Successful `CreateAgent` |
+| `ai.run.completed` | Successful `ExecuteRun` / `ExecuteRunStreaming` |
+| `ai.run.failed` | Failed `ExecuteRun`, timeout, or boot-sweep reconciliation |
 
 Inbound subscription topics (`cross.agency.created`, `work.task.dispatched`)
 are not in MVP scope — see Future Work in

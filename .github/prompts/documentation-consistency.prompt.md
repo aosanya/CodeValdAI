@@ -30,7 +30,7 @@ Does `documentation/2-SoftwareDesignAndArchitecture/` match:
 - Current `LLMClient` and `CrossPublisher` interface contracts?
 - Current `AgentRunStatus` constants in `models.go`?
 - Current `DefaultAISchema` entity / edge definitions in `schema.go`?
-- Current Cross topic naming (`cross.ai.{agencyID}.…`)?
+- Current Cross topic naming (`ai.{resource}.{event}`)?
 
 ### 3. Cross-Reference Validation
 Do all links in README and index files point to existing documents?

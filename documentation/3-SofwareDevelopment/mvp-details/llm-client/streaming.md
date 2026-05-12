@@ -21,7 +21,7 @@ they consume the chunk stream.
 
 Both write the same `AgentRun.Output`, transition through the same FSM
 (`pending_intake → pending_execution → running → completed/failed`), and
-emit the same `ai.{agencyID}.run.completed` / `run.failed` events.
+emit the same `ai.run.completed` / `ai.run.failed` events.
 The streaming RPC does **not** publish per-chunk Cross events — the gRPC
 stream is the live channel.
 

@@ -30,8 +30,8 @@ CodeValdAI is responsible for:
 | REQ-005 | Service registers with CodeValdCross within 30 s of startup; heartbeat every 20 s | P0 |
 | REQ-006 | gRPC server listens on `CODEVALDAI_GRPC_PORT` (default `:50056`) | P1 |
 | REQ-007 | LLM dispatch is data-driven via the `LLMProvider` graph entity — Anthropic, OpenAI, and HuggingFace (incl. DeepSeek V4 via Router) are swappable at runtime by creating new `LLMProvider` entities; no code change required to add a new provider configuration | P0 |
-| REQ-008 | `ai.{agencyID}.run.completed` is published after every successful `ExecuteRun` | P0 |
-| REQ-009 | `ai.{agencyID}.run.failed` is published when a run transitions to `failed` (LLM error, timeout, or boot-sweep reconciliation of an interrupted run) | P0 |
+| REQ-008 | `ai.run.completed` is published after every successful `ExecuteRun` | P0 |
+| REQ-009 | `ai.run.failed` is published when a run transitions to `failed` (LLM error, timeout, or boot-sweep reconciliation of an interrupted run) | P0 |
 | REQ-010 | Service subscribes to `work.task.dispatched` and can auto-trigger a run when a task is dispatched | P2 — Deferred from MVP; see Future Work in [../3-SofwareDevelopment/mvp-details/run-execution.md](../3-SofwareDevelopment/mvp-details/run-execution.md) |
 | REQ-011 | Pre-delivered schema (`DefaultAISchema`) is seeded into `ai_schemas` on startup (idempotent) | P0 |
 | REQ-012 | Server-streaming RPC `ExecuteRunStreaming` delivers LLM output chunks live for human-facing or debug consumers; persists the same `AgentRun` as the unary `ExecuteRun` | P1 |

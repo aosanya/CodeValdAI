@@ -78,7 +78,7 @@ After a successful LLM call, `ExecuteRun` calls `dispatchActions` before publish
 2. For each Action:
        publisher.Publish(ctx, action.Topic, agencyID, "codevaldai", action.RawPayload())
        // best-effort: publish failures are logged, never returned to caller
-3. publisher.Publish(ctx, "ai.{agencyID}.run.completed", agencyID, "codevaldai", {"run_id":"<id>"})
+3. publisher.Publish(ctx, "ai.run.completed", agencyID, "codevaldai", {"run_id":"<id>"})
 ```
 
 A nil publisher (when CrossGRPCAddr is not configured) skips all publishing silently.
@@ -174,16 +174,16 @@ Task Status: in_progress
 All CodeValdAI PubSub topics follow the pattern:
 
 ```
-{service}.{agencyID}.{noun}.{verb}
+{service}.{noun}.{verb}
 ```
 
 `ai.{agencyID}.run.completed` — not `cross.ai.…` — because Cross is routing infrastructure, not a domain service.
 
 | Topic | Published when |
 |---|---|
-| `ai.{agencyID}.agent.created` | `CreateAgent` succeeds |
-| `ai.{agencyID}.run.completed` | `ExecuteRun` succeeds |
-| `ai.{agencyID}.run.failed` | `ExecuteRun` errors or times out |
+| `ai.agent.created` | `CreateAgent` succeeds |
+| `ai.run.completed` | `ExecuteRun` succeeds |
+| `ai.run.failed` | `ExecuteRun` errors or times out |
 
 Actions dispatched from the LLM use **the consuming service's topic namespace** (e.g. `git.branch.create`, `work.task.update`), never the `ai.*` namespace.
 
@@ -210,7 +210,7 @@ RACI dispatcher: triggerPlanRun
             ├── dispatchActions
             │       └── publisher.Publish(ctx, action.Topic, ...)  × N
             │
-            └── publisher.Publish("ai.{agencyID}.run.completed", ...)
+            └── publisher.Publish("ai.run.completed", ...)
 ```
 
 ---

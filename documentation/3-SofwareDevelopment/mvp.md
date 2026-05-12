@@ -78,18 +78,18 @@ the architecture and per-task detail files.
 - [ ] `go vet ./...` shows 0 issues
 - [ ] `DefaultAISchema()` seeds into `ai_schemas` on startup (idempotent)
 - [ ] `CreateProvider` stores api_key + provider_type in ArangoDB
-- [ ] `CreateAgent` validates required fields (including provider_id), writes `uses_provider` edge, and publishes `ai.{agencyID}.agent.created`
+- [ ] `CreateAgent` validates required fields (including provider_id), writes `uses_provider` edge, and publishes `ai.agent.created`
 - [ ] `IntakeRun` fetches `LLMProvider` via graph edge, calls the LLM, parses the field schema, stores `AgentRun` in `pending_intake`, and returns `run_id` + fields
 - [ ] `ExecuteRun` transitions through the full status lifecycle and stores output
-- [ ] `ai.{agencyID}.run.completed` is published after successful execution
-- [ ] `ai.{agencyID}.run.failed` is published when LLM call fails
+- [ ] `ai.run.completed` is published after successful execution
+- [ ] `ai.run.failed` is published when LLM call fails
 - [ ] All `AIService` RPCs work end-to-end with ArangoDB
 - [ ] HTTP routes registered with CodeValdCross and proxied correctly
 - [ ] CodeValdCross registration fires on startup and repeats every 20 s
 - [ ] `internal/llm/` package is deleted — no `LLMClient` interface anywhere
 - [ ] `LLMProvider` accepts `provider_type: "huggingface"` with optional `provider_route` backend pin
-- [ ] `Agent.TimeoutSeconds` overrides system default (5 min); `ai.{agencyID}.run.failed` published on `context.DeadlineExceeded`
-- [ ] Startup `ReconcileRunningRuns` transitions any `running` run to `failed` with `error_message = "interrupted by service restart"` and publishes `ai.{agencyID}.run.failed`
+- [ ] `Agent.TimeoutSeconds` overrides system default (5 min); `ai.run.failed` published on `context.DeadlineExceeded`
+- [ ] Startup `ReconcileRunningRuns` transitions any `running` run to `failed` with `error_message = "interrupted by service restart"` and publishes `ai.run.failed`
 - [ ] `ExecuteRunStreaming` server-streaming RPC delivers chunks live; persists the same `AgentRun` as unary `ExecuteRun`
 - [ ] DeepSeek V4 via HuggingFace Router (`deepseek-ai/DeepSeek-V4` model id, optional `:fireworks-ai` route) end-to-end run succeeds
 

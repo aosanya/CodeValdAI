@@ -33,9 +33,9 @@ CodeValdAI publishes `ai.task.*` → CodeValdWork consumes and publishes `work.t
 | `ai.task.in_progress` | `ExecuteRunStreaming` transitions run to `running` (before LLM call) | `{task_id, run_id, agent_id}` |
 | `ai.task.completed` | LLM finishes successfully and actions dispatched | `{task_id, run_id, agent_id}` |
 | `ai.task.failed` | LLM errors, times out, or produces no actions block | `{task_id, run_id, reason, failed_by{agent_id, work_plan_id, work_plan_code}}` |
-| `ai.{agencyID}.run.completed` | Same as `ai.task.completed` — for AI-internal consumers | `{run_id}` |
-| `ai.{agencyID}.run.failed` | Same as `ai.task.failed` — for AI-internal consumers | `""` |
-| `ai.{agencyID}.agent.created` | New Agent entity created | `agentID` |
+| `ai.run.completed` | Same as `ai.task.completed` — for AI-internal consumers | `{run_id}` |
+| `ai.run.failed` | Same as `ai.task.failed` — for AI-internal consumers | `""` |
+| `ai.agent.created` | New Agent entity created | `agentID` |
 
 ---
 
@@ -62,9 +62,9 @@ hb, err := sharedregistrar.New(
         "ai.task.in_progress",
         "ai.task.completed",
         "ai.task.failed",
-        "ai.{agencyID}.agent.created",
-        "ai.{agencyID}.run.completed",
-        "ai.{agencyID}.run.failed",
+        "ai.agent.created",
+        "ai.run.completed",
+        "ai.run.failed",
     },
     []string{  // consumes
         "work.task.assigned",
@@ -160,7 +160,7 @@ CodeValdWork → Cross.Publish("work.task.assigned", payload)
                     │                       ├── → completed
                     │                       ├── dispatchActions()
                     │                       ├── Publish "ai.task.completed"
-                    │                       └── Publish "ai.{agencyID}.run.completed"
+                    │                       └── Publish "ai.run.completed"
                     └── return NotifyEventResponse{}
 
 CodeValdWork (EventReceiver) ←── Cross fans out "ai.task.in_progress"

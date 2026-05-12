@@ -27,7 +27,7 @@ It owns two concerns:
 | **gRPC Port** | `:50056` |
 | **Storage** | ArangoDB — `ai_entities`, `ai_relationships`, `ai_schemas` collections |
 | **Registers with** | CodeValdCross `OrchestratorService.Register` |
-| **Produces** | `ai.{agencyID}.run.completed`, `ai.{agencyID}.run.failed`, `ai.{agencyID}.agent.created` |
+| **Produces** | `ai.run.completed`, `ai.run.failed`, `ai.agent.created` |
 | **Consumes** | `cross.agency.created`, `work.task.dispatched` |
 | **LLM Provider (MVP)** | Anthropic — injected via `LLMClient` interface |
 | **Module** | `github.com/aosanya/CodeValdAI` |

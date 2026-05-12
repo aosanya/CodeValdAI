@@ -89,8 +89,8 @@ Status constants live in `models.go` (`AgentRunStatusPendingIntake` etc.). Raw s
 
 ## Cross-Service Events
 
-Topics produced: `cross.ai.{agencyID}.agent.created`, `cross.ai.{agencyID}.run.completed`, `cross.ai.{agencyID}.run.failed`.  
-Topic consumed (future): `cross.agency.created`, `work.task.dispatched`.
+Topics produced: `ai.agent.created`, `ai.run.completed`, `ai.run.failed`.  
+Topic consumed (future): `agency.created`, `work.task.dispatched`.
 
 ## Configuration
 

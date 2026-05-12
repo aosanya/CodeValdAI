@@ -211,8 +211,8 @@ git branch -d feature/AI-XXX_description
   `arangodb` (under `storage/`)
 - **Interfaces**: noun-only, no `I` prefix — `AIManager`, `LLMClient`,
   `CrossPublisher`
-- **Cross topics produced by AI**: `cross.ai.{agencyID}.{resource}.{event}` —
-  e.g. `cross.ai.{agencyID}.run.completed`
+- **Cross topics produced by AI**: `ai.{resource}.{event}` —
+  e.g. `ai.run.completed`
 - **Errors**: `Err{Subject}{Condition}` — `ErrAgentNotFound`,
   `ErrRunNotIntaked`, `ErrInvalidLLMResponse`
 - **Run statuses**: lowercase with underscores — `pending_intake`,
@@ -236,7 +236,7 @@ git branch -d feature/AI-XXX_description
 - ❌ **Dialling Cross from a manager method** — publishes go through the
   injected `CrossPublisher`
 - ❌ **Hardcoding Cross topic strings** — build them via the documented
-  `cross.ai.{agencyID}.{...}` convention; centralise in one helper
+  `ai.{...}` convention; centralise in one helper
 - ❌ **Business logic in gRPC handlers** — `internal/server/server.go` only
   translates proto ↔ domain and forwards to `AIManager`
 - ❌ **Panicking in exported functions** — return structured errors
@@ -256,9 +256,9 @@ git branch -d feature/AI-XXX_description
 > - Heartbeat `Register` payload (service name `codevaldai`, advertise address,
 >   topics produced/consumed)
 > - Cross event topics produced by AI:
->   - `cross.ai.{agencyID}.agent.created`
->   - `cross.ai.{agencyID}.run.completed`
->   - `cross.ai.{agencyID}.run.failed`
+>   - `ai.agent.created`
+>   - `ai.run.completed`
+>   - `ai.run.failed`
 > - Cross event topics consumed by AI: `cross.agency.created`,
 >   `work.task.dispatched`
 > - Schema seeding flow — `DefaultAISchema` is sent to Cross on startup via the

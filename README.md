@@ -11,7 +11,7 @@ graph via [CodeValdSharedLib/entitygraph](../CodeValdSharedLib/entitygraph).
 - `internal/app`, `internal/config` — bootstrap wiring; configuration loaded
   from env vars (see `internal/config/config.go`).
 - `internal/registrar` — Cross heartbeat + `CrossPublisher` for
-  `cross.ai.{agencyID}.agent.created` / `run.completed` / `run.failed`.
+  `ai.agent.created` / `ai.run.completed` / `ai.run.failed`.
 - `internal/server` — `AIService` gRPC handler + re-export of the shared
   `EntityServer`.
 - `storage/arangodb` — thin shim over
