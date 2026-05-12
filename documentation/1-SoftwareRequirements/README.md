@@ -13,7 +13,7 @@ CodeValdAI is responsible for:
 - Persisting **Agent** configurations (model, provider, system prompt, parameters) to ArangoDB
 - Running the **Intake** phase: submitting a Workflow + Instructions to the LLM and returning a structured input-field schema `[{fieldname, type, label, required, …}]`
 - Running the **Execute** phase: accepting filled inputs, calling the LLM with full context, persisting the output as an `AgentRun` entity
-- Publishing `ai.{agencyID}.run.completed` / `.run.failed` events via CodeValdCross
+- Publishing `ai.run.completed` / `.run.failed` events via CodeValdCross
 - Consuming `work.task.dispatched` to optionally auto-trigger runs
 - Registering with **CodeValdCross** `OrchestratorService.Register` on startup
 

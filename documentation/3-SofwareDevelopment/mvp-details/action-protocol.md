@@ -177,7 +177,7 @@ All CodeValdAI PubSub topics follow the pattern:
 {service}.{noun}.{verb}
 ```
 
-`ai.{agencyID}.run.completed` — not `cross.ai.…` — because Cross is routing infrastructure, not a domain service.
+`ai.run.completed` — not `cross.ai.…` — because Cross is routing infrastructure, not a domain service.
 
 | Topic | Published when |
 |---|---|

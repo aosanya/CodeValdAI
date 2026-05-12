@@ -51,9 +51,9 @@ func New(
 		agencyID,
 		"codevaldai",
 		[]string{
-			"ai.{agencyID}.agent.created",
-			"ai.{agencyID}.run.completed",
-			"ai.{agencyID}.run.failed",
+			"ai.agent.created",
+			"ai.run.completed",
+			"ai.run.failed",
 		},
 		subscribeTopics,
 		routes,
