@@ -11,9 +11,10 @@ import (
 // registryEntry mirrors the JSON shape returned by
 // GET /services/registry?agencyId={id} on CodeValdCross.
 type registryEntry struct {
-	ServiceName string   `json:"ServiceName"`
-	Consumes    []string `json:"Consumes"`
-	Produces    []string `json:"Produces"`
+	ServiceName  string            `json:"ServiceName"`
+	Consumes     []string          `json:"Consumes"`
+	Produces     []string          `json:"Produces"`
+	TopicSchemas map[string]string `json:"topic_schemas,omitempty"`
 }
 
 // FetchActionCatalogue calls the CodeValdCross HTTP registry endpoint and
@@ -44,7 +45,12 @@ func FetchActionCatalogue(ctx context.Context, crossHTTPAddr, agencyID string) [
 	var out []CatalogueEntry
 	for _, svc := range entries {
 		for _, t := range svc.Consumes {
-			out = append(out, CatalogueEntry{ServiceName: svc.ServiceName, Topic: t, Direction: "consumes"})
+			out = append(out, CatalogueEntry{
+				ServiceName: svc.ServiceName,
+				Topic:       t,
+				Direction:   "consumes",
+				Schema:      svc.TopicSchemas[t],
+			})
 		}
 		for _, t := range svc.Produces {
 			out = append(out, CatalogueEntry{ServiceName: svc.ServiceName, Topic: t, Direction: "produces"})

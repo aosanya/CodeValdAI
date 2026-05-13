@@ -37,7 +37,9 @@ func (a Action) RawPayload() string {
 // Returns a non-nil error when a fence is found but the block is malformed,
 // so callers can log the format violation rather than silently dropping it.
 func parseActions(output string) ([]Action, error) {
-	const fence = "```actions"
+	// Require a newline immediately after "```actions" so that inline mentions
+	// inside <think> blocks (e.g. "produce an ```actions block...") are skipped.
+	const fence = "```actions\n"
 	start := strings.Index(output, fence)
 	if start == -1 {
 		return nil, nil
@@ -64,6 +66,7 @@ type CatalogueEntry struct {
 	ServiceName string
 	Topic       string
 	Direction   string // "consumes" | "produces"
+	Schema      string // optional payload field description, e.g. "{repository: string, name: string}"
 }
 
 // FormatActionCatalogue renders the catalogue as a human-readable block
@@ -72,23 +75,52 @@ func FormatActionCatalogue(entries []CatalogueEntry) string {
 	if len(entries) == 0 {
 		return ""
 	}
+	hasSchema := false
+	for _, e := range entries {
+		if e.Direction == "consumes" && e.Schema != "" {
+			hasSchema = true
+			break
+		}
+	}
 	var b strings.Builder
 	b.WriteString("## Available Actions\n")
 	b.WriteString("Publish one or more of these PubSub topics by appending an ```actions block to your response.\n\n")
-	b.WriteString("| topic | handled by |\n")
-	b.WriteString("|-------|------------|\n")
+	if hasSchema {
+		b.WriteString("| topic | handled by | payload fields |\n")
+		b.WriteString("|-------|------------|----------------|\n")
+	} else {
+		b.WriteString("| topic | handled by |\n")
+		b.WriteString("|-------|------------|\n")
+	}
 	for _, e := range entries {
 		if e.Direction == "consumes" {
 			b.WriteString("| ")
 			b.WriteString(e.Topic)
 			b.WriteString(" | ")
 			b.WriteString(e.ServiceName)
-			b.WriteString(" |\n")
+			b.WriteString(" |")
+			if hasSchema {
+				b.WriteString(" ")
+				b.WriteString(e.Schema)
+				b.WriteString(" |")
+			}
+			b.WriteString("\n")
 		}
 	}
-	b.WriteString("\nOutput format (append at the end of your response):\n")
-	b.WriteString("```actions\n")
-	b.WriteString(`[{"topic":"<topic>","payload":{...}}]`)
-	b.WriteString("\n```\n")
+	b.WriteString("\n" + actionsFormatRule)
 	return b.String()
 }
+
+// actionsFormatRule is injected into every system prompt by CodeValdAI.
+// It enforces JSON-only actions blocks so work-plan instructions never need
+// to specify the output format.
+const actionsFormatRule = `## Actions Output Format — enforced by CodeValdAI
+When emitting actions, your response MUST end with exactly one ` + "```" + `actions block
+containing a JSON array. No YAML, no prose, no other format is accepted.
+
+` + "```" + `actions
+[{"topic":"<topic>","payload":{<key>:<value>,...}}]
+` + "```" + `
+
+Multiple actions: add objects to the array. Empty (no action needed): ` + "`" + `[]` + "`" + `.
+Responses that contain an ` + "```" + `actions block in any other format are treated as failures.`

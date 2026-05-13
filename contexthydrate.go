@@ -14,7 +14,8 @@ import (
 // ready for injection into the LLM system prompt.
 //
 // Currently enriches:
-//   - TaskID  → fetches task title and description from CodeValdWork
+//   - TaskID      → fetches task title and description from CodeValdWork
+//   - repositories → fetches all repos for the agency from CodeValdGit
 //
 // crossHTTPAddr is a base URL such as "http://localhost:8080".
 // On any fetch error the function degrades gracefully — the raw payload
@@ -37,6 +38,44 @@ func HydrateEventContext(ctx context.Context, crossHTTPAddr, agencyID, eventPayl
 		}
 	}
 
+	if repos := fetchRepositories(ctx, crossHTTPAddr, agencyID); repos != "" {
+		b.WriteString(repos)
+	}
+
+	return b.String()
+}
+
+type repoListResponse struct {
+	Repositories []struct {
+		Name          string `json:"name"`
+		DefaultBranch string `json:"defaultBranch"`
+	} `json:"repositories"`
+}
+
+func fetchRepositories(ctx context.Context, crossHTTPAddr, agencyID string) string {
+	url := fmt.Sprintf("%s/git/%s/repositories", crossHTTPAddr, agencyID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return ""
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return ""
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+	var r repoListResponse
+	if err := json.Unmarshal(body, &r); err != nil || len(r.Repositories) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("Repositories:\n")
+	for _, repo := range r.Repositories {
+		b.WriteString(fmt.Sprintf("  - name: %s  default_branch: %s\n", repo.Name, repo.DefaultBranch))
+	}
 	return b.String()
 }
 

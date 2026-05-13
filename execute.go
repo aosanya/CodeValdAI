@@ -78,6 +78,12 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	}
 	run := agentRunFromEntity(runEntity)
 
+	// Normalize segment_number early — used for preamble injection and yield checks.
+	segNumber := run.SegmentNumber
+	if segNumber < 1 {
+		segNumber = 1
+	}
+
 	// Accept both pending_intake (first session) and pending_execution (successor).
 	if run.Status != AgentRunStatusPendingIntake && run.Status != AgentRunStatusPendingExecution {
 		return AgentRun{}, fmt.Errorf("ExecuteRun %s: %w", runID, ErrRunNotIntaked)
@@ -138,6 +144,12 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 
 	userMsg := buildExecuteUserMessage(run.Instructions, runFields, inputs)
 	systemPrompt := m.buildSystemPrompt(ctx, agent.SystemPrompt, run.Instructions)
+
+	// Inject decomposition awareness for task-driven first-session runs.
+	// Child runs spawned by spawnTodoRuns have no TaskID, so they are unaffected.
+	if run.TaskID != "" && segNumber == 1 {
+		systemPrompt = buildDecompositionPreamble(run.TaskID, runID, agent.ID) + "\n\n" + systemPrompt
+	}
 
 	// Load conversation history for chain sessions (segment 2+).
 	var history []ConversationTurn
@@ -220,19 +232,17 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 		limits.MaxSessions > 1 &&
 		(errors.Is(llmErr, context.DeadlineExceeded) || errors.Is(llmErr, context.Canceled))
 
-	// Normalize segment_number: treat 0 as 1 for backward compatibility with
-	// runs created before segment_number was introduced.
-	segNumber := run.SegmentNumber
-	if segNumber < 1 {
-		segNumber = 1
-	}
-
 	if isYieldSignal {
 		partialOutput := output.String()
 		if segNumber < limits.MaxSessions {
 			return m.yieldRun(ctx, run, agent.ID, partialOutput, outputTok, onChunk)
 		}
-		// Max sessions reached — fail directly with no ai.task.yielded.
+		// Max sessions reached — attempt auto-decomposition before failing.
+		if run.TaskID != "" {
+			if todos := m.autoDecompose(ctx, agent, provider, run, agent.ID, partialOutput); len(todos.Todos) > 0 {
+				return m.completeAsDecomposed(ctx, run, agent.ID, partialOutput, todos)
+			}
+		}
 		errMsg := fmt.Sprintf("max sessions (%d) reached without final result at segment %d", limits.MaxSessions, segNumber)
 		m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{ //nolint:errcheck
 			Properties: map[string]any{
