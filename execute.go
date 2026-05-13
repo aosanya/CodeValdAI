@@ -2,6 +2,7 @@ package codevaldai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -306,7 +307,9 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	}
 
 	// Dispatch any PubSub actions the LLM embedded in its output.
-	m.dispatchActions(ctx, finalOutput)
+	// ai.task.todo actions are also handled internally — child runs are spawned
+	// directly without routing through CodeValdWork.
+	m.dispatchActions(ctx, agent.ID, finalOutput)
 
 	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
 		TaskID:  run.TaskID,
@@ -422,10 +425,9 @@ func (m *aiManager) yieldRun(
 
 // dispatchActions parses any ```actions block from the LLM output and
 // publishes each action as a PubSub event via CodeValdCross.
-func (m *aiManager) dispatchActions(ctx context.Context, output string) {
-	if m.publisher == nil {
-		return
-	}
+// For ai.task.todo actions, child AgentRuns are also spawned internally —
+// no CodeValdWork involvement is required.
+func (m *aiManager) dispatchActions(ctx context.Context, agentID, output string) {
 	actions, err := parseActions(output)
 	if err != nil {
 		log.Printf("codevaldai: dispatchActions: malformed actions block: %v", err)
@@ -438,9 +440,57 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string) {
 	log.Printf("codevaldai: dispatchActions: dispatching %d action(s)", len(actions))
 	for _, a := range actions {
 		log.Printf("codevaldai: dispatchActions: publishing topic=%s", a.Topic)
-		if err := m.publisher.Publish(ctx, a.Topic, m.agencyID, "codevaldai", a.RawPayload()); err != nil {
-			log.Printf("codevaldai: dispatchActions: publish topic=%s error: %v", a.Topic, err)
+		if m.publisher != nil {
+			if err := m.publisher.Publish(ctx, a.Topic, m.agencyID, "codevaldai", a.RawPayload()); err != nil {
+				log.Printf("codevaldai: dispatchActions: publish topic=%s error: %v", a.Topic, err)
+			}
 		}
+		if a.Topic == TopicTaskTodo {
+			var payload TaskTodoPayload
+			if err := unmarshalActionPayload(a, &payload); err != nil {
+				log.Printf("codevaldai: dispatchActions: ai.task.todo: unmarshal payload: %v", err)
+				continue
+			}
+			m.spawnTodoRuns(agentID, payload)
+		}
+	}
+}
+
+// unmarshalActionPayload round-trips an Action's Payload map through JSON into
+// the typed target struct. Returns an error if marshalling or unmarshalling fails.
+func unmarshalActionPayload(a Action, target any) error {
+	b, err := json.Marshal(a.Payload)
+	if err != nil {
+		return fmt.Errorf("marshal payload: %w", err)
+	}
+	return json.Unmarshal(b, target)
+}
+
+// spawnTodoRuns spawns one AgentRun per TodoItem in the payload.
+// Runs are started in goroutines so the caller is not blocked.
+// Sequential scheduling (depends_on) is not enforced in this implementation —
+// all todos are dispatched immediately and their own instructions carry ordering context.
+func (m *aiManager) spawnTodoRuns(agentID string, payload TaskTodoPayload) {
+	log.Printf("codevaldai: spawnTodoRuns: spawning %d sub-task run(s) for parent_task_id=%s",
+		len(payload.Todos), payload.ParentTaskID)
+	for _, todo := range payload.Todos {
+		todo := todo
+		go func() {
+			ctx := context.Background()
+			run, _, err := m.IntakeRun(ctx, IntakeRunRequest{
+				AgentID:      agentID,
+				Instructions: todo.Instructions,
+			})
+			if err != nil {
+				log.Printf("codevaldai: spawnTodoRuns: IntakeRun ordinality=%d: %v", todo.Ordinality, err)
+				return
+			}
+			log.Printf("codevaldai: spawnTodoRuns: ExecuteRunStreaming ordinality=%d run=%s", todo.Ordinality, run.ID)
+			if _, err := m.ExecuteRunStreaming(ctx, run.ID, nil, func(string) {}); err != nil {
+				log.Printf("codevaldai: spawnTodoRuns: ExecuteRunStreaming ordinality=%d run=%s: %v",
+					todo.Ordinality, run.ID, err)
+			}
+		}()
 	}
 }
 

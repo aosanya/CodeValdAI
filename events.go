@@ -17,6 +17,13 @@ const (
 
 	// Agent management
 	TopicAgentCreated = "ai.agent.created"
+
+	// Task decomposition
+	// TopicTaskTodo is published when a developer agent decomposes an inbound
+	// task into sub-tasks. CodeValdWork consumes this topic and creates child
+	// tasks from the payload, each of which triggers a fresh work.task.assigned
+	// event back to the developer agent with ParentTaskID set.
+	TopicTaskTodo = "ai.task.todo"
 )
 
 // TaskInProgressPayload is published when ExecuteRunStreaming transitions to
@@ -52,4 +59,25 @@ type TaskYieldedPayload struct {
 	SegmentNumber int
 	TokensUsed    int
 	PartialOutput string
+}
+
+// TaskTodoPayload is published on ai.task.todo when a developer agent
+// decomposes an inbound task into sub-tasks.
+type TaskTodoPayload struct {
+	ParentTaskID string     `json:"parent_task_id"` // Work task that triggered the decomposition
+	RunID        string     `json:"run_id"`
+	AgentID      string     `json:"agent_id"`
+	Todos        []TodoItem `json:"todos"`
+}
+
+// TodoItem describes one sub-task within a TaskTodoPayload.
+// Ordinality is 1-based; DependsOn references ordinality values of
+// prerequisite TodoItems in the same payload.
+type TodoItem struct {
+	Title          string `json:"title"`
+	Description    string `json:"description"`
+	Instructions   string `json:"instructions"`         // full prompt for the developer agent
+	Ordinality     int    `json:"ordinality"`           // 1-based position
+	CanRunParallel bool   `json:"can_run_parallel"`     // true = no predecessor dependency
+	DependsOn      []int  `json:"depends_on,omitempty"` // ordinality values that must complete first
 }

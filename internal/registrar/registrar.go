@@ -58,6 +58,7 @@ func New(
 			"ai.task.completed",
 			"ai.task.failed",
 			"ai.task.yielded",
+			"ai.task.todo",
 		},
 		subscribeTopics,
 		routes,

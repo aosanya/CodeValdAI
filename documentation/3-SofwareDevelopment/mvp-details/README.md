@@ -12,6 +12,7 @@ Task IDs match canonical [../mvp.md](../mvp.md) and [../mvp_done.md](../mvp_done
 | [cross-subscription.md](cross-subscription.md) | MVP-AI-019 Cross subscription — `NotifyEvent` RPC, `work.task.status.changed` consumer registration, acknowledgement via PubSub Ack |
 | [action-protocol.md](action-protocol.md) | Action Protocol — LLM `actions` block → PubSub dispatch, action catalogue from service registry, context hydration, topic naming convention |
 | [run-yielded.md](run-yielded.md) | MVP-AI-021 Schema & models, MVP-AI-022 Yielded execution engine, MVP-AI-023 Chain history replay, MVP-AI-024 Yielded session tests |
+| [task-decomposition.md](task-decomposition.md) | `ai.task.todo` — decompose-first pattern, `TodoItem` payload schema, parallel/sequential scheduling, work plan instruction pattern |
 
 > MVP-AI-014 (Provider CRUD — ✅ Done) was implemented as part of the broader
 > AIManager work and is recorded in [../mvp_done.md](../mvp_done.md). It does

@@ -33,6 +33,8 @@ CodeValdAI publishes `ai.task.*` → CodeValdWork consumes and publishes `work.t
 | `ai.task.in_progress` | `ExecuteRunStreaming` transitions run to `running` (before LLM call) | `{task_id, run_id, agent_id}` |
 | `ai.task.completed` | LLM finishes successfully and actions dispatched | `{task_id, run_id, agent_id}` |
 | `ai.task.failed` | LLM errors, times out, or produces no actions block | `{task_id, run_id, reason, failed_by{agent_id, work_plan_id, work_plan_code}}` |
+| `ai.task.yielded` | Session hits wall-clock or token limit; successor run created | `{task_id, run_id, chain_id, segment_number, tokens_used, partial_output}` |
+| `ai.task.todo` | Developer agent decomposes a task; child runs spawned internally by `spawnTodoRuns` | `{parent_task_id, run_id, agent_id, todos[]}` — see [task-decomposition.md](task-decomposition.md) |
 | `ai.run.completed` | Same as `ai.task.completed` — for AI-internal consumers | `{run_id}` |
 | `ai.run.failed` | Same as `ai.task.failed` — for AI-internal consumers | `""` |
 | `ai.agent.created` | New Agent entity created | `agentID` |
