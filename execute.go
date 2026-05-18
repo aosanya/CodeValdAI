@@ -318,7 +318,7 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	}
 
 	// Dispatch any PubSub actions the LLM embedded in its output.
-	m.dispatchActions(ctx, finalOutput)
+	m.dispatchActions(ctx, finalOutput, run, agent.ID)
 
 	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
 		TaskID:  run.TaskID,
@@ -436,7 +436,11 @@ func (m *aiManager) yieldRun(
 // publishes each action as a PubSub event via CodeValdCross.
 // ai.task.todo events are published to Cross and consumed by CodeValdWork,
 // which materialises them as TaskTodo entities and publishes work.task.todo.
-func (m *aiManager) dispatchActions(ctx context.Context, output string) {
+//
+// For ai.task.todo actions the parent_task_id, run_id, and agent_id fields
+// are always overwritten with the authoritative values from the current run,
+// preventing hallucinated or placeholder IDs from reaching CodeValdWork.
+func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) {
 	actions, err := parseActions(output)
 	if err != nil {
 		log.Printf("codevaldai: dispatchActions: malformed actions block: %v", err)
@@ -448,6 +452,9 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string) {
 	}
 	log.Printf("codevaldai: dispatchActions: dispatching %d action(s)", len(actions))
 	for _, a := range actions {
+		if a.Topic == TopicTaskTodo && run.TaskID != "" {
+			a = normalizeTaskTodoPayload(a, run.TaskID, run.ID, agentID)
+		}
 		log.Printf("codevaldai: dispatchActions: publishing topic=%s", a.Topic)
 		if m.publisher != nil {
 			if err := m.publisher.Publish(ctx, a.Topic, m.agencyID, "codevaldai", a.RawPayload()); err != nil {
@@ -455,6 +462,29 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string) {
 			}
 		}
 	}
+}
+
+// normalizeTaskTodoPayload overwrites the parent_task_id, run_id, and agent_id
+// fields in an ai.task.todo action with the authoritative values from the
+// current run, discarding whatever the LLM produced for those fields.
+func normalizeTaskTodoPayload(a Action, taskID, runID, agentID string) Action {
+	var p TaskTodoPayload
+	if err := unmarshalActionPayload(a, &p); err != nil {
+		return a
+	}
+	p.ParentTaskID = taskID
+	p.RunID = runID
+	p.AgentID = agentID
+	b, err := json.Marshal(p)
+	if err != nil {
+		return a
+	}
+	var normalized map[string]any
+	if err := json.Unmarshal(b, &normalized); err != nil {
+		return a
+	}
+	a.Payload = normalized
+	return a
 }
 
 // unmarshalActionPayload round-trips an Action's Payload map through JSON into

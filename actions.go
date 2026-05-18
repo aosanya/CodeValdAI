@@ -36,9 +36,14 @@ func (a Action) RawPayload() string {
 // Returns (nil, nil) when no block is present — callers treat that as a no-op.
 // Returns a non-nil error when a fence is found but the block is malformed,
 // so callers can log the format violation rather than silently dropping it.
+//
+// <think>...</think> sections are stripped first so that reasoning blocks
+// containing draft or placeholder actions blocks do not shadow the real output.
 func parseActions(output string) ([]Action, error) {
+	output = stripThinkBlocks(output)
+
 	// Require a newline immediately after "```actions" so that inline mentions
-	// inside <think> blocks (e.g. "produce an ```actions block...") are skipped.
+	// (e.g. "produce an ```actions block...") are skipped.
 	const fence = "```actions\n"
 	start := strings.Index(output, fence)
 	if start == -1 {
