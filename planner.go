@@ -149,7 +149,6 @@ func (m *aiManager) completeAsDecomposed(
 	}
 
 	m.publishJSON(ctx, TopicTaskTodo, todos)
-	m.spawnTodoRuns(agentID, todos)
 	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
 		TaskID:  run.TaskID,
 		RunID:   run.ID,
@@ -157,7 +156,7 @@ func (m *aiManager) completeAsDecomposed(
 	})
 	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+run.ID+`"}`)
 
-	log.Printf("codevaldai: completeAsDecomposed run=%s: %d child run(s) spawned", run.ID, len(todos.Todos))
+	log.Printf("codevaldai: completeAsDecomposed run=%s: ai.task.todo published with %d item(s)", run.ID, len(todos.Todos))
 	completed := agentRunFromEntity(updated)
 	completed.AgentID = agentID
 	return completed, nil
