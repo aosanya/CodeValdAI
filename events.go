@@ -4,9 +4,9 @@ package codevaldai
 // No agencyID segment: each service instance is scoped to a single agency.
 const (
 	// Run lifecycle (task-driven)
-	TopicTaskInProgress = "ai.task.in_progress"
-	TopicTaskCompleted  = "ai.task.completed"
-	TopicTaskFailed     = "ai.task.failed"
+	TopicTaskStarted   = "ai.task.started"
+	TopicTaskCompleted = "ai.task.completed"
+	TopicTaskFailed    = "ai.task.failed"
 	// TopicTaskYielded is published when a session hits its wall-clock or token
 	// limit and a successor session has been created to continue the chain.
 	TopicTaskYielded = "ai.task.yielded"
@@ -19,16 +19,16 @@ const (
 	TopicAgentCreated = "ai.agent.created"
 
 	// Task decomposition
-	// TopicTaskTodo is published when a developer agent decomposes an inbound
-	// task into sub-tasks. CodeValdWork consumes this topic and creates child
-	// tasks from the payload, each of which triggers a fresh work.task.assigned
-	// event back to the developer agent with ParentTaskID set.
-	TopicTaskTodo = "ai.task.todo"
+	// TopicTodoCreated is published when a developer agent decomposes an inbound
+	// task into sub-tasks. CodeValdWork consumes this topic and materialises each
+	// TodoItem as a TaskTodo entity, then publishes work.todo.dispatched so
+	// CodeValdAI agents can pick each todo up via a work plan.
+	TopicTodoCreated = "ai.todo.created"
 )
 
-// TaskInProgressPayload is published when ExecuteRunStreaming transitions to
+// TaskStartedPayload is published when ExecuteRunStreaming transitions to
 // the running state (before the LLM call). Signals that work has begun.
-type TaskInProgressPayload struct {
+type TaskStartedPayload struct {
 	TaskID  string
 	RunID   string
 	AgentID string
@@ -61,16 +61,16 @@ type TaskYieldedPayload struct {
 	PartialOutput string
 }
 
-// TaskTodoPayload is published on ai.task.todo when a developer agent
+// TodoCreatedPayload is published on ai.todo.created when a developer agent
 // decomposes an inbound task into sub-tasks.
-type TaskTodoPayload struct {
+type TodoCreatedPayload struct {
 	ParentTaskID string     `json:"parent_task_id"` // Work task that triggered the decomposition
 	RunID        string     `json:"run_id"`
 	AgentID      string     `json:"agent_id"`
 	Todos        []TodoItem `json:"todos"`
 }
 
-// TodoItem describes one sub-task within a TaskTodoPayload.
+// TodoItem describes one sub-task within a TodoCreatedPayload.
 // Ordinality is 1-based; DependsOn references ordinality values of
 // prerequisite TodoItems in the same payload.
 type TodoItem struct {

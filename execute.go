@@ -177,7 +177,7 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	log.Printf("codevaldai: ExecuteRun run=%s agent=%s segment=%d provider=%s limits={secs:%d toks:%d sess:%d}",
 		runID, agent.ID, run.SegmentNumber, provider.Name,
 		limits.MaxSeconds, limits.MaxTokens, limits.MaxSessions)
-	m.publishJSON(ctx, TopicTaskInProgress, TaskInProgressPayload{
+	m.publishJSON(ctx, TopicTaskStarted, TaskStartedPayload{
 		TaskID:  run.TaskID,
 		RunID:   runID,
 		AgentID: agent.ID,
@@ -434,10 +434,10 @@ func (m *aiManager) yieldRun(
 
 // dispatchActions parses any ```actions block from the LLM output and
 // publishes each action as a PubSub event via CodeValdCross.
-// ai.task.todo events are published to Cross and consumed by CodeValdWork,
-// which materialises them as TaskTodo entities and publishes work.task.todo.
+// ai.todo.created events are published to Cross and consumed by CodeValdWork,
+// which materialises them as TaskTodo entities and publishes work.todo.dispatched.
 //
-// For ai.task.todo actions the parent_task_id, run_id, and agent_id fields
+// For ai.todo.created actions the parent_task_id, run_id, and agent_id fields
 // are always overwritten with the authoritative values from the current run,
 // preventing hallucinated or placeholder IDs from reaching CodeValdWork.
 func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) {
@@ -452,8 +452,8 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 	}
 	log.Printf("codevaldai: dispatchActions: dispatching %d action(s)", len(actions))
 	for _, a := range actions {
-		if a.Topic == TopicTaskTodo && run.TaskID != "" {
-			a = normalizeTaskTodoPayload(a, run.TaskID, run.ID, agentID)
+		if a.Topic == TopicTodoCreated && run.TaskID != "" {
+			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID)
 		}
 		log.Printf("codevaldai: dispatchActions: publishing topic=%s", a.Topic)
 		if m.publisher != nil {
@@ -464,11 +464,11 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 	}
 }
 
-// normalizeTaskTodoPayload overwrites the parent_task_id, run_id, and agent_id
-// fields in an ai.task.todo action with the authoritative values from the
+// normalizeTodoCreatedPayload overwrites the parent_task_id, run_id, and agent_id
+// fields in an ai.todo.created action with the authoritative values from the
 // current run, discarding whatever the LLM produced for those fields.
-func normalizeTaskTodoPayload(a Action, taskID, runID, agentID string) Action {
-	var p TaskTodoPayload
+func normalizeTodoCreatedPayload(a Action, taskID, runID, agentID string) Action {
+	var p TodoCreatedPayload
 	if err := unmarshalActionPayload(a, &p); err != nil {
 		return a
 	}
