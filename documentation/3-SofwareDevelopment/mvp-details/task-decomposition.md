@@ -1,122 +1,160 @@
 # CodeValdAI — Task Decomposition & `ai.task.todo`
 
 > Part of the mvp-details. Index: [README.md](README.md)
+>
+> Full bridge implementation (CodeValdWork side) →
+> [CodeValdWork: task-decomposition.md](../../../../CodeValdWork/documentation/3-SofwareDevelopment/mvp-details/task-decomposition.md)
 
 ---
 
 ## Overview
 
-Task decomposition is an **AI-internal** pattern. When a developer agent receives a new
-(non-sub-task) `work.task.assigned` event, it splits the task into atomic sub-tasks and
-emits an `ai.task.todo` actions block. CodeValdAI intercepts that action in
-`dispatchActions` and spawns a child `AgentRun` for each `TodoItem` directly — no
-CodeValdWork involvement required.
+Task decomposition is the mechanism by which a developer agent splits a non-trivial
+task into atomic sub-tasks before any implementation work begins.
 
-Sub-tasks are pure `AgentRun` entities. They have no corresponding CodeValdWork task and
-carry no `TaskID`. Their lifecycle is tracked entirely within CodeValdAI.
+**CodeValdAI's responsibility is narrow:**
+1. Inject the decomposition preamble into the system prompt for task-driven runs.
+2. Emit `ai.task.todo` via the standard actions block when the LLM decides to decompose.
+3. Publish that event to Cross — nothing else.
+
+**CodeValdWork owns the rest:** it consumes `ai.task.todo`, creates one `TaskTodo` entity
+per item, assigns each to the parent task's agent, and publishes `work.task.todo`.
+CodeValdAI agents then pick up `work.task.todo` events via work plans and execute each
+sub-task as a normal `AgentRun` with `task_id = TodoID`.
+
+> `spawnTodoRuns` has been **removed**. CodeValdAI never spawns child runs internally
+> from an `ai.task.todo` payload.
 
 ---
 
-## 1. Architecture & Design
+## 1. Architecture
 
 ### Full Lifecycle
 
 ```
 work.task.assigned  (ParentTaskID absent)
-    │
-    ▼
+        │
+        ▼ CodeValdAI
 RACIDispatcher → triggerPlanRun
-    │
-    ├── IntakeRun  → pending_intake
-    └── ExecuteRunStreaming (decomposition run)
-            ├── → running
-            ├── Publish "ai.task.in_progress"
-            ├── callLLM → LLM outputs ONLY an ```actions block
-            │             with topic "ai.task.todo"
-            ├── dispatchActions(agentID, output)
-            │       ├── Publish "ai.task.todo" to Cross  (observability only)
-            │       └── spawnTodoRuns(agentID, payload)
-            │               └── goroutine × N:
-            │                       IntakeRun(instructions=todo.Instructions)
-            │                       ExecuteRunStreaming(run.ID, nil)
-            ├── → completed
-            ├── Publish "ai.task.completed"
-            └── Publish "ai.run.completed"
+        │
+        ├── IntakeRun  → pending_intake
+        └── ExecuteRunStreaming (decomposition run)
+                ├── system prompt = decompositionPreamble + agent.SystemPrompt
+                ├── → running; publish "ai.task.in_progress"
+                ├── callLLM → LLM outputs ONLY an ```actions block
+                │             with topic "ai.task.todo"
+                ├── dispatchActions(agentID, output)
+                │       └── Publish "ai.task.todo" to Cross
+                │           ← CodeValdWork takes it from here
+                ├── → completed
+                ├── Publish "ai.task.completed"
+                └── Publish "ai.run.completed"
 
-Each child run (N = len(todos)):
-    pending_intake → running → completed | failed
-    No work.task.* events — purely AI-internal.
+─── CodeValdWork bridge (separate service) ───────────────────────────────────
+        Receives "ai.task.todo"
+        Creates TaskTodo entities; publishes "work.task.todo" × N
+
+─── CodeValdAI: work plan subscribed to "work.task.todo" ─────────────────────
+        RACIDispatcher → triggerPlanRun
+        AgentRun (task_id = TodoID, NOT the parent Task ID)
+        pending_intake → running → completed | failed
+        Publishes ai.task.in_progress / ai.task.completed / ai.task.failed
+        (CodeValdWork updates TaskTodo.status on receipt)
 ```
 
 ### Interface Boundary
-`ai.task.todo` is handled by the extended `dispatchActions` method in `execute.go`.
-No changes to `AIManager` interface. No Cross routing to CodeValdWork.
 
-### Graph Entities Touched
-No new entity types. Each child run creates the same `AgentRun` + `RunField` entities
-as any other run. Child runs have `TaskID = ""`.
+`dispatchActions` (`execute.go`) publishes every action topic to Cross, including
+`ai.task.todo`. There is no special-case handling for `ai.task.todo` — the internal
+`spawnTodoRuns` path has been removed.
+
+### Graph Entities Touched (CodeValdAI side)
+
+For the **decomposition run**: same `AgentRun` + `RunField` entities as any other run.
+The run has `task_id = <parent Work Task ID>`.
+
+For each **todo execution run** (triggered by `work.task.todo`):
+- `AgentRun` with `task_id = <TaskTodo ID>` (not the parent Task ID).
+- Standard `RunField` / `RunInput` entities.
 
 ### Failure Modes
 
 | Failure | Consequence |
 |---|---|
-| LLM outputs malformed `ai.task.todo` JSON | `dispatchActions` logs error; parent run still reaches `completed`; no children spawned |
-| `spawnTodoRuns` `IntakeRun` error | Logged per todo; other todos still spawn |
-| Child run LLM error | Child run → `failed`; `ai.run.failed` published; other children unaffected |
+| LLM outputs malformed `ai.task.todo` JSON | `dispatchActions` logs; parent run reaches `completed`; `ai.task.todo` event not published; no todos created |
+| `ai.task.todo` publish to Cross fails | Logged and swallowed; CodeValdWork never receives it; no todos spawned |
+| Todo execution run LLM error | That run → `failed`; `ai.task.failed` published (CodeValdWork updates `TaskTodo.status → failed`); sibling todos unaffected |
 
 ---
 
-## 2. Run Lifecycle
+## 2. Decomposition Preamble (`planner.go`)
 
-### Decomposition Run Status Transitions
-```
-pending_intake → pending_execution → running → completed
-```
-Identical to any other run. The LLM output for this run is a single `ai.task.todo` actions
-block.
+### Injection Point
 
-### Child Run Status Transitions
-```
-pending_intake → pending_execution → running → completed | failed
-```
-Child runs are independent. They use the same agent as the parent decomposition run.
+The preamble is prepended to the system prompt in `ExecuteRunStreaming` when:
+- `run.TaskID != ""` (task-driven run, not a manually triggered one)
+- `segmentNumber == 1` (first session only — not replayed on yield-chain successors)
 
-### Sub-task Detection
-The `work.task.assigned` payload includes a `ParentTaskID` field when a task was created
-as a child of another task. Child runs spawned by `spawnTodoRuns` have no `TaskID`, so
-they never produce `work.task.*` events and cannot receive `work.task.assigned`.
+Child runs triggered by `work.task.todo` have `task_id = TodoID`. The preamble is
+still injected on their first session. The LLM will typically skip decomposition
+because the `Instructions` field already contains a focused sub-task prompt, but
+the guard in the preamble ("Do NOT decompose only when single atomic operation")
+is what makes that decision.
 
-Work plan instructions use a simpler guard: if `ParentTaskID` is **absent or empty** in the
-event payload, decompose. If present, implement directly. This prevents infinite recursion
-when a future integration creates real sub-tasks in CodeValdWork.
+### Preamble Template
+
+```
+DECOMPOSITION ASSESSMENT — evaluate before acting
+
+Decompose when ANY of the following apply (default to YES for feature work):
+  • The task involves implementing code changes
+  • The task spans multiple independent concerns
+  • There are clearly separable steps
+  • Completing it end-to-end would require more than one focused action
+
+Do NOT decompose only when the task is a single atomic operation.
+
+── IF DECOMPOSING ──────────────────────────────────────────────────────────────
+Your ENTIRE response must be exactly one actions block — no other text:
+
+```actions
+[{"topic":"ai.task.todo","payload":{"parent_task_id":"PARENT_TASK_ID","run_id":"RUN_ID","agent_id":"AGENT_ID","todos":[
+  {"title":"…","description":"…","instructions":"…","ordinality":1,"can_run_parallel":true},
+  {"title":"…","description":"…","instructions":"…","ordinality":2,"can_run_parallel":false,"depends_on":[1]}
+]}}]
+```
+
+── IF NOT DECOMPOSING ──────────────────────────────────────────────────────────
+Ignore the section above entirely and proceed with your normal execution actions.
+```
+
+`buildDecompositionPreamble(taskID, runID, agentID string)` substitutes the run-specific
+IDs into the template before injection.
 
 ---
 
 ## 3. Data Models (`events.go`)
 
 ```go
-// TopicTaskTodo is published (for observability) and handled internally when
-// a developer agent decomposes a task into sub-tasks. dispatchActions intercepts
-// this topic to spawn child AgentRuns via spawnTodoRuns.
+// TopicTaskTodo is the ai.* domain event published when a developer agent
+// decomposes a task. CodeValdWork is the sole consumer; it creates TaskTodo
+// entities and publishes work.task.todo per item.
 const TopicTaskTodo = "ai.task.todo"
 
 // TaskTodoPayload is the payload for ai.task.todo.
 type TaskTodoPayload struct {
-    ParentTaskID string     `json:"parent_task_id"` // originating work task ID
+    ParentTaskID string     `json:"parent_task_id"` // originating Work Task ID
     RunID        string     `json:"run_id"`
     AgentID      string     `json:"agent_id"`
     Todos        []TodoItem `json:"todos"`
 }
 
 // TodoItem describes one sub-task within a TaskTodoPayload.
-// Ordinality is 1-based. DependsOn references ordinality values of
-// prerequisites. CanRunParallel and DependsOn are stored for future
-// sequential scheduling support; all todos are currently spawned immediately.
 type TodoItem struct {
     Title          string `json:"title"`
     Description    string `json:"description"`
-    Instructions   string `json:"instructions"`         // full prompt for the child run
-    Ordinality     int    `json:"ordinality"`
+    Instructions   string `json:"instructions"` // full self-contained agent prompt
+    Ordinality     int    `json:"ordinality"`   // 1-based
     CanRunParallel bool   `json:"can_run_parallel"`
     DependsOn      []int  `json:"depends_on,omitempty"`
 }
@@ -124,56 +162,10 @@ type TodoItem struct {
 
 ---
 
-## 4. Implementation (`execute.go`)
+## 4. Registrar Topics (`internal/registrar/registrar.go`)
 
-### `dispatchActions` (updated signature)
-
-```go
-func (m *aiManager) dispatchActions(ctx context.Context, agentID, output string)
-```
-
-For every action in the parsed block:
-1. Publish to Cross via `m.publisher` (best-effort, skipped when publisher is nil)
-2. If `topic == "ai.task.todo"`: unmarshal payload and call `spawnTodoRuns`
-
-### `spawnTodoRuns`
-
-```go
-func (m *aiManager) spawnTodoRuns(agentID string, payload TaskTodoPayload)
-```
-
-Spawns one goroutine per `TodoItem`. Each goroutine calls:
-```
-IntakeRun(agentID, todo.Instructions, TaskID="")
-ExecuteRunStreaming(run.ID, nil, noopChunk)
-```
-
-**Sequential scheduling** (`depends_on`) is not enforced in this implementation.
-All todos are dispatched immediately. The `Instructions` field on each todo must be
-self-contained enough that the LLM can act without cross-todo coordination.
-Sequential enforcement is deferred — see Future Work.
-
-### `unmarshalActionPayload` helper
-
-```go
-func unmarshalActionPayload(a Action, target any) error
-```
-
-Round-trips `Action.Payload` (a `map[string]any`) through JSON into a typed struct.
-Used exclusively for `ai.task.todo` payload unmarshalling.
-
-### Call site in `ExecuteRunStreaming`
-
-```go
-m.dispatchActions(ctx, agent.ID, finalOutput)
-```
-
----
-
-## 5. Registrar (`internal/registrar/registrar.go`)
-
-`"ai.task.todo"` is declared in the **produces** list so Cross can log and route the
-event for observability. No service needs to subscribe to it for sub-task spawning to work.
+`"ai.task.todo"` is in the **produces** list. CodeValdWork declares it in its
+**consumes** list — the Cross subscription wires them together.
 
 ```go
 []string{ // produces
@@ -185,109 +177,60 @@ event for observability. No service needs to subscribe to it for sub-task spawni
     "ai.task.failed",
     "ai.task.yielded",
     "ai.task.todo",
-},
+}
 ```
 
 ---
 
-## 6. Work Plan Instruction Pattern
+## 5. Work Plan Instruction Pattern
 
-### Rule: Decompose-First, Implement-Second
+### Decompose-First Guard
 
-Work plan `instructions` for developer agents must contain the three-step guard below.
-The LLM is the only actor that decides decomposition — CodeValdAI enforces nothing at the
-Go layer beyond spawning the runs the LLM requests.
+Work plan instructions for developer agents include a detection step so the LLM
+knows whether it is handling an original task (decompose) or a todo execution run
+(implement directly).
+
+The `work.task.todo` payload carries `ParentTaskID` — if the agent checks this field
+in the event payload and it is non-empty, it is executing a todo and should implement.
 
 ```
-STEP 1 — DETECT SUB-TASK
+STEP 1 — DETECT CONTEXT
 Check the event payload for a "ParentTaskID" field.
-- If "ParentTaskID" IS present and non-empty: skip to STEP 3.
-- If "ParentTaskID" is ABSENT or empty: continue to STEP 2.
+- ParentTaskID IS present and non-empty → skip to STEP 3 (implement directly).
+- ParentTaskID is ABSENT or empty → continue to STEP 2 (decompose).
 
-STEP 2 — DECOMPOSE (first-time tasks only)
-Break the task into 2–5 atomic sub-tasks. Each must be completable in one agent session.
+STEP 2 — DECOMPOSE (original tasks only)
+Assess the task. For feature work: always decompose into 2–5 atomic sub-tasks.
+Output ONLY the ai.task.todo actions block — no prose.
 
-For each sub-task specify:
-  title           — short, imperative (≤ 8 words)
-  description     — one sentence: what the sub-task achieves
-  instructions    — complete implementation prompt for the child agent
-  ordinality      — 1-based order number
-  can_run_parallel — true if no dependency on other sub-tasks
-  depends_on      — [] or list of ordinality numbers that must complete first
-
-Output ONLY this actions block (no prose):
-```actions
-[{
-  "topic": "ai.task.todo",
-  "payload": {
-    "parent_task_id": "<TaskID from event payload>",
-    "run_id": "",
-    "todos": [ ... ]
-  }
-}]
-```
-A response with no ```actions block is always invalid.
-
-STEP 3 — IMPLEMENT (child runs; ParentTaskID present or instructions are a sub-task prompt)
-Implement the feature described. Output a single ```actions block.
+STEP 3 — IMPLEMENT (todo execution runs)
+Execute the instructions exactly. Output a single ```actions block.
 ```
 
 ---
 
-## 7. Parallel vs Sequential Sub-task Scheduling
+## 6. AgentRun.task_id for Todo Execution Runs
 
-### Current Behaviour
-All todos are spawned immediately in goroutines. `can_run_parallel` and `depends_on` are
-stored in the payload but not yet enforced by `spawnTodoRuns`.
+When a CodeValdAI agent picks up a `work.task.todo` event, the resulting `AgentRun`
+has `task_id = TodoID` (the `TaskTodo` entity ID in CodeValdWork) — **not** the
+parent `Task` ID.
 
-### Encoding Intent (for future enforcement)
-
-| `can_run_parallel` | `depends_on` | Intended behaviour |
-|---|---|---|
-| `true`  | `[]`    | Start immediately alongside other parallel todos |
-| `false` | `[1]`   | Start only after todo with ordinality 1 completes |
-| `true`  | `[1,2]` | Parallel with others, but only after 1 and 2 complete |
-
-### Future Work
-Sequential scheduling requires `spawnTodoRuns` to wait for goroutines whose ordinality
-appears in `depends_on`. A simple approach: run todos in ordinality order, use a
-`map[int]chan struct{}` to signal completion, and block goroutines that depend on
-incomplete predecessors.
+This means:
+- `ai.task.in_progress / ai.task.completed / ai.task.failed` reference the `TodoID`.
+- CodeValdWork can update `TaskTodo.status` without ambiguity.
+- The parent Task ID is available via `payload.ParentTaskID` in the dispatch
+  instructions if the agent needs to reference it.
 
 ---
 
-## 8. Acceptance Tests
+## 7. Acceptance Tests
 
 | Test | Expected |
 |---|---|
-| Developer receives task with no `ParentTaskID` | LLM output contains `ai.task.todo` actions block |
-| `dispatchActions` intercepts `ai.task.todo` | `spawnTodoRuns` called; N child `IntakeRun` calls |
-| Developer receives task with non-empty `ParentTaskID` | No `ai.task.todo`; LLM outputs implementation actions |
-| `ai.task.todo` payload malformed | `dispatchActions` logs error; parent run still `completed` |
-| N todos in payload | N child runs created and started |
-| Child run LLM error | Child run → `failed`; sibling runs unaffected |
-| `spawnTodoRuns` with publisher nil | Child runs still spawn; publish step silently skipped |
-
----
-
-## 9. Example: `08-work-02-ai-run.md` Task Flow
-
-Task: **"Add dark mode toggle to settings screen"**
-
-**Run 1 — Decomposition** (triggered by test Work-2, `$ASSIGN_TIME`)
-1. `work.task.assigned` arrives; no `ParentTaskID`
-2. Developer agent outputs:
-   ```actions
-   [{"topic":"ai.task.todo","payload":{"parent_task_id":"<NEW_TASK_ID>","todos":[...]}}]
-   ```
-3. `dispatchActions` publishes `ai.task.todo` to Cross (observability)
-4. `spawnTodoRuns` spawns 4 child `AgentRun`s in goroutines
-5. Run 1 status: `completed`
-
-**Runs 2–5 — Implementation** (child runs, no `TaskID`)
-- Each child run executes its `TodoItem.Instructions` independently
-- Status per run: `completed` or `failed`
-
-**Test assertion**: The run created after `$ASSIGN_TIME` reaches `completed`. Its output
-contains an `ai.task.todo` actions block rather than `git.branch.create`. Additional runs
-without a `TaskID` appear in the run list as the child runs execute.
+| Developer receives task with no `ParentTaskID` | Decomposition preamble injected; LLM output contains `ai.task.todo` actions block |
+| `dispatchActions` on `ai.task.todo` | Event published to Cross; no internal child run spawned |
+| Developer receives `work.task.todo` with `ParentTaskID` set | No decomposition; LLM outputs implementation actions |
+| `ai.task.todo` payload malformed | `dispatchActions` logs error; parent run still `completed`; event not published |
+| Todo execution run completes | `AgentRun.task_id == TodoID`; `ai.task.completed` references `TodoID` |
+| Todo execution run fails | `ai.task.failed` references `TodoID`; sibling runs unaffected |
+| Publisher nil | `ai.task.todo` publish silently skipped; no panic |
