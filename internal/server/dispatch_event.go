@@ -87,16 +87,22 @@ func (d *RACIDispatcher) triggerPlanRun(ctx context.Context, match *agencypb.Wor
 	return nil
 }
 
-// extractTaskID parses the TaskID field from a JSON event payload.
-// Returns "" if the payload is not valid JSON or the field is absent.
+// extractTaskID parses the task identifier from a JSON event payload.
+// Tries TaskID first (ai.task.* and work.task.* events), then TodoID
+// (work.todo.dispatched events where the todo itself is the unit of work).
+// Returns "" if the payload is not valid JSON or neither field is present.
 func extractTaskID(payload string) string {
 	var p struct {
 		TaskID string `json:"TaskID"`
+		TodoID string `json:"TodoID"`
 	}
 	if err := json.Unmarshal([]byte(payload), &p); err != nil {
 		return ""
 	}
-	return p.TaskID
+	if p.TaskID != "" {
+		return p.TaskID
+	}
+	return p.TodoID
 }
 
 // buildDispatchInstructions assembles the prompt string forwarded to IntakeRun:

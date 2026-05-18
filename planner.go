@@ -32,7 +32,7 @@ separable steps (e.g. "rename a variable", "update a single config value").
 Your ENTIRE response must be exactly one actions block — no other text:
 
 ` + "```" + `actions
-[{"topic":"ai.task.todo","payload":{"parent_task_id":"PARENT_TASK_ID","run_id":"RUN_ID","agent_id":"AGENT_ID","todos":[
+[{"topic":"ai.todo.created","payload":{"parent_task_id":"PARENT_TASK_ID","run_id":"RUN_ID","agent_id":"AGENT_ID","todos":[
   {"title":"Sub-task title","description":"What this sub-task accomplishes","instructions":"<fully self-contained agent prompt>","ordinality":1,"can_run_parallel":true},
   {"title":"Sub-task title","description":"What this sub-task accomplishes","instructions":"<fully self-contained agent prompt>","ordinality":2,"can_run_parallel":false,"depends_on":[1]}
 ]}}]
@@ -44,7 +44,7 @@ Sub-task instructions must be fully self-contained and action-oriented:
   • Child runs can ONLY publish PubSub events — they cannot read files,
     run shell commands, or access external systems directly
   • Each instruction must state exactly which topic to emit and what payload
-    fields to include (e.g. "emit git.branch.create with repository=X, name=Y")
+    fields to include (e.g. "emit git.branch.created with repository=X, name=Y")
 
 ── IF NOT DECOMPOSING ──────────────────────────────────────────────────────────
 Ignore the section above entirely and proceed with your normal execution actions.`
@@ -69,13 +69,13 @@ func (m *aiManager) autoDecompose(
 	run AgentRun,
 	agentID string,
 	partialOutput string,
-) TaskTodoPayload {
+) TodoCreatedPayload {
 	log.Printf("codevaldai: autoDecompose run=%s task=%s: session budget exhausted, decomposing remaining work",
 		run.ID, run.TaskID)
 
 	const sysMsg = `You are a task recovery planner for a developer AI agent.
 A run exhausted its session budget before finishing. Given the original instructions
-and any partial output, produce an ai.task.todo actions block covering the REMAINING work.
+and any partial output, produce an ai.todo.created actions block covering the REMAINING work.
 Each sub-task must have self-contained instructions. Respond with ONLY the actions block.`
 
 	userMsg := fmt.Sprintf(
@@ -93,20 +93,20 @@ Each sub-task must have self-contained instructions. Respond with ONLY the actio
 	})
 	if err != nil {
 		log.Printf("codevaldai: autoDecompose run=%s: llm error: %v", run.ID, err)
-		return TaskTodoPayload{}
+		return TodoCreatedPayload{}
 	}
 
 	actions, err := parseActions(buf.String())
 	if err != nil || len(actions) == 0 {
 		log.Printf("codevaldai: autoDecompose run=%s: no valid actions block in response", run.ID)
-		return TaskTodoPayload{}
+		return TodoCreatedPayload{}
 	}
 
 	for _, a := range actions {
-		if a.Topic != TopicTaskTodo {
+		if a.Topic != TopicTodoCreated {
 			continue
 		}
-		var payload TaskTodoPayload
+		var payload TodoCreatedPayload
 		if err := unmarshalActionPayload(a, &payload); err != nil {
 			log.Printf("codevaldai: autoDecompose run=%s: unmarshal: %v", run.ID, err)
 			continue
@@ -122,18 +122,18 @@ Each sub-task must have self-contained instructions. Respond with ONLY the actio
 		}
 		return payload
 	}
-	return TaskTodoPayload{}
+	return TodoCreatedPayload{}
 }
 
 // completeAsDecomposed stores the decomposition output on the run, publishes
-// ai.task.todo, spawns child runs, and transitions the run to completed.
+// ai.todo.created, spawns child runs, and transitions the run to completed.
 // decomposedOutput is the raw LLM output (the actions block text) to store.
 func (m *aiManager) completeAsDecomposed(
 	ctx context.Context,
 	run AgentRun,
 	agentID string,
 	decomposedOutput string,
-	todos TaskTodoPayload,
+	todos TodoCreatedPayload,
 ) (AgentRun, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	updated, err := m.dm.UpdateEntity(ctx, m.agencyID, run.ID, entitygraph.UpdateEntityRequest{
@@ -148,7 +148,7 @@ func (m *aiManager) completeAsDecomposed(
 		return AgentRun{}, fmt.Errorf("completeAsDecomposed %s: %w", run.ID, err)
 	}
 
-	m.publishJSON(ctx, TopicTaskTodo, todos)
+	m.publishJSON(ctx, TopicTodoCreated, todos)
 	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
 		TaskID:  run.TaskID,
 		RunID:   run.ID,
@@ -156,7 +156,7 @@ func (m *aiManager) completeAsDecomposed(
 	})
 	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+run.ID+`"}`)
 
-	log.Printf("codevaldai: completeAsDecomposed run=%s: ai.task.todo published with %d item(s)", run.ID, len(todos.Todos))
+	log.Printf("codevaldai: completeAsDecomposed run=%s: ai.todo.created published with %d item(s)", run.ID, len(todos.Todos))
 	completed := agentRunFromEntity(updated)
 	completed.AgentID = agentID
 	return completed, nil
