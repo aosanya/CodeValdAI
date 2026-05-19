@@ -216,6 +216,9 @@ func callOpenAICompatible(
 		"stream_options": map[string]any{"include_usage": true},
 		"max_tokens":     maxTokensOrDefault(agent.MaxTokens),
 	}
+	if agent.BudgetTokens > 0 {
+		body["budget_tokens"] = agent.BudgetTokens
+	}
 	if agent.Temperature != 0 {
 		body["temperature"] = agent.Temperature
 	}

@@ -40,6 +40,7 @@ Model               string  `json:"model"`         // e.g. "claude-3-5-sonnet-20
 SystemPrompt        string  `json:"system_prompt"` // Persona / task instructions for the LLM
 Temperature         float64 `json:"temperature,omitempty"`
 MaxTokens          int     `json:"max_tokens,omitempty"`
+BudgetTokens        int     `json:"budget_tokens,omitempty"`        // 0 = provider default; set for reasoning models (DeepSeek, etc.)
 TimeoutSeconds      int     `json:"timeout_seconds,omitempty"`      // 0 = system default
 SessionMaxSeconds   int     `json:"session_max_seconds,omitempty"`  // 0 = 300 s default
 SessionMaxTokens    int     `json:"session_max_tokens,omitempty"`   // 0 = no token limit
@@ -160,6 +161,7 @@ Model               string  `json:"model"`
 SystemPrompt        string  `json:"system_prompt"`
 Temperature         float64 `json:"temperature,omitempty"`
 MaxTokens          int     `json:"max_tokens,omitempty"`
+BudgetTokens        int     `json:"budget_tokens,omitempty"`
 TimeoutSeconds      int     `json:"timeout_seconds,omitempty"`
 SessionMaxSeconds   int     `json:"session_max_seconds,omitempty"`
 SessionMaxTokens    int     `json:"session_max_tokens,omitempty"`
@@ -176,6 +178,7 @@ Model               string  `json:"model,omitempty"`
 SystemPrompt        string  `json:"system_prompt,omitempty"`
 Temperature         float64 `json:"temperature,omitempty"`
 MaxTokens          int     `json:"max_tokens,omitempty"`
+BudgetTokens        int     `json:"budget_tokens,omitempty"`
 TimeoutSeconds      int     `json:"timeout_seconds,omitempty"`
 SessionMaxSeconds   int     `json:"session_max_seconds,omitempty"`
 SessionMaxTokens    int     `json:"session_max_tokens,omitempty"`

@@ -303,6 +303,7 @@ func (m *aiManager) CreateAgent(ctx context.Context, req CreateAgentRequest) (Ag
 		"system_prompt":        req.SystemPrompt,
 		"temperature":          req.Temperature,
 		"max_tokens":           req.MaxTokens,
+		"budget_tokens":        req.BudgetTokens,
 		"timeout_seconds":      req.TimeoutSeconds,
 		"session_max_seconds":  req.SessionMaxSeconds,
 		"session_max_tokens":   req.SessionMaxTokens,
@@ -393,6 +394,9 @@ func (m *aiManager) UpdateAgent(ctx context.Context, agentID string, req UpdateA
 	}
 	if req.MaxTokens != 0 {
 		props["max_tokens"] = req.MaxTokens
+	}
+	if req.BudgetTokens != 0 {
+		props["budget_tokens"] = req.BudgetTokens
 	}
 	if req.TimeoutSeconds != 0 {
 		props["timeout_seconds"] = req.TimeoutSeconds
@@ -625,6 +629,7 @@ func agentFromEntity(e entitygraph.Entity) Agent {
 		SystemPrompt:       strProp(p, "system_prompt"),
 		Temperature:        float64Prop(p, "temperature"),
 		MaxTokens:          intProp(p, "max_tokens"),
+		BudgetTokens:       intProp(p, "budget_tokens"),
 		TimeoutSeconds:     intProp(p, "timeout_seconds"),
 		SessionMaxSeconds:  intProp(p, "session_max_seconds"),
 		SessionMaxTokens:   intProp(p, "session_max_tokens"),
