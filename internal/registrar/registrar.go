@@ -39,11 +39,34 @@ var _ codevaldai.CrossPublisher = (*Registrar)(nil)
 //   - agencyID      — agency scoped to this service instance
 //   - pingInterval  — heartbeat cadence; \u2264 0 means only the initial ping
 //   - pingTimeout   — per-RPC timeout for each Register call
+// internalSubscriptions are topics CodeValdAI always subscribes to regardless
+// of which work plans are active. These are internal lifecycle events that the
+// service must handle for its own state (e.g. run debrief updates).
+var internalSubscriptions = []string{
+	"git.file.written", // debrief confirmation from CodeValdGit after WriteFile
+}
+
 func New(
 	crossAddr, advertiseAddr, agencyID string,
 	pingInterval, pingTimeout time.Duration,
 	subscribeTopics []string,
 ) (*Registrar, error) {
+	// Merge work-plan topics with mandatory internal subscriptions.
+	merged := make([]string, 0, len(subscribeTopics)+len(internalSubscriptions))
+	seen := make(map[string]bool)
+	for _, t := range subscribeTopics {
+		if !seen[t] {
+			seen[t] = true
+			merged = append(merged, t)
+		}
+	}
+	for _, t := range internalSubscriptions {
+		if !seen[t] {
+			seen[t] = true
+			merged = append(merged, t)
+		}
+	}
+
 	routes := aiRoutes()
 	hb, err := sharedregistrar.New(
 		crossAddr,
@@ -59,8 +82,11 @@ func New(
 			"ai.task.failed",
 			"ai.task.yielded",
 			"ai.todo.created",
+			"git.branch.create",  // LLM action topic — consumed by CodeValdGit
+			"git.file.write",     // LLM action topic — consumed by CodeValdGit
+			"work.task.update",   // LLM action topic — consumed by CodeValdWork (patch branch_name)
 		},
-		subscribeTopics,
+		merged,
 		routes,
 		pingInterval,
 		pingTimeout,

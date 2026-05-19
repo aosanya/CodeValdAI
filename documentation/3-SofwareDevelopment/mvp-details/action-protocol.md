@@ -32,7 +32,7 @@ Some prose response here...
     "topic": "work.task.update",
     "payload": {
       "task_id": "abc-123",
-      "status": "in_progress"
+      "branch_name": "feature/UTIL-001-widget"
     }
   }
 ]
@@ -140,7 +140,7 @@ If `crossHTTPAddr` is empty the catalogue and hydration steps are skipped; the a
 
 ## 5. Context Hydration (`contexthydrate.go`)
 
-Before passing the event payload to the LLM, CodeValdAI enriches it with data fetched from the originating service. This gives the LLM human-readable context (task title, description) rather than raw UUIDs.
+Before passing the event payload to the LLM, CodeValdAI enriches it with data fetched from the originating service. This gives the LLM human-readable context (task title, branch, full file contents) rather than raw UUIDs.
 
 ### 5a. Entry Point
 
@@ -148,23 +148,82 @@ Before passing the event payload to the LLM, CodeValdAI enriches it with data fe
 func HydrateEventContext(ctx context.Context, crossHTTPAddr, agencyID, eventPayload string) string
 ```
 
-Parses `eventPayload` as `map[string]string` and, for each known entity ID key, fetches details:
+Parses `eventPayload` as a JSON map and, for each known entity ID key, fetches details:
 
-| Key in payload | Fetches from | Adds to prompt |
+| Key(s) in payload | Fetches from | Adds to prompt |
 |---|---|---|
-| `TaskID` | `GET {crossHTTPAddr}/work/{agencyID}/tasks/{taskID}` | Title, Description, Status |
+| `TaskID` / `task_id` / `ParentTaskID` | `GET /work/{agencyID}/tasks/{taskID}` | Title, Description, Status, Branch, Project |
+| `TodoID` / `todo_id` | `GET /work/{agencyID}/todos/{todoID}` | Reads `precalls` field; executes each spec |
+| *(always)* | `GET /git/{agencyID}/repositories` | Repository list; picks `project.repo_name` if set |
+| *(when task has `branch_name`)* | `GET /git/{agencyID}/repositories/{repo}/branches/{branch}/tree` recursively | Branch file dictionary (≤ 50 files, ≤ 10 KB each) |
 
-The raw payload is always included verbatim; enrichment is additive and best-effort (fetch errors produce no output for that field, never bubble up).
+The raw payload is always included verbatim; enrichment is additive and best-effort.
 
-### 5b. Output Format
+### 5b. Precalls
+
+A `TaskTodo` entity may carry a `precalls` field: a JSON-encoded `[]PrecallSpec`.
+When `HydrateEventContext` detects a `TodoID`, it fetches the todo, parses its precalls, and executes each spec before building the file dictionary:
+
+```json
+[
+  {
+    "service": "git",
+    "operation": "blob_search",
+    "query": "authentication middleware",
+    "label": "Files related to auth middleware"
+  }
+]
+```
+
+Routing is by `service`:
+- `"git"` → `GET /git/{agencyID}/repositories/_/blobs/search?query=<q>&limit=20`
+  (ArangoSearch View, BM25-ranked, agency-scoped)
+
+Results are injected as a `## Precall Results` section before the file dictionary. The LLM agent then knows which files are relevant before it starts editing.
+
+### 5c. Branch File Dictionary
+
+When the task has a `branch_name`, up to 50 text files (≤ 10 KB each) are fetched and injected:
+
+```
+## Working Branch: `feature/UTIL-001-widget`
+The following files are loaded from ArangoDB...
+
+### `src/auth/middleware.ts`
+\`\`\`
+... file content ...
+\`\`\`
+
+---
+**Writing files back (creates a git commit):**
+\`\`\`json
+{"topic":"git.file.write","payload":{"repository":"...","branch_name":"...","path":"...","content":"...","message":"..."}}
+\`\`\`
+```
+
+### 5d. Project → Repo Resolution
+
+The task's `project_name` is used to fetch the linked `Project` entity and read its `repo_name` field (set when the project is created). This ensures the correct repository is used when a project has multiple repos or when the first-listed repo is not the right one.
+
+### 5e. Output Format
 
 ```
 ## Event Context
-Raw payload: {"TaskID":"abc-123","AssigneeID":"agent-001"}
+Raw payload: {"TodoID":"todo-456","TaskID":"abc-123"}
 Task ID: abc-123
-Task Title: Fix authentication bug
-Task Description: Users cannot log in after the session token change in v2.3.
+Task Title: Add OAuth2 support
 Task Status: in_progress
+Task Branch: feature/UTIL-001-oauth
+Task Project: utility-app
+
+## Precall Results
+### Files related to auth middleware
+Search query: `authentication middleware` — 3 result(s)
+- **`src/auth/middleware.ts`** (score: 8.42)
+  > export function authMiddleware(req, res, next) { ...
+
+## Working Branch: `feature/UTIL-001-oauth`
+...
 ```
 
 ---

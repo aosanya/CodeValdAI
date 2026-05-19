@@ -434,12 +434,16 @@ func (m *aiManager) yieldRun(
 
 // dispatchActions parses any ```actions block from the LLM output and
 // publishes each action as a PubSub event via CodeValdCross.
-// ai.todo.created events are published to Cross and consumed by CodeValdWork,
-// which materialises them as TaskTodo entities and publishes work.todo.dispatched.
 //
-// For ai.todo.created actions the parent_task_id, run_id, and agent_id fields
-// are always overwritten with the authoritative values from the current run,
-// preventing hallucinated or placeholder IDs from reaching CodeValdWork.
+// Normalizations applied before publishing:
+//   - ai.todo.created: parent_task_id, run_id, and agent_id are overwritten with
+//     authoritative values from the current run.
+//   - git.file.write: run_id is injected so CodeValdGit can carry it through to
+//     the git.file.written confirmation event, enabling debrief updates.
+//
+// After all actions are published a run debrief is written to the AgentRun
+// entity recording every dispatched action with [dispatched] status. The debrief
+// is updated to [committed: sha] when git.file.written events arrive later.
 func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) {
 	actions, err := parseActions(output)
 	if err != nil {
@@ -455,12 +459,52 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 		if a.Topic == TopicTodoCreated && run.TaskID != "" {
 			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID)
 		}
+		// Inject run_id into git.file.write so CodeValdGit can reference back.
+		if a.Topic == "git.file.write" && run.ID != "" {
+			if a.Payload == nil {
+				a.Payload = make(map[string]any)
+			}
+			a.Payload["run_id"] = run.ID
+		}
 		log.Printf("codevaldai: dispatchActions: publishing topic=%s", a.Topic)
 		if m.publisher != nil {
 			if err := m.publisher.Publish(ctx, a.Topic, m.agencyID, "codevaldai", a.RawPayload()); err != nil {
 				log.Printf("codevaldai: dispatchActions: publish topic=%s error: %v", a.Topic, err)
 			}
 		}
+	}
+	m.writeRunDebrief(ctx, run.ID, actions)
+}
+
+// writeRunDebrief stores a structured debrief on the AgentRun entity listing
+// every action that was dispatched. Each entry starts as [dispatched] and is
+// later updated to [committed: sha] when git.file.written events arrive.
+func (m *aiManager) writeRunDebrief(ctx context.Context, runID string, actions []Action) {
+	if runID == "" || len(actions) == 0 {
+		return
+	}
+	var b strings.Builder
+	b.WriteString("## Actions Dispatched\n")
+	for _, a := range actions {
+		switch a.Topic {
+		case "git.file.write":
+			path, _ := a.Payload["path"].(string)
+			branch, _ := a.Payload["branch_name"].(string)
+			b.WriteString(fmt.Sprintf("- `git.file.write` path=`%s` branch=`%s` [dispatched]\n", path, branch))
+		case "git.branch.create":
+			name, _ := a.Payload["name"].(string)
+			repo, _ := a.Payload["repository"].(string)
+			b.WriteString(fmt.Sprintf("- `git.branch.create` name=`%s` repo=`%s` [dispatched]\n", name, repo))
+		default:
+			b.WriteString(fmt.Sprintf("- `%s` [dispatched]\n", a.Topic))
+		}
+	}
+	if _, err := m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{
+		Properties: map[string]any{
+			"debrief": b.String(),
+		},
+	}); err != nil {
+		log.Printf("codevaldai: writeRunDebrief: update run %s: %v", runID, err)
 	}
 }
 

@@ -2,7 +2,10 @@ package server
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
@@ -71,9 +74,62 @@ func (s *EventReceiverServer) NotifyEvent(ctx context.Context, req *sharedev1.No
 	log.Printf("codevaldai: NotifyEvent: ACK event_id=%s topic=%s source=%s",
 		eventID, req.GetTopic(), req.GetSource())
 
+	if req.GetTopic() == "git.file.written" {
+		go s.handleFileWritten(context.Background(), req.GetPayload())
+	}
+
 	if s.dispatcher != nil {
 		go s.dispatcher.Dispatch(context.Background(), req.GetTopic(), req.GetPayload())
 	}
 
 	return &sharedev1.NotifyEventResponse{}, nil
+}
+
+// fileWrittenPayload mirrors the CodeValdGit FileWrittenPayload.
+type fileWrittenPayload struct {
+	RunID      string `json:"run_id"`
+	Repository string `json:"repository"`
+	BranchName string `json:"branch_name"`
+	Path       string `json:"path"`
+	CommitSHA  string `json:"commit_sha"`
+}
+
+// handleFileWritten updates the run debrief entry for the written file,
+// replacing [dispatched] with [committed: <sha>] for the matching path.
+func (s *EventReceiverServer) handleFileWritten(ctx context.Context, rawPayload string) {
+	var p fileWrittenPayload
+	if err := json.Unmarshal([]byte(rawPayload), &p); err != nil || p.RunID == "" {
+		return
+	}
+
+	run, err := s.backend.GetEntity(ctx, s.agencyID, p.RunID)
+	if err != nil {
+		log.Printf("codevaldai: handleFileWritten: GetEntity run=%s: %v", p.RunID, err)
+		return
+	}
+
+	current := ""
+	if v, ok := run.Properties["debrief"]; ok {
+		current, _ = v.(string)
+	}
+	if current == "" {
+		return
+	}
+
+	// Replace the matching [dispatched] line for this path with [committed: sha].
+	marker := fmt.Sprintf("path=`%s`", p.Path)
+	updated := strings.ReplaceAll(
+		current,
+		marker+" branch=`"+p.BranchName+"` [dispatched]",
+		marker+" branch=`"+p.BranchName+"` [committed: "+p.CommitSHA+"]",
+	)
+	if updated == current {
+		return // nothing to update
+	}
+
+	if _, err := s.backend.UpdateEntity(ctx, s.agencyID, p.RunID, entitygraph.UpdateEntityRequest{
+		Properties: map[string]any{"debrief": updated},
+	}); err != nil {
+		log.Printf("codevaldai: handleFileWritten: update debrief run=%s: %v", p.RunID, err)
+	}
 }

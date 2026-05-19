@@ -153,6 +153,10 @@ func aiTypes() []types.TypeDefinition {
 					{Name: "wp_session_max_seconds", Type: types.PropertyTypeInteger},
 					{Name: "wp_session_max_tokens", Type: types.PropertyTypeInteger},
 					{Name: "wp_session_max_sessions", Type: types.PropertyTypeInteger},
+					// debrief is a markdown summary of all actions dispatched by this run,
+					// updated with confirmation status as CodeValdGit publishes results.
+					// Format: ## Actions Dispatched\n- topic path [dispatched|committed:sha]\n
+					{Name: "debrief", Type: types.PropertyTypeString},
 					{Name: "started_at", Type: types.PropertyTypeString},
 					{Name: "completed_at", Type: types.PropertyTypeString},
 					{Name: "created_at", Type: types.PropertyTypeString},
