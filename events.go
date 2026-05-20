@@ -37,9 +37,10 @@ type TaskStartedPayload struct {
 // TaskCompletedPayload is published when ExecuteRunStreaming finishes
 // successfully and actions have been dispatched.
 type TaskCompletedPayload struct {
-	TaskID  string
-	RunID   string
-	AgentID string
+	TaskID      string
+	RunID       string
+	AgentID     string
+	HasSubtasks bool `json:"has_subtasks,omitempty"`
 }
 
 // TaskFailedPayload is published when the LLM call errors, times out, or

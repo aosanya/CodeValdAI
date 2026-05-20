@@ -154,9 +154,10 @@ func (m *aiManager) completeAsDecomposed(
 
 	m.publishJSON(ctx, TopicTodoCreated, todos)
 	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
-		TaskID:  run.TaskID,
-		RunID:   run.ID,
-		AgentID: agentID,
+		TaskID:      run.TaskID,
+		RunID:       run.ID,
+		AgentID:     agentID,
+		HasSubtasks: len(todos.Todos) > 0,
 	})
 	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+run.ID+`"}`)
 
