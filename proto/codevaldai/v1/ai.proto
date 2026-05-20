@@ -111,6 +111,7 @@ message Agent {
   int32                     session_max_seconds  = 12; // 0 = 300 s default
   int32                     session_max_tokens   = 13; // 0 = no token limit
   int32                     session_max_sessions = 14; // 0 = 1 (no yielding)
+  int32                     budget_tokens        = 15; // 0 = provider default; set for reasoning models
 }
 
 // CreateAgentRequest carries the data required to create a new Agent.
@@ -127,6 +128,7 @@ message CreateAgentRequest {
   int32  session_max_seconds  = 9;
   int32  session_max_tokens   = 10;
   int32  session_max_sessions = 11;
+  int32  budget_tokens        = 12;
 }
 
 // GetAgentRequest selects an agent by its ID.
@@ -157,6 +159,7 @@ message UpdateAgentRequest {
   int32  session_max_seconds  = 10;
   int32  session_max_tokens   = 11;
   int32  session_max_sessions = 12;
+  int32  budget_tokens        = 13;
 }
 
 // DeleteAgentRequest selects an agent to remove.

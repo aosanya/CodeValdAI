@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -223,6 +224,7 @@ func callOpenAICompatible(
 		body["temperature"] = agent.Temperature
 	}
 
+	log.Printf("codevaldai: dispatch body: max_tokens=%v budget_tokens=%v model=%v", body["max_tokens"], body["budget_tokens"], body["model"])
 	resp, err := postJSON(ctx, url, body, map[string]string{
 		"Authorization": "Bearer " + provider.APIKey,
 	})
@@ -237,6 +239,8 @@ func callOpenAICompatible(
 
 	usageSeen := false
 	thinkingOpen := false
+	reasonFrames, contentFrames := 0, 0
+	var lastFinishReason string
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -258,6 +262,7 @@ func callOpenAICompatible(
 					Content          string `json:"content"`
 					ReasoningContent string `json:"reasoning_content"`
 				} `json:"delta"`
+				FinishReason *string `json:"finish_reason"`
 			} `json:"choices"`
 			Usage *struct {
 				PromptTokens     int `json:"prompt_tokens"`
@@ -268,7 +273,11 @@ func callOpenAICompatible(
 			return inputTok, outputTok, fmt.Errorf("%s: decode SSE: %w", provider.ProviderType, err)
 		}
 		for _, ch := range frame.Choices {
+			if ch.FinishReason != nil && *ch.FinishReason != "" {
+				lastFinishReason = *ch.FinishReason
+			}
 			if ch.Delta.ReasoningContent != "" {
+				reasonFrames++
 				if !thinkingOpen {
 					onChunk("<think>\n")
 					thinkingOpen = true
@@ -276,6 +285,7 @@ func callOpenAICompatible(
 				onChunk(ch.Delta.ReasoningContent)
 			}
 			if ch.Delta.Content != "" {
+				contentFrames++
 				if thinkingOpen {
 					onChunk("\n</think>\n\n")
 					thinkingOpen = false
@@ -289,6 +299,7 @@ func callOpenAICompatible(
 			usageSeen = true
 		}
 	}
+	log.Printf("codevaldai: stream done: reason=%q reasonFrames=%d contentFrames=%d inputTok=%d outputTok=%d", lastFinishReason, reasonFrames, contentFrames, inputTok, outputTok)
 	if thinkingOpen {
 		onChunk("\n</think>\n\n")
 	}

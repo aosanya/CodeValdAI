@@ -44,7 +44,11 @@ Sub-task instructions must be fully self-contained and action-oriented:
   • Child runs can ONLY publish PubSub events — they cannot read files,
     run shell commands, or access external systems directly
   • Each instruction must state exactly which topic to emit and what payload
-    fields to include (e.g. "emit git.branch.created with repository=X, name=Y")
+    fields to include. Required fields per topic:
+      - git.branch.create: repository, name (the full branch name)
+      - git.file.write:    repository, branch_name (the full branch name), path, content
+  • When a sub-task writes files, its instructions MUST include branch_name
+    set to the branch created in the preceding branch-create sub-task
 
 ── IF NOT DECOMPOSING ──────────────────────────────────────────────────────────
 Ignore the section above entirely and proceed with your normal execution actions.`

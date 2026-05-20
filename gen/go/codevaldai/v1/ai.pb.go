@@ -586,6 +586,7 @@ type Agent struct {
 	SessionMaxSeconds  int32                  `protobuf:"varint,12,opt,name=session_max_seconds,json=sessionMaxSeconds,proto3" json:"session_max_seconds,omitempty"`    // 0 = 300 s default
 	SessionMaxTokens   int32                  `protobuf:"varint,13,opt,name=session_max_tokens,json=sessionMaxTokens,proto3" json:"session_max_tokens,omitempty"`       // 0 = no token limit
 	SessionMaxSessions int32                  `protobuf:"varint,14,opt,name=session_max_sessions,json=sessionMaxSessions,proto3" json:"session_max_sessions,omitempty"` // 0 = 1 (no yielding)
+	BudgetTokens       int32                  `protobuf:"varint,15,opt,name=budget_tokens,json=budgetTokens,proto3" json:"budget_tokens,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -718,6 +719,13 @@ func (x *Agent) GetSessionMaxSessions() int32 {
 	return 0
 }
 
+func (x *Agent) GetBudgetTokens() int32 {
+	if x != nil {
+		return x.BudgetTokens
+	}
+	return 0
+}
+
 // CreateAgentRequest carries the data required to create a new Agent.
 // name, provider_id, model, and system_prompt are required.
 type CreateAgentRequest struct {
@@ -733,6 +741,7 @@ type CreateAgentRequest struct {
 	SessionMaxSeconds  int32                  `protobuf:"varint,9,opt,name=session_max_seconds,json=sessionMaxSeconds,proto3" json:"session_max_seconds,omitempty"`
 	SessionMaxTokens   int32                  `protobuf:"varint,10,opt,name=session_max_tokens,json=sessionMaxTokens,proto3" json:"session_max_tokens,omitempty"`
 	SessionMaxSessions int32                  `protobuf:"varint,11,opt,name=session_max_sessions,json=sessionMaxSessions,proto3" json:"session_max_sessions,omitempty"`
+	BudgetTokens       int32                  `protobuf:"varint,12,opt,name=budget_tokens,json=budgetTokens,proto3" json:"budget_tokens,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -840,6 +849,13 @@ func (x *CreateAgentRequest) GetSessionMaxTokens() int32 {
 func (x *CreateAgentRequest) GetSessionMaxSessions() int32 {
 	if x != nil {
 		return x.SessionMaxSessions
+	}
+	return 0
+}
+
+func (x *CreateAgentRequest) GetBudgetTokens() int32 {
+	if x != nil {
+		return x.BudgetTokens
 	}
 	return 0
 }
@@ -987,6 +1003,7 @@ type UpdateAgentRequest struct {
 	SessionMaxSeconds  int32                  `protobuf:"varint,10,opt,name=session_max_seconds,json=sessionMaxSeconds,proto3" json:"session_max_seconds,omitempty"`
 	SessionMaxTokens   int32                  `protobuf:"varint,11,opt,name=session_max_tokens,json=sessionMaxTokens,proto3" json:"session_max_tokens,omitempty"`
 	SessionMaxSessions int32                  `protobuf:"varint,12,opt,name=session_max_sessions,json=sessionMaxSessions,proto3" json:"session_max_sessions,omitempty"`
+	BudgetTokens       int32                  `protobuf:"varint,13,opt,name=budget_tokens,json=budgetTokens,proto3" json:"budget_tokens,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -1101,6 +1118,13 @@ func (x *UpdateAgentRequest) GetSessionMaxTokens() int32 {
 func (x *UpdateAgentRequest) GetSessionMaxSessions() int32 {
 	if x != nil {
 		return x.SessionMaxSessions
+	}
+	return 0
+}
+
+func (x *UpdateAgentRequest) GetBudgetTokens() int32 {
+	if x != nil {
+		return x.BudgetTokens
 	}
 	return 0
 }
@@ -1899,182 +1923,104 @@ func (*ExecuteRunStreamingResponse_Run) isExecuteRunStreamingResponse_Payload() 
 var File_codevaldai_v1_ai_proto protoreflect.FileDescriptor
 
 const file_codevaldai_v1_ai_proto_rawDesc = "" +
-	"\n" +
-	"\x16codevaldai/v1/ai.proto\x12\rcodevaldai.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\x02\n" +
-	"\vLLMProvider\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
-	"\rprovider_type\x18\x03 \x01(\tR\fproviderType\x12\x17\n" +
-	"\aapi_key\x18\x04 \x01(\tR\x06apiKey\x12\x19\n" +
-	"\bbase_url\x18\x05 \x01(\tR\abaseUrl\x129\n" +
-	"\n" +
-	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
-	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12%\n" +
-	"\x0eprovider_route\x18\b \x01(\tR\rproviderRoute\"\xab\x01\n" +
-	"\x15CreateProviderRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
-	"\rprovider_type\x18\x02 \x01(\tR\fproviderType\x12\x17\n" +
-	"\aapi_key\x18\x03 \x01(\tR\x06apiKey\x12\x19\n" +
-	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12%\n" +
-	"\x0eprovider_route\x18\x05 \x01(\tR\rproviderRoute\"5\n" +
-	"\x12GetProviderRequest\x12\x1f\n" +
-	"\vprovider_id\x18\x01 \x01(\tR\n" +
-	"providerId\"\x16\n" +
-	"\x14ListProvidersRequest\"Q\n" +
-	"\x15ListProvidersResponse\x128\n" +
-	"\tproviders\x18\x01 \x03(\v2\x1a.codevaldai.v1.LLMProviderR\tproviders\"\xa7\x01\n" +
-	"\x15UpdateProviderRequest\x12\x1f\n" +
-	"\vprovider_id\x18\x01 \x01(\tR\n" +
-	"providerId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x17\n" +
-	"\aapi_key\x18\x03 \x01(\tR\x06apiKey\x12\x19\n" +
-	"\bbase_url\x18\x04 \x01(\tR\abaseUrl\x12%\n" +
-	"\x0eprovider_route\x18\x05 \x01(\tR\rproviderRoute\"8\n" +
-	"\x15DeleteProviderRequest\x12\x1f\n" +
-	"\vprovider_id\x18\x01 \x01(\tR\n" +
-	"providerId\"\x18\n" +
-	"\x16DeleteProviderResponse\"\x99\x04\n" +
-	"\x05Agent\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1f\n" +
-	"\vprovider_id\x18\x04 \x01(\tR\n" +
-	"providerId\x12\x14\n" +
-	"\x05model\x18\x05 \x01(\tR\x05model\x12#\n" +
-	"\rsystem_prompt\x18\x06 \x01(\tR\fsystemPrompt\x12 \n" +
-	"\vtemperature\x18\a \x01(\x01R\vtemperature\x12\x1d\n" +
-	"\n" +
-	"max_tokens\x18\b \x01(\x05R\tmaxTokens\x129\n" +
-	"\n" +
-	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
-	"\n" +
-	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12'\n" +
-	"\x0ftimeout_seconds\x18\v \x01(\x05R\x0etimeoutSeconds\x12.\n" +
-	"\x13session_max_seconds\x18\f \x01(\x05R\x11sessionMaxSeconds\x12,\n" +
-	"\x12session_max_tokens\x18\r \x01(\x05R\x10sessionMaxTokens\x120\n" +
-	"\x14session_max_sessions\x18\x0e \x01(\x05R\x12sessionMaxSessions\"\xa0\x03\n" +
-	"\x12CreateAgentRequest\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1f\n" +
-	"\vprovider_id\x18\x03 \x01(\tR\n" +
-	"providerId\x12\x14\n" +
-	"\x05model\x18\x04 \x01(\tR\x05model\x12#\n" +
-	"\rsystem_prompt\x18\x05 \x01(\tR\fsystemPrompt\x12 \n" +
-	"\vtemperature\x18\x06 \x01(\x01R\vtemperature\x12\x1d\n" +
-	"\n" +
-	"max_tokens\x18\a \x01(\x05R\tmaxTokens\x12'\n" +
-	"\x0ftimeout_seconds\x18\b \x01(\x05R\x0etimeoutSeconds\x12.\n" +
-	"\x13session_max_seconds\x18\t \x01(\x05R\x11sessionMaxSeconds\x12,\n" +
-	"\x12session_max_tokens\x18\n" +
-	" \x01(\x05R\x10sessionMaxTokens\x120\n" +
-	"\x14session_max_sessions\x18\v \x01(\x05R\x12sessionMaxSessions\",\n" +
-	"\x0fGetAgentRequest\x12\x19\n" +
-	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x13\n" +
-	"\x11ListAgentsRequest\"B\n" +
-	"\x12ListAgentsResponse\x12,\n" +
-	"\x06agents\x18\x01 \x03(\v2\x14.codevaldai.v1.AgentR\x06agents\"\xbb\x03\n" +
-	"\x12UpdateAgentRequest\x12\x19\n" +
-	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1f\n" +
-	"\vprovider_id\x18\x04 \x01(\tR\n" +
-	"providerId\x12\x14\n" +
-	"\x05model\x18\x05 \x01(\tR\x05model\x12#\n" +
-	"\rsystem_prompt\x18\x06 \x01(\tR\fsystemPrompt\x12 \n" +
-	"\vtemperature\x18\a \x01(\x01R\vtemperature\x12\x1d\n" +
-	"\n" +
-	"max_tokens\x18\b \x01(\x05R\tmaxTokens\x12'\n" +
-	"\x0ftimeout_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\x12.\n" +
-	"\x13session_max_seconds\x18\n" +
-	" \x01(\x05R\x11sessionMaxSeconds\x12,\n" +
-	"\x12session_max_tokens\x18\v \x01(\x05R\x10sessionMaxTokens\x120\n" +
-	"\x14session_max_sessions\x18\f \x01(\x05R\x12sessionMaxSessions\"/\n" +
-	"\x12DeleteAgentRequest\x12\x19\n" +
-	"\bagent_id\x18\x01 \x01(\tR\aagentId\"\x15\n" +
-	"\x13DeleteAgentResponse\"\x87\x05\n" +
-	"\bAgentRun\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x19\n" +
-	"\bagent_id\x18\x02 \x01(\tR\aagentId\x12\"\n" +
-	"\finstructions\x18\x03 \x01(\tR\finstructions\x125\n" +
-	"\x06status\x18\x04 \x01(\x0e2\x1d.codevaldai.v1.AgentRunStatusR\x06status\x12\x16\n" +
-	"\x06output\x18\x05 \x01(\tR\x06output\x12#\n" +
-	"\rerror_message\x18\x06 \x01(\tR\ferrorMessage\x12!\n" +
-	"\finput_tokens\x18\a \x01(\x05R\vinputTokens\x12#\n" +
-	"\routput_tokens\x18\b \x01(\x05R\foutputTokens\x129\n" +
-	"\n" +
-	"started_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12=\n" +
-	"\fcompleted_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x129\n" +
-	"\n" +
-	"created_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
-	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x17\n" +
-	"\atask_id\x18\r \x01(\tR\x06taskId\x12\x19\n" +
-	"\bchain_id\x18\x0e \x01(\tR\achainId\x12%\n" +
-	"\x0esegment_number\x18\x0f \x01(\x05R\rsegmentNumber\x12%\n" +
-	"\x0epartial_output\x18\x10 \x01(\tR\rpartialOutput\"\xb8\x01\n" +
-	"\bRunField\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
-	"\tfieldname\x18\x02 \x01(\tR\tfieldname\x12\x12\n" +
-	"\x04type\x18\x03 \x01(\tR\x04type\x12\x14\n" +
-	"\x05label\x18\x04 \x01(\tR\x05label\x12\x1a\n" +
-	"\brequired\x18\x05 \x01(\bR\brequired\x12\x18\n" +
-	"\aoptions\x18\x06 \x03(\tR\aoptions\x12\x1e\n" +
-	"\n" +
-	"ordinality\x18\a \x01(\x05R\n" +
-	"ordinality\">\n" +
-	"\bRunInput\x12\x1c\n" +
-	"\tfieldname\x18\x01 \x01(\tR\tfieldname\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"Q\n" +
-	"\x10IntakeRunRequest\x12\x19\n" +
-	"\bagent_id\x18\x01 \x01(\tR\aagentId\x12\"\n" +
-	"\finstructions\x18\x02 \x01(\tR\finstructions\"o\n" +
-	"\x11IntakeRunResponse\x12)\n" +
-	"\x03run\x18\x01 \x01(\v2\x17.codevaldai.v1.AgentRunR\x03run\x12/\n" +
-	"\x06fields\x18\x02 \x03(\v2\x17.codevaldai.v1.RunFieldR\x06fields\"[\n" +
-	"\x11ExecuteRunRequest\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12/\n" +
-	"\x06inputs\x18\x02 \x03(\v2\x17.codevaldai.v1.RunInputR\x06inputs\"&\n" +
-	"\rGetRunRequest\x12\x15\n" +
-	"\x06run_id\x18\x01 \x01(\tR\x05runId\"|\n" +
-	"\x0fListRunsRequest\x12\x19\n" +
-	"\bagent_id\x18\x01 \x01(\tR\aagentId\x125\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x1d.codevaldai.v1.AgentRunStatusR\x06status\x12\x17\n" +
-	"\atask_id\x18\x03 \x01(\tR\x06taskId\"?\n" +
-	"\x10ListRunsResponse\x12+\n" +
-	"\x04runs\x18\x01 \x03(\v2\x17.codevaldai.v1.AgentRunR\x04runs\"m\n" +
-	"\x1bExecuteRunStreamingResponse\x12\x16\n" +
-	"\x05chunk\x18\x01 \x01(\tH\x00R\x05chunk\x12+\n" +
-	"\x03run\x18\x02 \x01(\v2\x17.codevaldai.v1.AgentRunH\x00R\x03runB\t\n" +
-	"\apayload*\xf8\x01\n" +
-	"\x0eAgentRunStatus\x12 \n" +
-	"\x1cAGENT_RUN_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
-	"\x1fAGENT_RUN_STATUS_PENDING_INTAKE\x10\x01\x12&\n" +
-	"\"AGENT_RUN_STATUS_PENDING_EXECUTION\x10\x02\x12\x1c\n" +
-	"\x18AGENT_RUN_STATUS_RUNNING\x10\x03\x12\x1e\n" +
-	"\x1aAGENT_RUN_STATUS_COMPLETED\x10\x04\x12\x1b\n" +
-	"\x17AGENT_RUN_STATUS_FAILED\x10\x05\x12\x1c\n" +
-	"\x18AGENT_RUN_STATUS_YIELDED\x10\x062\xc5\t\n" +
-	"\tAIService\x12R\n" +
-	"\x0eCreateProvider\x12$.codevaldai.v1.CreateProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12L\n" +
-	"\vGetProvider\x12!.codevaldai.v1.GetProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12Z\n" +
-	"\rListProviders\x12#.codevaldai.v1.ListProvidersRequest\x1a$.codevaldai.v1.ListProvidersResponse\x12R\n" +
-	"\x0eUpdateProvider\x12$.codevaldai.v1.UpdateProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12]\n" +
-	"\x0eDeleteProvider\x12$.codevaldai.v1.DeleteProviderRequest\x1a%.codevaldai.v1.DeleteProviderResponse\x12F\n" +
-	"\vCreateAgent\x12!.codevaldai.v1.CreateAgentRequest\x1a\x14.codevaldai.v1.Agent\x12@\n" +
-	"\bGetAgent\x12\x1e.codevaldai.v1.GetAgentRequest\x1a\x14.codevaldai.v1.Agent\x12Q\n" +
-	"\n" +
-	"ListAgents\x12 .codevaldai.v1.ListAgentsRequest\x1a!.codevaldai.v1.ListAgentsResponse\x12F\n" +
-	"\vUpdateAgent\x12!.codevaldai.v1.UpdateAgentRequest\x1a\x14.codevaldai.v1.Agent\x12T\n" +
-	"\vDeleteAgent\x12!.codevaldai.v1.DeleteAgentRequest\x1a\".codevaldai.v1.DeleteAgentResponse\x12N\n" +
-	"\tIntakeRun\x12\x1f.codevaldai.v1.IntakeRunRequest\x1a .codevaldai.v1.IntakeRunResponse\x12G\n" +
-	"\n" +
-	"ExecuteRun\x12 .codevaldai.v1.ExecuteRunRequest\x1a\x17.codevaldai.v1.AgentRun\x12e\n" +
-	"\x13ExecuteRunStreaming\x12 .codevaldai.v1.ExecuteRunRequest\x1a*.codevaldai.v1.ExecuteRunStreamingResponse0\x01\x12?\n" +
-	"\x06GetRun\x12\x1c.codevaldai.v1.GetRunRequest\x1a\x17.codevaldai.v1.AgentRun\x12K\n" +
-	"\bListRuns\x12\x1e.codevaldai.v1.ListRunsRequest\x1a\x1f.codevaldai.v1.ListRunsResponseBAZ?github.com/aosanya/CodeValdAI/gen/go/codevaldai/v1;codevaldaiv1b\x06proto3"
+	"\n\x16codevaldai/v1/ai.proto\x12\x0dcodevaldai.v1\x1a\x1fgoogle/protobuf/tim" +
+	"estamp.proto\"\xa7\x02\n\x0bLLMProvider\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04" +
+	"name\x12#\n\x0dprovider_type\x18\x03 \x01(\tR\x0cproviderType\x12\x17\n\x07api_key\x18\x04 \x01(\tR\x06" +
+	"apiKey\x12\x19\n\x08base_url\x18\x05 \x01(\tR\x07baseUrl\x129\n\ncreated_at\x18\x06 \x01(\x0b2\x1a.goog" +
+	"le.protobuf.TimestampR\tcreatedAt\x129\n\nupdated_at\x18\x07 \x01(\x0b2\x1a.googl" +
+	"e.protobuf.TimestampR\tupdatedAt\x12%\n\x0eprovider_route\x18\x08 \x01(\tR\x0dpro" +
+	"viderRoute\"\xab\x01\n\x15CreateProviderRequest\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12#\n\x0d" +
+	"provider_type\x18\x02 \x01(\tR\x0cproviderType\x12\x17\n\x07api_key\x18\x03 \x01(\tR\x06apiKey\x12\x19" +
+	"\n\x08base_url\x18\x04 \x01(\tR\x07baseUrl\x12%\n\x0eprovider_route\x18\x05 \x01(\tR\x0dproviderR" +
+	"oute\"5\n\x12GetProviderRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\"" +
+	"\x16\n\x14ListProvidersRequest\"Q\n\x15ListProvidersResponse\x128\n\tprovider" +
+	"s\x18\x01 \x03(\x0b2\x1a.codevaldai.v1.LLMProviderR\tproviders\"\xa7\x01\n\x15UpdatePro" +
+	"viderRequest\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\x12\x12\n\x04name\x18\x02 \x01(\tR" +
+	"\x04name\x12\x17\n\x07api_key\x18\x03 \x01(\tR\x06apiKey\x12\x19\n\x08base_url\x18\x04 \x01(\tR\x07baseUrl\x12%\n" +
+	"\x0eprovider_route\x18\x05 \x01(\tR\x0dproviderRoute\"8\n\x15DeleteProviderReques" +
+	"t\x12\x1f\n\x0bprovider_id\x18\x01 \x01(\tR\nproviderId\"\x18\n\x16DeleteProviderResponse" +
+	"\"\xbe\x04\n\x05Agent\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0bdescriptio" +
+	"n\x18\x03 \x01(\tR\x0bdescription\x12\x1f\n\x0bprovider_id\x18\x04 \x01(\tR\nproviderId\x12\x14\n\x05mod" +
+	"el\x18\x05 \x01(\tR\x05model\x12#\n\x0dsystem_prompt\x18\x06 \x01(\tR\x0csystemPrompt\x12 \n\x0btemp" +
+	"erature\x18\x07 \x01(\x01R\x0btemperature\x12\x1d\n\nmax_tokens\x18\x08 \x01(\x05R\tmaxTokens\x129\n" +
+	"\ncreated_at\x18\t \x01(\x0b2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n\n" +
+	"updated_at\x18\n \x01(\x0b2\x1a.google.protobuf.TimestampR\tupdatedAt\x12'\n\x0ft" +
+	"imeout_seconds\x18\x0b \x01(\x05R\x0etimeoutSeconds\x12.\n\x13session_max_seconds\x18" +
+	"\x0c \x01(\x05R\x11sessionMaxSeconds\x12,\n\x12session_max_tokens\x18\x0d \x01(\x05R\x10sessio" +
+	"nMaxTokens\x120\n\x14session_max_sessions\x18\x0e \x01(\x05R\x12sessionMaxSessions" +
+	"\x12#\n\x0dbudget_tokens\x18\x0f \x01(\x05R\x0cbudgetTokens\"\xc5\x03\n\x12CreateAgentRequest" +
+	"\x12\x12\n\x04name\x18\x01 \x01(\tR\x04name\x12 \n\x0bdescription\x18\x02 \x01(\tR\x0bdescription\x12\x1f\n\x0bpr" +
+	"ovider_id\x18\x03 \x01(\tR\nproviderId\x12\x14\n\x05model\x18\x04 \x01(\tR\x05model\x12#\n\x0dsystem_" +
+	"prompt\x18\x05 \x01(\tR\x0csystemPrompt\x12 \n\x0btemperature\x18\x06 \x01(\x01R\x0btemperature" +
+	"\x12\x1d\n\nmax_tokens\x18\x07 \x01(\x05R\tmaxTokens\x12'\n\x0ftimeout_seconds\x18\x08 \x01(\x05R\x0eti" +
+	"meoutSeconds\x12.\n\x13session_max_seconds\x18\t \x01(\x05R\x11sessionMaxSeconds" +
+	"\x12,\n\x12session_max_tokens\x18\n \x01(\x05R\x10sessionMaxTokens\x120\n\x14session_ma" +
+	"x_sessions\x18\x0b \x01(\x05R\x12sessionMaxSessions\x12#\n\x0dbudget_tokens\x18\x0c \x01(\x05R" +
+	"\x0cbudgetTokens\",\n\x0fGetAgentRequest\x12\x19\n\x08agent_id\x18\x01 \x01(\tR\x07agentId\"" +
+	"\x13\n\x11ListAgentsRequest\"B\n\x12ListAgentsResponse\x12,\n\x06agents\x18\x01 \x03(\x0b2\x14" +
+	".codevaldai.v1.AgentR\x06agents\"\xe0\x03\n\x12UpdateAgentRequest\x12\x19\n\x08agent" +
+	"_id\x18\x01 \x01(\tR\x07agentId\x12\x12\n\x04name\x18\x02 \x01(\tR\x04name\x12 \n\x0bdescription\x18\x03 \x01(\tR" +
+	"\x0bdescription\x12\x1f\n\x0bprovider_id\x18\x04 \x01(\tR\nproviderId\x12\x14\n\x05model\x18\x05 \x01(\t" +
+	"R\x05model\x12#\n\x0dsystem_prompt\x18\x06 \x01(\tR\x0csystemPrompt\x12 \n\x0btemperature\x18" +
+	"\x07 \x01(\x01R\x0btemperature\x12\x1d\n\nmax_tokens\x18\x08 \x01(\x05R\tmaxTokens\x12'\n\x0ftimeout" +
+	"_seconds\x18\t \x01(\x05R\x0etimeoutSeconds\x12.\n\x13session_max_seconds\x18\n \x01(\x05R" +
+	"\x11sessionMaxSeconds\x12,\n\x12session_max_tokens\x18\x0b \x01(\x05R\x10sessionMaxTo" +
+	"kens\x120\n\x14session_max_sessions\x18\x0c \x01(\x05R\x12sessionMaxSessions\x12#\n\x0dbu" +
+	"dget_tokens\x18\x0d \x01(\x05R\x0cbudgetTokens\"/\n\x12DeleteAgentRequest\x12\x19\n\x08age" +
+	"nt_id\x18\x01 \x01(\tR\x07agentId\"\x15\n\x13DeleteAgentResponse\"\x87\x05\n\x08AgentRun\x12\x0e\n\x02" +
+	"id\x18\x01 \x01(\tR\x02id\x12\x19\n\x08agent_id\x18\x02 \x01(\tR\x07agentId\x12\"\n\x0cinstructions\x18\x03 \x01(" +
+	"\tR\x0cinstructions\x125\n\x06status\x18\x04 \x01(\x0e2\x1d.codevaldai.v1.AgentRunStat" +
+	"usR\x06status\x12\x16\n\x06output\x18\x05 \x01(\tR\x06output\x12#\n\x0derror_message\x18\x06 \x01(\tR\x0ce" +
+	"rrorMessage\x12!\n\x0cinput_tokens\x18\x07 \x01(\x05R\x0binputTokens\x12#\n\x0doutput_tok" +
+	"ens\x18\x08 \x01(\x05R\x0coutputTokens\x129\n\nstarted_at\x18\t \x01(\x0b2\x1a.google.protobu" +
+	"f.TimestampR\tstartedAt\x12=\n\x0ccompleted_at\x18\n \x01(\x0b2\x1a.google.protob" +
+	"uf.TimestampR\x0bcompletedAt\x129\n\ncreated_at\x18\x0b \x01(\x0b2\x1a.google.proto" +
+	"buf.TimestampR\tcreatedAt\x129\n\nupdated_at\x18\x0c \x01(\x0b2\x1a.google.protob" +
+	"uf.TimestampR\tupdatedAt\x12\x17\n\x07task_id\x18\x0d \x01(\tR\x06taskId\x12\x19\n\x08chain_id" +
+	"\x18\x0e \x01(\tR\x07chainId\x12%\n\x0esegment_number\x18\x0f \x01(\x05R\x0dsegmentNumber\x12%\n\x0epa" +
+	"rtial_output\x18\x10 \x01(\tR\x0dpartialOutput\"\xb8\x01\n\x08RunField\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02" +
+	"id\x12\x1c\n\tfieldname\x18\x02 \x01(\tR\tfieldname\x12\x12\n\x04type\x18\x03 \x01(\tR\x04type\x12\x14\n\x05labe" +
+	"l\x18\x04 \x01(\tR\x05label\x12\x1a\n\x08required\x18\x05 \x01(\x08R\x08required\x12\x18\n\x07options\x18\x06 \x03(\tR" +
+	"\x07options\x12\x1e\n\nordinality\x18\x07 \x01(\x05R\nordinality\">\n\x08RunInput\x12\x1c\n\tfiel" +
+	"dname\x18\x01 \x01(\tR\tfieldname\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value\"Q\n\x10IntakeRunReq" +
+	"uest\x12\x19\n\x08agent_id\x18\x01 \x01(\tR\x07agentId\x12\"\n\x0cinstructions\x18\x02 \x01(\tR\x0cinstr" +
+	"uctions\"o\n\x11IntakeRunResponse\x12)\n\x03run\x18\x01 \x01(\x0b2\x17.codevaldai.v1.Ag" +
+	"entRunR\x03run\x12/\n\x06fields\x18\x02 \x03(\x0b2\x17.codevaldai.v1.RunFieldR\x06fields" +
+	"\"[\n\x11ExecuteRunRequest\x12\x15\n\x06run_id\x18\x01 \x01(\tR\x05runId\x12/\n\x06inputs\x18\x02 \x03(\x0b" +
+	"2\x17.codevaldai.v1.RunInputR\x06inputs\"&\n\x0dGetRunRequest\x12\x15\n\x06run_id" +
+	"\x18\x01 \x01(\tR\x05runId\"|\n\x0fListRunsRequest\x12\x19\n\x08agent_id\x18\x01 \x01(\tR\x07agentId\x12" +
+	"5\n\x06status\x18\x02 \x01(\x0e2\x1d.codevaldai.v1.AgentRunStatusR\x06status\x12\x17\n\x07ta" +
+	"sk_id\x18\x03 \x01(\tR\x06taskId\"?\n\x10ListRunsResponse\x12+\n\x04runs\x18\x01 \x03(\x0b2\x17.code" +
+	"valdai.v1.AgentRunR\x04runs\"m\n\x1bExecuteRunStreamingResponse\x12\x16\n\x05c" +
+	"hunk\x18\x01 \x01(\tH\x00R\x05chunk\x12+\n\x03run\x18\x02 \x01(\x0b2\x17.codevaldai.v1.AgentRunH\x00R" +
+	"\x03runB\t\n\x07payload*\xf8\x01\n\x0eAgentRunStatus\x12 \n\x1cAGENT_RUN_STATUS_UNSPE" +
+	"CIFIED\x10\x00\x12#\n\x1fAGENT_RUN_STATUS_PENDING_INTAKE\x10\x01\x12&\n\"AGENT_RUN_S" +
+	"TATUS_PENDING_EXECUTION\x10\x02\x12\x1c\n\x18AGENT_RUN_STATUS_RUNNING\x10\x03\x12\x1e\n\x1aA" +
+	"GENT_RUN_STATUS_COMPLETED\x10\x04\x12\x1b\n\x17AGENT_RUN_STATUS_FAILED\x10\x05\x12\x1c\n\x18" +
+	"AGENT_RUN_STATUS_YIELDED\x10\x062\xc5\t\n\tAIService\x12R\n\x0eCreateProvider\x12$" +
+	".codevaldai.v1.CreateProviderRequest\x1a\x1a.codevaldai.v1.LLMProv" +
+	"ider\x12L\n\x0bGetProvider\x12!.codevaldai.v1.GetProviderRequest\x1a\x1a.cod" +
+	"evaldai.v1.LLMProvider\x12Z\n\x0dListProviders\x12#.codevaldai.v1.List" +
+	"ProvidersRequest\x1a$.codevaldai.v1.ListProvidersResponse\x12R\n\x0eUp" +
+	"dateProvider\x12$.codevaldai.v1.UpdateProviderRequest\x1a\x1a.codeval" +
+	"dai.v1.LLMProvider\x12]\n\x0eDeleteProvider\x12$.codevaldai.v1.DeleteP" +
+	"roviderRequest\x1a%.codevaldai.v1.DeleteProviderResponse\x12F\n\x0bCre" +
+	"ateAgent\x12!.codevaldai.v1.CreateAgentRequest\x1a\x14.codevaldai.v1." +
+	"Agent\x12@\n\x08GetAgent\x12\x1e.codevaldai.v1.GetAgentRequest\x1a\x14.codevald" +
+	"ai.v1.Agent\x12Q\n\nListAgents\x12 .codevaldai.v1.ListAgentsRequest\x1a" +
+	"!.codevaldai.v1.ListAgentsResponse\x12F\n\x0bUpdateAgent\x12!.codevald" +
+	"ai.v1.UpdateAgentRequest\x1a\x14.codevaldai.v1.Agent\x12T\n\x0bDeleteAgen" +
+	"t\x12!.codevaldai.v1.DeleteAgentRequest\x1a\".codevaldai.v1.DeleteA" +
+	"gentResponse\x12N\n\tIntakeRun\x12\x1f.codevaldai.v1.IntakeRunRequest\x1a " +
+	".codevaldai.v1.IntakeRunResponse\x12G\n\nExecuteRun\x12 .codevaldai." +
+	"v1.ExecuteRunRequest\x1a\x17.codevaldai.v1.AgentRun\x12e\n\x13ExecuteRunS" +
+	"treaming\x12 .codevaldai.v1.ExecuteRunRequest\x1a*.codevaldai.v1.E" +
+	"xecuteRunStreamingResponse0\x01\x12?\n\x06GetRun\x12\x1c.codevaldai.v1.GetRu" +
+	"nRequest\x1a\x17.codevaldai.v1.AgentRun\x12K\n\x08ListRuns\x12\x1e.codevaldai.v" +
+	"1.ListRunsRequest\x1a\x1f.codevaldai.v1.ListRunsResponseBAZ?github" +
+	".com/aosanya/CodeValdAI/gen/go/codevaldai/v1;codevaldaiv1b\x06p" +
+	"roto3"
+
 
 var (
 	file_codevaldai_v1_ai_proto_rawDescOnce sync.Once
