@@ -88,8 +88,17 @@ func (d *RACIDispatcher) triggerPlanRun(ctx context.Context, match *agencypb.Wor
 }
 
 // extractTaskID parses the task identifier from a JSON event payload.
-// Tries TaskID first (ai.task.* and work.task.* events), then TodoID
-// (work.todo.dispatched events where the todo itself is the unit of work).
+//
+// Ordering — TodoID is checked before TaskID:
+//   - work.todo.dispatched carries both TodoID (the todo's own ID) and TaskID
+//     (which equals ParentTaskID for HydrateEventContext). The AgentRun must
+//     be associated with the todo, not the parent task, so that when the run
+//     finishes and CodeValdAI publishes ai.task.completed{TaskID=<todoID>},
+//     CodeValdWork routes it to updateTodoStatus → unblockDependentTodos /
+//     maybeCompleteParentTask instead of directly completing the parent task.
+//   - work.task.assigned and other task-level events carry only TaskID (no
+//     TodoID), so they fall through to TaskID as before.
+//
 // Returns "" if the payload is not valid JSON or neither field is present.
 func extractTaskID(payload string) string {
 	var p struct {
@@ -99,10 +108,10 @@ func extractTaskID(payload string) string {
 	if err := json.Unmarshal([]byte(payload), &p); err != nil {
 		return ""
 	}
-	if p.TaskID != "" {
-		return p.TaskID
+	if p.TodoID != "" {
+		return p.TodoID
 	}
-	return p.TodoID
+	return p.TaskID
 }
 
 // buildDispatchInstructions assembles the prompt string forwarded to IntakeRun:

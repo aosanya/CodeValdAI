@@ -318,12 +318,13 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	}
 
 	// Dispatch any PubSub actions the LLM embedded in its output.
-	m.dispatchActions(ctx, finalOutput, run, agent.ID)
+	hasSubtasks := m.dispatchActions(ctx, finalOutput, run, agent.ID)
 
 	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
-		TaskID:  run.TaskID,
-		RunID:   runID,
-		AgentID: agent.ID,
+		TaskID:      run.TaskID,
+		RunID:       runID,
+		AgentID:     agent.ID,
+		HasSubtasks: hasSubtasks,
 	})
 	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+runID+`"}`)
 
@@ -444,7 +445,9 @@ func (m *aiManager) yieldRun(
 // After all actions are published a run debrief is written to the AgentRun
 // entity recording every dispatched action with [dispatched] status. The debrief
 // is updated to [committed: sha] when git.file.written events arrive later.
-func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) {
+// dispatchActions returns true when an ai.todo.created action was dispatched,
+// signalling that the task was decomposed and completion should be deferred.
+func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) (hasSubtasks bool) {
 	actions, err := parseActions(output)
 	if err != nil {
 		log.Printf("codevaldai: dispatchActions: malformed actions block: %v", err)
@@ -458,6 +461,7 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 	for _, a := range actions {
 		if a.Topic == TopicTodoCreated && run.TaskID != "" {
 			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID)
+			hasSubtasks = true
 		}
 		// Inject run_id into git.file.write so CodeValdGit can reference back.
 		if a.Topic == "git.file.write" && run.ID != "" {
@@ -474,6 +478,7 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 		}
 	}
 	m.writeRunDebrief(ctx, run.ID, actions)
+	return
 }
 
 // writeRunDebrief stores a structured debrief on the AgentRun entity listing

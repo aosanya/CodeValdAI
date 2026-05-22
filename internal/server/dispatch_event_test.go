@@ -242,6 +242,48 @@ func TestBuildDispatchInstructions_GitContextSource_IncludesSignals(t *testing.T
 	}
 }
 
+// ── extractTaskID tests ───────────────────────────────────────────────────────
+
+func TestExtractTaskID_TodoIDTakesPrecedenceOverTaskID(t *testing.T) {
+	t.Parallel()
+	// work.todo.dispatched carries both TodoID (todo's own ID) and TaskID
+	// (parent task alias). The run must be associated with the todo so that
+	// ai.task.completed routes back to updateTodoStatus, not the parent task.
+	payload := `{"TodoID":"todo-abc","TaskID":"task-xyz","ParentTaskID":"task-xyz"}`
+	got := extractTaskID(payload)
+	if got != "todo-abc" {
+		t.Errorf("want TodoID %q, got %q — TodoID must take precedence over TaskID", "todo-abc", got)
+	}
+}
+
+func TestExtractTaskID_TaskIDUsedWhenNoTodoID(t *testing.T) {
+	t.Parallel()
+	// work.task.assigned and other task-level events only carry TaskID.
+	payload := `{"TaskID":"task-xyz"}`
+	got := extractTaskID(payload)
+	if got != "task-xyz" {
+		t.Errorf("want %q, got %q", "task-xyz", got)
+	}
+}
+
+func TestExtractTaskID_EmptyWhenNeitherPresent(t *testing.T) {
+	t.Parallel()
+	got := extractTaskID(`{"other":"value"}`)
+	if got != "" {
+		t.Errorf("want empty, got %q", got)
+	}
+}
+
+func TestExtractTaskID_EmptyOnInvalidJSON(t *testing.T) {
+	t.Parallel()
+	got := extractTaskID(`not json`)
+	if got != "" {
+		t.Errorf("want empty, got %q", got)
+	}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		func() bool {

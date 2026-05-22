@@ -79,12 +79,19 @@ func HydrateEventContext(ctx context.Context, crossHTTPAddr, agencyID, eventPayl
 		}
 	}
 
-	// ── Execute precalls from the TaskTodo ───────────────────────────────────
-	if todoID != "" && repoName != "" {
-		precallCtx := fetchTodoPrecalls(ctx, crossHTTPAddr, agencyID, todoID)
-		if precallCtx != "" {
-			b.WriteString("\n")
-			b.WriteString(precallCtx)
+	// ── Hydrate todo meta (type, max_runs, run_count) and execute precalls ───
+	if todoID != "" {
+		parentID := taskID
+		if parentID == "" && task != nil {
+			parentID = task.ID
+		}
+		meta := fetchTodoMeta(ctx, crossHTTPAddr, agencyID, todoID, parentID, &b)
+		if meta != nil && meta.Todo.Precalls != "" && repoName != "" {
+			precallCtx := fetchTodoPrecalls(ctx, crossHTTPAddr, agencyID, todoID)
+			if precallCtx != "" {
+				b.WriteString("\n")
+				b.WriteString(precallCtx)
+			}
 		}
 	}
 
@@ -259,7 +266,73 @@ type PrecallSpec struct {
 type todoDetailResponse struct {
 	Todo struct {
 		Precalls string `json:"precalls"`
+		TodoType string `json:"todoType"`
+		MaxRuns  int    `json:"maxRuns"`
 	} `json:"todo"`
+}
+
+type todoRunCountResponse struct {
+	Count int `json:"count"`
+}
+
+// fetchTodoMeta reads the TaskTodo entity and injects todo_type, max_runs, and
+// run_count (current count of todos of the same type for the parent task) into b.
+// Returns the fetched todoDetailResponse for reuse by fetchTodoPrecalls.
+func fetchTodoMeta(ctx context.Context, crossHTTPAddr, agencyID, todoID, parentTaskID string, b *strings.Builder) *todoDetailResponse {
+	todoURL := fmt.Sprintf("%s/work/%s/todos/%s", crossHTTPAddr, agencyID, todoID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, todoURL, nil)
+	if err != nil {
+		return nil
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil
+	}
+	var d todoDetailResponse
+	if err := json.Unmarshal(body, &d); err != nil {
+		return nil
+	}
+	if d.Todo.TodoType != "" {
+		b.WriteString(fmt.Sprintf("Todo Type: %s\n", d.Todo.TodoType))
+		if d.Todo.MaxRuns > 0 {
+			b.WriteString(fmt.Sprintf("Todo Max Runs: %d\n", d.Todo.MaxRuns))
+		}
+		// Fetch the current run count for this type within the parent task.
+		if parentTaskID != "" {
+			countURL := fmt.Sprintf("%s/work/%s/tasks/%s/todos/count?todo_type=%s",
+				crossHTTPAddr, agencyID, parentTaskID, url.QueryEscape(d.Todo.TodoType))
+			if cr, ok := fetchRunCount(ctx, countURL); ok {
+				b.WriteString(fmt.Sprintf("Todo Run Count: %d\n", cr))
+			}
+		}
+	}
+	return &d
+}
+
+func fetchRunCount(ctx context.Context, countURL string) (int, bool) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, countURL, nil)
+	if err != nil {
+		return 0, false
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		return 0, false
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, false
+	}
+	var r todoRunCountResponse
+	if err := json.Unmarshal(body, &r); err != nil {
+		return 0, false
+	}
+	return r.Count, true
 }
 
 // fetchTodoPrecalls reads the TaskTodo entity, parses its precalls field, and
