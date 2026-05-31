@@ -29,6 +29,13 @@ FROM gcr.io/distroless/static-debian12
 
 COPY --from=build /codevaldai-server /codevaldai-server
 
+# agency.json for AI bootstrap (CodeValdAI/internal/app/bootstrap.go reads
+# this when AGENCY_JSON_PATH=/agency.json). Without it /ai/.../agents stays
+# empty and handler_service=codevaldai work plans never dispatch.
+# Multi-agency deployments should mount this rather than baking; for the
+# single-agency local stack baking matches the codevaldfunctions pattern.
+COPY CodeValdImplementations/Agencies/utility-app-builder/agency.json /agency.json
+
 # gRPC port (CODEVALDAI_GRPC_PORT)
 EXPOSE 50056
 
