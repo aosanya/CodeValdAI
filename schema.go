@@ -157,6 +157,10 @@ func aiTypes() []types.TypeDefinition {
 					// updated with confirmation status as CodeValdGit publishes results.
 					// Format: ## Actions Dispatched\n- topic path [dispatched|committed:sha]\n
 					{Name: "debrief", Type: types.PropertyTypeString},
+					// emitted_writes is the ordered list of paths the run wrote via
+					// git.file.write actions, used by CodeValdWork to gate
+					// work.todo.completed on git.file.written confirmation.
+					{Name: "emitted_writes", Type: types.PropertyTypeArray, ElementType: types.PropertyTypeString},
 					{Name: "started_at", Type: types.PropertyTypeString},
 					{Name: "completed_at", Type: types.PropertyTypeString},
 					{Name: "created_at", Type: types.PropertyTypeString},

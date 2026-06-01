@@ -318,13 +318,25 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	}
 
 	// Dispatch any PubSub actions the LLM embedded in its output.
-	hasSubtasks := m.dispatchActions(ctx, finalOutput, run, agent.ID)
+	hasSubtasks, emittedWrites := m.dispatchActions(ctx, finalOutput, run, agent.ID)
+
+	// Persist the emitted writes on the run entity so they survive a restart
+	// and are visible via GetRun / chain reads.
+	if len(emittedWrites) > 0 {
+		m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{ //nolint:errcheck
+			Properties: map[string]any{
+				"emitted_writes": emittedWrites,
+				"updated_at":     time.Now().UTC().Format(time.RFC3339),
+			},
+		})
+	}
 
 	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
-		TaskID:      run.TaskID,
-		RunID:       runID,
-		AgentID:     agent.ID,
-		HasSubtasks: hasSubtasks,
+		TaskID:        run.TaskID,
+		RunID:         runID,
+		AgentID:       agent.ID,
+		HasSubtasks:   hasSubtasks,
+		EmittedWrites: emittedWrites,
 	})
 	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+runID+`"}`)
 
@@ -445,9 +457,12 @@ func (m *aiManager) yieldRun(
 // After all actions are published a run debrief is written to the AgentRun
 // entity recording every dispatched action with [dispatched] status. The debrief
 // is updated to [committed: sha] when git.file.written events arrive later.
-// dispatchActions returns true when an ai.todo.created action was dispatched,
-// signalling that the task was decomposed and completion should be deferred.
-func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) (hasSubtasks bool) {
+// dispatchActions returns hasSubtasks=true when an ai.todo.created action was
+// dispatched (signalling decomposition and deferred completion) and the ordered
+// list of paths emitted via git.file.write actions during this dispatch.
+// CodeValdWork uses emittedWrites to gate work.todo.completed on
+// git.file.written confirmation (BUG-09-020 Phase 2).
+func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) (hasSubtasks bool, emittedWrites []string) {
 	actions, err := parseActions(output)
 	if err != nil {
 		log.Printf("codevaldai: dispatchActions: malformed actions block: %v", err)
@@ -463,12 +478,16 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID)
 			hasSubtasks = true
 		}
-		// Inject run_id into git.file.write so CodeValdGit can reference back.
+		// Inject run_id into git.file.write so CodeValdGit can reference back,
+		// and record the path so CodeValdWork can wait for git.file.written.
 		if a.Topic == "git.file.write" && run.ID != "" {
 			if a.Payload == nil {
 				a.Payload = make(map[string]any)
 			}
 			a.Payload["run_id"] = run.ID
+			if path, ok := a.Payload["path"].(string); ok && path != "" {
+				emittedWrites = append(emittedWrites, path)
+			}
 		}
 		log.Printf("codevaldai: dispatchActions: publishing topic=%s", a.Topic)
 		if m.publisher != nil {

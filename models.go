@@ -68,6 +68,10 @@ InputTokens   int            `json:"input_tokens,omitempty"`
 OutputTokens  int            `json:"output_tokens,omitempty"`
 ChainID       string         `json:"chain_id,omitempty"`       // shared across all sessions in a chain
 SegmentNumber int            `json:"segment_number,omitempty"` // 1-based position; 0 if not chained
+// EmittedWrites is the list of file paths this run emitted via git.file.write
+// actions. CodeValdWork uses this to hold work.todo.completed until every
+// emitted write has been confirmed by a matching git.file.written event.
+EmittedWrites []string       `json:"emitted_writes,omitempty"`
 StartedAt     string         `json:"started_at,omitempty"`
 CompletedAt   string         `json:"completed_at,omitempty"`
 CreatedAt     string         `json:"created_at"`

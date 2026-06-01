@@ -36,11 +36,17 @@ type TaskStartedPayload struct {
 
 // TaskCompletedPayload is published when ExecuteRunStreaming finishes
 // successfully and actions have been dispatched.
+//
+// EmittedWrites carries the list of paths the run wrote via git.file.write
+// actions during the same dispatch. CodeValdWork uses it to hold
+// work.todo.completed until every emitted write has been confirmed by a
+// matching git.file.written event (BUG-09-020 Phase 2).
 type TaskCompletedPayload struct {
-	TaskID      string
-	RunID       string
-	AgentID     string
-	HasSubtasks bool `json:"has_subtasks,omitempty"`
+	TaskID        string
+	RunID         string
+	AgentID       string
+	HasSubtasks   bool     `json:"has_subtasks,omitempty"`
+	EmittedWrites []string `json:"emitted_writes,omitempty"`
 }
 
 // TaskFailedPayload is published when the LLM call errors, times out, or

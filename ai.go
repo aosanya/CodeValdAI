@@ -669,6 +669,7 @@ func agentRunFromEntity(e entitygraph.Entity) AgentRun {
 		OutputTokens:  intProp(p, "output_tokens"),
 		ChainID:       strProp(p, "chain_id"),
 		SegmentNumber: intProp(p, "segment_number"),
+		EmittedWrites: strSliceProp(p, "emitted_writes"),
 		StartedAt:     strProp(p, "started_at"),
 		CompletedAt:   strProp(p, "completed_at"),
 		CreatedAt:     strProp(p, "created_at"),
@@ -729,4 +730,22 @@ func intProp(p map[string]any, key string) int {
 		return int(v)
 	}
 	return 0
+}
+
+// strSliceProp extracts a []string property value; returns nil when absent.
+// Accepts both []string (set in-process) and []any (round-tripped through JSON).
+func strSliceProp(p map[string]any, key string) []string {
+	switch v := p[key].(type) {
+	case []string:
+		return v
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, x := range v {
+			if s, ok := x.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
 }
