@@ -73,16 +73,21 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 	log.Printf("codevaldai: IntakeRun agent=%s provider=%s instructions_len=%d", req.AgentID, provider.Name, len(req.Instructions))
 	log.Printf("codevaldai: intake stream agent=%s ── begin ──────────────────────────────", req.AgentID)
 	var buf strings.Builder
-	if _, _, err := m.callLLM(ctx, provider, agent, intakeSystemMessage, userMsg, nil, func(chunk string) {
+	inputTok, outputTok, err := m.callLLM(ctx, provider, agent, intakeSystemMessage, userMsg, nil, func(chunk string) {
 		buf.WriteString(chunk)
 		fmt.Print(chunk)
-	}); err != nil {
+	})
+	if err != nil {
 		fmt.Println()
 		log.Printf("codevaldai: IntakeRun agent=%s llm error: %v", req.AgentID, err)
 		return AgentRun{}, nil, fmt.Errorf("IntakeRun %s: llm: %w", req.AgentID, err)
 	}
 	fmt.Println()
-	log.Printf("codevaldai: IntakeRun agent=%s llm response_len=%d", req.AgentID, buf.Len())
+	// Token counts come from stream_options.include_usage on OpenAI/HF and
+	// message_delta usage on Anthropic; both routes report zero when the
+	// provider doesn't include it (some HF backends). Log unconditionally so
+	// "0 tokens" is itself the diagnostic signal for missing usage reporting.
+	log.Printf("codevaldai: IntakeRun agent=%s llm ok: input_tokens=%d output_tokens=%d response_len=%d", req.AgentID, inputTok, outputTok, buf.Len())
 
 	fields, err := parseIntakeFields(buf.String())
 	if err != nil {
