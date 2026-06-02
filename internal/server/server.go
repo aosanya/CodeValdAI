@@ -242,6 +242,22 @@ func (s *Server) ListRuns(ctx context.Context, req *pb.ListRunsRequest) (*pb.Lis
 	return &pb.ListRunsResponse{Runs: out}, nil
 }
 
+// RollbackByWorkflowRun implements pb.AIServiceServer (FEAT-20260602-004
+// Phase 2 — AI leg). Cancels in-flight AgentRuns and freezes already-terminal
+// AgentRuns as a rolled_back audit record.
+func (s *Server) RollbackByWorkflowRun(ctx context.Context, req *pb.RollbackByWorkflowRunRequest) (*pb.RollbackByWorkflowRunResponse, error) {
+	result, err := s.mgr.RollbackByWorkflowRun(ctx, req.GetWorkflowRunId(), req.GetReason())
+	if err != nil {
+		return nil, toGRPCError(err)
+	}
+	return &pb.RollbackByWorkflowRunResponse{
+		WorkflowRunId:     result.WorkflowRunID,
+		CancelledRunIds:   result.CancelledRunIDs,
+		RolledBackRunIds:  result.RolledBackRunIDs,
+		SkippedRunIds:     result.SkippedRunIDs,
+	}, nil
+}
+
 // ── Domain → Proto converters ────────────────────────────────────────────────
 
 func providerToProto(p codevaldai.LLMProvider) *pb.LLMProvider {
@@ -333,6 +349,10 @@ func domainStatusToProto(s codevaldai.AgentRunStatus) pb.AgentRunStatus {
 		return pb.AgentRunStatus_AGENT_RUN_STATUS_FAILED
 	case codevaldai.AgentRunStatusYielded:
 		return pb.AgentRunStatus_AGENT_RUN_STATUS_YIELDED
+	case codevaldai.AgentRunStatusCancelled:
+		return pb.AgentRunStatus_AGENT_RUN_STATUS_CANCELLED
+	case codevaldai.AgentRunStatusRolledBack:
+		return pb.AgentRunStatus_AGENT_RUN_STATUS_ROLLED_BACK
 	default:
 		return pb.AgentRunStatus_AGENT_RUN_STATUS_UNSPECIFIED
 	}
@@ -352,6 +372,10 @@ func protoStatusToDomain(s pb.AgentRunStatus) codevaldai.AgentRunStatus {
 		return codevaldai.AgentRunStatusFailed
 	case pb.AgentRunStatus_AGENT_RUN_STATUS_YIELDED:
 		return codevaldai.AgentRunStatusYielded
+	case pb.AgentRunStatus_AGENT_RUN_STATUS_CANCELLED:
+		return codevaldai.AgentRunStatusCancelled
+	case pb.AgentRunStatus_AGENT_RUN_STATUS_ROLLED_BACK:
+		return codevaldai.AgentRunStatusRolledBack
 	default:
 		return ""
 	}

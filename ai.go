@@ -104,6 +104,19 @@ type AIManager interface {
 
 	// ListRuns returns all AgentRun entities matching the filter.
 	ListRuns(ctx context.Context, filter RunFilter) ([]AgentRun, error)
+
+	// RollbackByWorkflowRun applies the FEAT-20260602-004 rollback contract to
+	// every AgentRun anchored to workflowRunID:
+	//   - in-flight runs (pending_intake, pending_execution, running, yielded)
+	//     transition to [AgentRunStatusCancelled].
+	//   - terminal runs (completed, failed) transition to
+	//     [AgentRunStatusRolledBack] as a frozen audit record.
+	//   - already-cancelled / already-rolled_back runs are skipped (idempotent).
+	// reason is recorded on the run's error_message field and on each event.
+	// Returns [ErrWorkflowRunIDRequired] if workflowRunID is empty.
+	// Publishes "ai.run.cancelled" per in-flight transition and
+	// "ai.run.rolled_back" per terminal transition.
+	RollbackByWorkflowRun(ctx context.Context, workflowRunID, reason string) (RollbackByWorkflowRunResult, error)
 }
 
 // AISchemaManager is a type alias for [entitygraph.SchemaManager].

@@ -32,6 +32,16 @@ type fakeAIManager struct {
 	intakeErr  error
 	executeErr error
 	runID      string
+
+	// rollback hook for handler tests
+	rollbackResult codevaldai.RollbackByWorkflowRunResult
+	rollbackErr    error
+	rollbackCalls  []rollbackCall
+}
+
+type rollbackCall struct {
+	workflowRunID string
+	reason        string
 }
 
 func (f *fakeAIManager) IntakeRun(_ context.Context, req codevaldai.IntakeRunRequest) (codevaldai.AgentRun, []codevaldai.RunField, error) {
@@ -88,6 +98,19 @@ func (f *fakeAIManager) GetRun(_ context.Context, _ string) (codevaldai.AgentRun
 }
 func (f *fakeAIManager) ListRuns(_ context.Context, _ codevaldai.RunFilter) ([]codevaldai.AgentRun, error) {
 	return nil, nil
+}
+func (f *fakeAIManager) RollbackByWorkflowRun(_ context.Context, workflowRunID, reason string) (codevaldai.RollbackByWorkflowRunResult, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rollbackCalls = append(f.rollbackCalls, rollbackCall{workflowRunID: workflowRunID, reason: reason})
+	if f.rollbackErr != nil {
+		return codevaldai.RollbackByWorkflowRunResult{}, f.rollbackErr
+	}
+	result := f.rollbackResult
+	if result.WorkflowRunID == "" {
+		result.WorkflowRunID = workflowRunID
+	}
+	return result, nil
 }
 
 // ── RACIDispatcher tests ──────────────────────────────────────────────────────

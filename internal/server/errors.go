@@ -25,6 +25,8 @@ func toGRPCError(err error) error {
 		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, codevaldai.ErrInvalidLLMResponse):
 		return status.Error(codes.InvalidArgument, err.Error())
+	case errors.Is(err, codevaldai.ErrWorkflowRunIDRequired):
+		return status.Error(codes.InvalidArgument, err.Error())
 	case errors.Is(err, codevaldai.ErrProviderInUse):
 		return status.Error(codes.FailedPrecondition, err.Error())
 	case errors.Is(err, codevaldai.ErrAgentHasActiveRuns):

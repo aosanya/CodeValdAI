@@ -19,21 +19,22 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AIService_CreateProvider_FullMethodName      = "/codevaldai.v1.AIService/CreateProvider"
-	AIService_GetProvider_FullMethodName         = "/codevaldai.v1.AIService/GetProvider"
-	AIService_ListProviders_FullMethodName       = "/codevaldai.v1.AIService/ListProviders"
-	AIService_UpdateProvider_FullMethodName      = "/codevaldai.v1.AIService/UpdateProvider"
-	AIService_DeleteProvider_FullMethodName      = "/codevaldai.v1.AIService/DeleteProvider"
-	AIService_CreateAgent_FullMethodName         = "/codevaldai.v1.AIService/CreateAgent"
-	AIService_GetAgent_FullMethodName            = "/codevaldai.v1.AIService/GetAgent"
-	AIService_ListAgents_FullMethodName          = "/codevaldai.v1.AIService/ListAgents"
-	AIService_UpdateAgent_FullMethodName         = "/codevaldai.v1.AIService/UpdateAgent"
-	AIService_DeleteAgent_FullMethodName         = "/codevaldai.v1.AIService/DeleteAgent"
-	AIService_IntakeRun_FullMethodName           = "/codevaldai.v1.AIService/IntakeRun"
-	AIService_ExecuteRun_FullMethodName          = "/codevaldai.v1.AIService/ExecuteRun"
-	AIService_ExecuteRunStreaming_FullMethodName = "/codevaldai.v1.AIService/ExecuteRunStreaming"
-	AIService_GetRun_FullMethodName              = "/codevaldai.v1.AIService/GetRun"
-	AIService_ListRuns_FullMethodName            = "/codevaldai.v1.AIService/ListRuns"
+	AIService_CreateProvider_FullMethodName        = "/codevaldai.v1.AIService/CreateProvider"
+	AIService_GetProvider_FullMethodName           = "/codevaldai.v1.AIService/GetProvider"
+	AIService_ListProviders_FullMethodName         = "/codevaldai.v1.AIService/ListProviders"
+	AIService_UpdateProvider_FullMethodName        = "/codevaldai.v1.AIService/UpdateProvider"
+	AIService_DeleteProvider_FullMethodName        = "/codevaldai.v1.AIService/DeleteProvider"
+	AIService_CreateAgent_FullMethodName           = "/codevaldai.v1.AIService/CreateAgent"
+	AIService_GetAgent_FullMethodName              = "/codevaldai.v1.AIService/GetAgent"
+	AIService_ListAgents_FullMethodName            = "/codevaldai.v1.AIService/ListAgents"
+	AIService_UpdateAgent_FullMethodName           = "/codevaldai.v1.AIService/UpdateAgent"
+	AIService_DeleteAgent_FullMethodName           = "/codevaldai.v1.AIService/DeleteAgent"
+	AIService_IntakeRun_FullMethodName             = "/codevaldai.v1.AIService/IntakeRun"
+	AIService_ExecuteRun_FullMethodName            = "/codevaldai.v1.AIService/ExecuteRun"
+	AIService_ExecuteRunStreaming_FullMethodName   = "/codevaldai.v1.AIService/ExecuteRunStreaming"
+	AIService_GetRun_FullMethodName                = "/codevaldai.v1.AIService/GetRun"
+	AIService_ListRuns_FullMethodName              = "/codevaldai.v1.AIService/ListRuns"
+	AIService_RollbackByWorkflowRun_FullMethodName = "/codevaldai.v1.AIService/RollbackByWorkflowRun"
 )
 
 // AIServiceClient is the client API for AIService service.
@@ -80,6 +81,11 @@ type AIServiceClient interface {
 	GetRun(ctx context.Context, in *GetRunRequest, opts ...grpc.CallOption) (*AgentRun, error)
 	// ListRuns returns all AgentRun entities matching the filter.
 	ListRuns(ctx context.Context, in *ListRunsRequest, opts ...grpc.CallOption) (*ListRunsResponse, error)
+	// RollbackByWorkflowRun applies the CodeValdAI leg of the WorkflowRun
+	// rollback contract (FEAT-20260602-004 Phase 2): in-flight runs go to
+	// cancelled; already-terminal runs go to rolled_back as a frozen audit
+	// record. Called by CodeValdWork's rollback coordinator.
+	RollbackByWorkflowRun(ctx context.Context, in *RollbackByWorkflowRunRequest, opts ...grpc.CallOption) (*RollbackByWorkflowRunResponse, error)
 }
 
 type aIServiceClient struct {
@@ -249,6 +255,16 @@ func (c *aIServiceClient) ListRuns(ctx context.Context, in *ListRunsRequest, opt
 	return out, nil
 }
 
+func (c *aIServiceClient) RollbackByWorkflowRun(ctx context.Context, in *RollbackByWorkflowRunRequest, opts ...grpc.CallOption) (*RollbackByWorkflowRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RollbackByWorkflowRunResponse)
+	err := c.cc.Invoke(ctx, AIService_RollbackByWorkflowRun_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AIServiceServer is the server API for AIService service.
 // All implementations must embed UnimplementedAIServiceServer
 // for forward compatibility.
@@ -293,6 +309,11 @@ type AIServiceServer interface {
 	GetRun(context.Context, *GetRunRequest) (*AgentRun, error)
 	// ListRuns returns all AgentRun entities matching the filter.
 	ListRuns(context.Context, *ListRunsRequest) (*ListRunsResponse, error)
+	// RollbackByWorkflowRun applies the CodeValdAI leg of the WorkflowRun
+	// rollback contract (FEAT-20260602-004 Phase 2): in-flight runs go to
+	// cancelled; already-terminal runs go to rolled_back as a frozen audit
+	// record. Called by CodeValdWork's rollback coordinator.
+	RollbackByWorkflowRun(context.Context, *RollbackByWorkflowRunRequest) (*RollbackByWorkflowRunResponse, error)
 	mustEmbedUnimplementedAIServiceServer()
 }
 
@@ -347,6 +368,9 @@ func (UnimplementedAIServiceServer) GetRun(context.Context, *GetRunRequest) (*Ag
 }
 func (UnimplementedAIServiceServer) ListRuns(context.Context, *ListRunsRequest) (*ListRunsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListRuns not implemented")
+}
+func (UnimplementedAIServiceServer) RollbackByWorkflowRun(context.Context, *RollbackByWorkflowRunRequest) (*RollbackByWorkflowRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RollbackByWorkflowRun not implemented")
 }
 func (UnimplementedAIServiceServer) mustEmbedUnimplementedAIServiceServer() {}
 func (UnimplementedAIServiceServer) testEmbeddedByValue()                   {}
@@ -632,6 +656,24 @@ func _AIService_ListRuns_Handler(srv interface{}, ctx context.Context, dec func(
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AIService_RollbackByWorkflowRun_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RollbackByWorkflowRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AIServiceServer).RollbackByWorkflowRun(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AIService_RollbackByWorkflowRun_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AIServiceServer).RollbackByWorkflowRun(ctx, req.(*RollbackByWorkflowRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AIService_ServiceDesc is the grpc.ServiceDesc for AIService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -694,6 +736,10 @@ var AIService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListRuns",
 			Handler:    _AIService_ListRuns_Handler,
+		},
+		{
+			MethodName: "RollbackByWorkflowRun",
+			Handler:    _AIService_RollbackByWorkflowRun_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

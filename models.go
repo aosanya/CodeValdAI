@@ -110,6 +110,18 @@ AgentRunStatusFailed AgentRunStatus = "failed"
 // token limit before producing a final result. PartialOutput is stored;
 // a successor run continues in the same chain.
 AgentRunStatusYielded AgentRunStatus = "yielded"
+
+// AgentRunStatusCancelled is the terminal state an in-flight run lands in
+// when its parent WorkflowRun is rolled back (FEAT-20260602-004 Phase 2 — AI
+// leg). Reached from pending_intake, pending_execution, running, or yielded.
+// The recorded Output is whatever was captured at cancellation time.
+AgentRunStatusCancelled AgentRunStatus = "cancelled"
+
+// AgentRunStatusRolledBack is the terminal audit state a completed or failed
+// run lands in when its parent WorkflowRun is rolled back. The original
+// Output, ErrorMessage, and token counts are preserved — the row freezes
+// for debugging rather than being deleted.
+AgentRunStatusRolledBack AgentRunStatus = "rolled_back"
 )
 
 // RunField is a single input field inferred by the LLM during the Intake
@@ -220,4 +232,26 @@ AgentID       string
 Status        AgentRunStatus
 TaskID        string
 WorkflowRunID string
+}
+
+// RollbackByWorkflowRunResult summarises the per-run outcomes of
+// [AIManager.RollbackByWorkflowRun]. Every AgentRun anchored to the requested
+// WorkflowRun appears in exactly one of the three slices.
+type RollbackByWorkflowRunResult struct {
+// WorkflowRunID echoes the requested anchor.
+WorkflowRunID string `json:"workflow_run_id"`
+
+// CancelledRunIDs are runs that were in-flight (pending_intake,
+// pending_execution, running, or yielded) at rollback time and were
+// transitioned to [AgentRunStatusCancelled].
+CancelledRunIDs []string `json:"cancelled_run_ids,omitempty"`
+
+// RolledBackRunIDs are runs that had already reached completed or failed
+// and were transitioned to [AgentRunStatusRolledBack] as a frozen audit
+// record.
+RolledBackRunIDs []string `json:"rolled_back_run_ids,omitempty"`
+
+// SkippedRunIDs are runs that were already in a rollback-terminal state
+// (cancelled or rolled_back) — the call is idempotent for these.
+SkippedRunIDs []string `json:"skipped_run_ids,omitempty"`
 }

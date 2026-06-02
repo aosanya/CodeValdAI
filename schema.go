@@ -165,6 +165,10 @@ func aiTypes() []types.TypeDefinition {
 					// git.file.write actions, used by CodeValdWork to gate
 					// work.todo.completed on git.file.written confirmation.
 					{Name: "emitted_writes", Type: types.PropertyTypeArray, ElementType: types.PropertyTypeString},
+					// rollback_reason is the operator-supplied reason recorded when
+					// the run is transitioned to cancelled or rolled_back by the
+					// WorkflowRun rollback coordinator (FEAT-20260602-004 Phase 2).
+					{Name: "rollback_reason", Type: types.PropertyTypeString},
 					{Name: "started_at", Type: types.PropertyTypeString},
 					{Name: "completed_at", Type: types.PropertyTypeString},
 					{Name: "created_at", Type: types.PropertyTypeString},

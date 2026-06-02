@@ -36,6 +36,13 @@ const (
 	// producing a final result. partial_output is stored; a successor run
 	// continues in the same chain.
 	AgentRunStatus_AGENT_RUN_STATUS_YIELDED AgentRunStatus = 6
+	// AGENT_RUN_STATUS_CANCELLED: terminal state an in-flight run lands in when
+	// its parent WorkflowRun is rolled back (FEAT-20260602-004 Phase 2).
+	AgentRunStatus_AGENT_RUN_STATUS_CANCELLED AgentRunStatus = 7
+	// AGENT_RUN_STATUS_ROLLED_BACK: terminal audit state a completed or failed
+	// run lands in when its parent WorkflowRun is rolled back. The original
+	// output, error_message, and token counts are preserved.
+	AgentRunStatus_AGENT_RUN_STATUS_ROLLED_BACK AgentRunStatus = 8
 )
 
 // Enum value maps for AgentRunStatus.
@@ -48,6 +55,8 @@ var (
 		4: "AGENT_RUN_STATUS_COMPLETED",
 		5: "AGENT_RUN_STATUS_FAILED",
 		6: "AGENT_RUN_STATUS_YIELDED",
+		7: "AGENT_RUN_STATUS_CANCELLED",
+		8: "AGENT_RUN_STATUS_ROLLED_BACK",
 	}
 	AgentRunStatus_value = map[string]int32{
 		"AGENT_RUN_STATUS_UNSPECIFIED":       0,
@@ -57,6 +66,8 @@ var (
 		"AGENT_RUN_STATUS_COMPLETED":         4,
 		"AGENT_RUN_STATUS_FAILED":            5,
 		"AGENT_RUN_STATUS_YIELDED":           6,
+		"AGENT_RUN_STATUS_CANCELLED":         7,
+		"AGENT_RUN_STATUS_ROLLED_BACK":       8,
 	}
 )
 
@@ -1957,6 +1968,142 @@ func (*ExecuteRunStreamingResponse_Chunk) isExecuteRunStreamingResponse_Payload(
 
 func (*ExecuteRunStreamingResponse_Run) isExecuteRunStreamingResponse_Payload() {}
 
+// RollbackByWorkflowRunRequest is the input to the CodeValdAI leg of the
+// WorkflowRun rollback coordinator (FEAT-20260602-004 Phase 2). The coordinator
+// in CodeValdWork calls this once per affected agency.
+type RollbackByWorkflowRunRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// workflow_run_id is required — a global "rollback every run" sweep is
+	// intentionally not supported.
+	WorkflowRunId string `protobuf:"bytes,1,opt,name=workflow_run_id,json=workflowRunId,proto3" json:"workflow_run_id,omitempty"`
+	// reason is the operator-supplied rollback reason recorded on each affected
+	// AgentRun and propagated to ai.run.cancelled / ai.run.rolled_back events.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RollbackByWorkflowRunRequest) Reset() {
+	*x = RollbackByWorkflowRunRequest{}
+	mi := &file_codevaldai_v1_ai_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RollbackByWorkflowRunRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RollbackByWorkflowRunRequest) ProtoMessage() {}
+
+func (x *RollbackByWorkflowRunRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_codevaldai_v1_ai_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RollbackByWorkflowRunRequest.ProtoReflect.Descriptor instead.
+func (*RollbackByWorkflowRunRequest) Descriptor() ([]byte, []int) {
+	return file_codevaldai_v1_ai_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *RollbackByWorkflowRunRequest) GetWorkflowRunId() string {
+	if x != nil {
+		return x.WorkflowRunId
+	}
+	return ""
+}
+
+func (x *RollbackByWorkflowRunRequest) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+// RollbackByWorkflowRunResponse summarises the per-run outcomes. Every
+// AgentRun anchored to the requested WorkflowRun appears in exactly one
+// of the three slices.
+type RollbackByWorkflowRunResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkflowRunId string                 `protobuf:"bytes,1,opt,name=workflow_run_id,json=workflowRunId,proto3" json:"workflow_run_id,omitempty"`
+	// cancelled_run_ids: runs that were in-flight (pending_intake,
+	// pending_execution, running, yielded) and were transitioned to cancelled.
+	CancelledRunIds []string `protobuf:"bytes,2,rep,name=cancelled_run_ids,json=cancelledRunIds,proto3" json:"cancelled_run_ids,omitempty"`
+	// rolled_back_run_ids: runs that had already reached completed or failed
+	// and were transitioned to rolled_back (frozen audit).
+	RolledBackRunIds []string `protobuf:"bytes,3,rep,name=rolled_back_run_ids,json=rolledBackRunIds,proto3" json:"rolled_back_run_ids,omitempty"`
+	// skipped_run_ids: runs that were already in a rollback-terminal state
+	// — included so the call is observably idempotent.
+	SkippedRunIds []string `protobuf:"bytes,4,rep,name=skipped_run_ids,json=skippedRunIds,proto3" json:"skipped_run_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RollbackByWorkflowRunResponse) Reset() {
+	*x = RollbackByWorkflowRunResponse{}
+	mi := &file_codevaldai_v1_ai_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RollbackByWorkflowRunResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RollbackByWorkflowRunResponse) ProtoMessage() {}
+
+func (x *RollbackByWorkflowRunResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_codevaldai_v1_ai_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RollbackByWorkflowRunResponse.ProtoReflect.Descriptor instead.
+func (*RollbackByWorkflowRunResponse) Descriptor() ([]byte, []int) {
+	return file_codevaldai_v1_ai_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *RollbackByWorkflowRunResponse) GetWorkflowRunId() string {
+	if x != nil {
+		return x.WorkflowRunId
+	}
+	return ""
+}
+
+func (x *RollbackByWorkflowRunResponse) GetCancelledRunIds() []string {
+	if x != nil {
+		return x.CancelledRunIds
+	}
+	return nil
+}
+
+func (x *RollbackByWorkflowRunResponse) GetRolledBackRunIds() []string {
+	if x != nil {
+		return x.RolledBackRunIds
+	}
+	return nil
+}
+
+func (x *RollbackByWorkflowRunResponse) GetSkippedRunIds() []string {
+	if x != nil {
+		return x.SkippedRunIds
+	}
+	return nil
+}
+
 var File_codevaldai_v1_ai_proto protoreflect.FileDescriptor
 
 const file_codevaldai_v1_ai_proto_rawDesc = "" +
@@ -2116,7 +2263,15 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\x1bExecuteRunStreamingResponse\x12\x16\n" +
 	"\x05chunk\x18\x01 \x01(\tH\x00R\x05chunk\x12+\n" +
 	"\x03run\x18\x02 \x01(\v2\x17.codevaldai.v1.AgentRunH\x00R\x03runB\t\n" +
-	"\apayload*\xf8\x01\n" +
+	"\apayload\"^\n" +
+	"\x1cRollbackByWorkflowRunRequest\x12&\n" +
+	"\x0fworkflow_run_id\x18\x01 \x01(\tR\rworkflowRunId\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xca\x01\n" +
+	"\x1dRollbackByWorkflowRunResponse\x12&\n" +
+	"\x0fworkflow_run_id\x18\x01 \x01(\tR\rworkflowRunId\x12*\n" +
+	"\x11cancelled_run_ids\x18\x02 \x03(\tR\x0fcancelledRunIds\x12-\n" +
+	"\x13rolled_back_run_ids\x18\x03 \x03(\tR\x10rolledBackRunIds\x12&\n" +
+	"\x0fskipped_run_ids\x18\x04 \x03(\tR\rskippedRunIds*\xba\x02\n" +
 	"\x0eAgentRunStatus\x12 \n" +
 	"\x1cAGENT_RUN_STATUS_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fAGENT_RUN_STATUS_PENDING_INTAKE\x10\x01\x12&\n" +
@@ -2124,7 +2279,10 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"\x18AGENT_RUN_STATUS_RUNNING\x10\x03\x12\x1e\n" +
 	"\x1aAGENT_RUN_STATUS_COMPLETED\x10\x04\x12\x1b\n" +
 	"\x17AGENT_RUN_STATUS_FAILED\x10\x05\x12\x1c\n" +
-	"\x18AGENT_RUN_STATUS_YIELDED\x10\x062\xc5\t\n" +
+	"\x18AGENT_RUN_STATUS_YIELDED\x10\x06\x12\x1e\n" +
+	"\x1aAGENT_RUN_STATUS_CANCELLED\x10\a\x12 \n" +
+	"\x1cAGENT_RUN_STATUS_ROLLED_BACK\x10\b2\xb9\n" +
+	"\n" +
 	"\tAIService\x12R\n" +
 	"\x0eCreateProvider\x12$.codevaldai.v1.CreateProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12L\n" +
 	"\vGetProvider\x12!.codevaldai.v1.GetProviderRequest\x1a\x1a.codevaldai.v1.LLMProvider\x12Z\n" +
@@ -2142,7 +2300,8 @@ const file_codevaldai_v1_ai_proto_rawDesc = "" +
 	"ExecuteRun\x12 .codevaldai.v1.ExecuteRunRequest\x1a\x17.codevaldai.v1.AgentRun\x12e\n" +
 	"\x13ExecuteRunStreaming\x12 .codevaldai.v1.ExecuteRunRequest\x1a*.codevaldai.v1.ExecuteRunStreamingResponse0\x01\x12?\n" +
 	"\x06GetRun\x12\x1c.codevaldai.v1.GetRunRequest\x1a\x17.codevaldai.v1.AgentRun\x12K\n" +
-	"\bListRuns\x12\x1e.codevaldai.v1.ListRunsRequest\x1a\x1f.codevaldai.v1.ListRunsResponseBAZ?github.com/aosanya/CodeValdAI/gen/go/codevaldai/v1;codevaldaiv1b\x06proto3"
+	"\bListRuns\x12\x1e.codevaldai.v1.ListRunsRequest\x1a\x1f.codevaldai.v1.ListRunsResponse\x12r\n" +
+	"\x15RollbackByWorkflowRun\x12+.codevaldai.v1.RollbackByWorkflowRunRequest\x1a,.codevaldai.v1.RollbackByWorkflowRunResponseBAZ?github.com/aosanya/CodeValdAI/gen/go/codevaldai/v1;codevaldaiv1b\x06proto3"
 
 var (
 	file_codevaldai_v1_ai_proto_rawDescOnce sync.Once
@@ -2157,49 +2316,51 @@ func file_codevaldai_v1_ai_proto_rawDescGZIP() []byte {
 }
 
 var file_codevaldai_v1_ai_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_codevaldai_v1_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_codevaldai_v1_ai_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_codevaldai_v1_ai_proto_goTypes = []any{
-	(AgentRunStatus)(0),                 // 0: codevaldai.v1.AgentRunStatus
-	(*LLMProvider)(nil),                 // 1: codevaldai.v1.LLMProvider
-	(*CreateProviderRequest)(nil),       // 2: codevaldai.v1.CreateProviderRequest
-	(*GetProviderRequest)(nil),          // 3: codevaldai.v1.GetProviderRequest
-	(*ListProvidersRequest)(nil),        // 4: codevaldai.v1.ListProvidersRequest
-	(*ListProvidersResponse)(nil),       // 5: codevaldai.v1.ListProvidersResponse
-	(*UpdateProviderRequest)(nil),       // 6: codevaldai.v1.UpdateProviderRequest
-	(*DeleteProviderRequest)(nil),       // 7: codevaldai.v1.DeleteProviderRequest
-	(*DeleteProviderResponse)(nil),      // 8: codevaldai.v1.DeleteProviderResponse
-	(*Agent)(nil),                       // 9: codevaldai.v1.Agent
-	(*CreateAgentRequest)(nil),          // 10: codevaldai.v1.CreateAgentRequest
-	(*GetAgentRequest)(nil),             // 11: codevaldai.v1.GetAgentRequest
-	(*ListAgentsRequest)(nil),           // 12: codevaldai.v1.ListAgentsRequest
-	(*ListAgentsResponse)(nil),          // 13: codevaldai.v1.ListAgentsResponse
-	(*UpdateAgentRequest)(nil),          // 14: codevaldai.v1.UpdateAgentRequest
-	(*DeleteAgentRequest)(nil),          // 15: codevaldai.v1.DeleteAgentRequest
-	(*DeleteAgentResponse)(nil),         // 16: codevaldai.v1.DeleteAgentResponse
-	(*AgentRun)(nil),                    // 17: codevaldai.v1.AgentRun
-	(*RunField)(nil),                    // 18: codevaldai.v1.RunField
-	(*RunInput)(nil),                    // 19: codevaldai.v1.RunInput
-	(*IntakeRunRequest)(nil),            // 20: codevaldai.v1.IntakeRunRequest
-	(*IntakeRunResponse)(nil),           // 21: codevaldai.v1.IntakeRunResponse
-	(*ExecuteRunRequest)(nil),           // 22: codevaldai.v1.ExecuteRunRequest
-	(*GetRunRequest)(nil),               // 23: codevaldai.v1.GetRunRequest
-	(*ListRunsRequest)(nil),             // 24: codevaldai.v1.ListRunsRequest
-	(*ListRunsResponse)(nil),            // 25: codevaldai.v1.ListRunsResponse
-	(*ExecuteRunStreamingResponse)(nil), // 26: codevaldai.v1.ExecuteRunStreamingResponse
-	(*timestamppb.Timestamp)(nil),       // 27: google.protobuf.Timestamp
+	(AgentRunStatus)(0),                   // 0: codevaldai.v1.AgentRunStatus
+	(*LLMProvider)(nil),                   // 1: codevaldai.v1.LLMProvider
+	(*CreateProviderRequest)(nil),         // 2: codevaldai.v1.CreateProviderRequest
+	(*GetProviderRequest)(nil),            // 3: codevaldai.v1.GetProviderRequest
+	(*ListProvidersRequest)(nil),          // 4: codevaldai.v1.ListProvidersRequest
+	(*ListProvidersResponse)(nil),         // 5: codevaldai.v1.ListProvidersResponse
+	(*UpdateProviderRequest)(nil),         // 6: codevaldai.v1.UpdateProviderRequest
+	(*DeleteProviderRequest)(nil),         // 7: codevaldai.v1.DeleteProviderRequest
+	(*DeleteProviderResponse)(nil),        // 8: codevaldai.v1.DeleteProviderResponse
+	(*Agent)(nil),                         // 9: codevaldai.v1.Agent
+	(*CreateAgentRequest)(nil),            // 10: codevaldai.v1.CreateAgentRequest
+	(*GetAgentRequest)(nil),               // 11: codevaldai.v1.GetAgentRequest
+	(*ListAgentsRequest)(nil),             // 12: codevaldai.v1.ListAgentsRequest
+	(*ListAgentsResponse)(nil),            // 13: codevaldai.v1.ListAgentsResponse
+	(*UpdateAgentRequest)(nil),            // 14: codevaldai.v1.UpdateAgentRequest
+	(*DeleteAgentRequest)(nil),            // 15: codevaldai.v1.DeleteAgentRequest
+	(*DeleteAgentResponse)(nil),           // 16: codevaldai.v1.DeleteAgentResponse
+	(*AgentRun)(nil),                      // 17: codevaldai.v1.AgentRun
+	(*RunField)(nil),                      // 18: codevaldai.v1.RunField
+	(*RunInput)(nil),                      // 19: codevaldai.v1.RunInput
+	(*IntakeRunRequest)(nil),              // 20: codevaldai.v1.IntakeRunRequest
+	(*IntakeRunResponse)(nil),             // 21: codevaldai.v1.IntakeRunResponse
+	(*ExecuteRunRequest)(nil),             // 22: codevaldai.v1.ExecuteRunRequest
+	(*GetRunRequest)(nil),                 // 23: codevaldai.v1.GetRunRequest
+	(*ListRunsRequest)(nil),               // 24: codevaldai.v1.ListRunsRequest
+	(*ListRunsResponse)(nil),              // 25: codevaldai.v1.ListRunsResponse
+	(*ExecuteRunStreamingResponse)(nil),   // 26: codevaldai.v1.ExecuteRunStreamingResponse
+	(*RollbackByWorkflowRunRequest)(nil),  // 27: codevaldai.v1.RollbackByWorkflowRunRequest
+	(*RollbackByWorkflowRunResponse)(nil), // 28: codevaldai.v1.RollbackByWorkflowRunResponse
+	(*timestamppb.Timestamp)(nil),         // 29: google.protobuf.Timestamp
 }
 var file_codevaldai_v1_ai_proto_depIdxs = []int32{
-	27, // 0: codevaldai.v1.LLMProvider.created_at:type_name -> google.protobuf.Timestamp
-	27, // 1: codevaldai.v1.LLMProvider.updated_at:type_name -> google.protobuf.Timestamp
+	29, // 0: codevaldai.v1.LLMProvider.created_at:type_name -> google.protobuf.Timestamp
+	29, // 1: codevaldai.v1.LLMProvider.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 2: codevaldai.v1.ListProvidersResponse.providers:type_name -> codevaldai.v1.LLMProvider
-	27, // 3: codevaldai.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
-	27, // 4: codevaldai.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
+	29, // 3: codevaldai.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
+	29, // 4: codevaldai.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
 	9,  // 5: codevaldai.v1.ListAgentsResponse.agents:type_name -> codevaldai.v1.Agent
 	0,  // 6: codevaldai.v1.AgentRun.status:type_name -> codevaldai.v1.AgentRunStatus
-	27, // 7: codevaldai.v1.AgentRun.started_at:type_name -> google.protobuf.Timestamp
-	27, // 8: codevaldai.v1.AgentRun.completed_at:type_name -> google.protobuf.Timestamp
-	27, // 9: codevaldai.v1.AgentRun.created_at:type_name -> google.protobuf.Timestamp
-	27, // 10: codevaldai.v1.AgentRun.updated_at:type_name -> google.protobuf.Timestamp
+	29, // 7: codevaldai.v1.AgentRun.started_at:type_name -> google.protobuf.Timestamp
+	29, // 8: codevaldai.v1.AgentRun.completed_at:type_name -> google.protobuf.Timestamp
+	29, // 9: codevaldai.v1.AgentRun.created_at:type_name -> google.protobuf.Timestamp
+	29, // 10: codevaldai.v1.AgentRun.updated_at:type_name -> google.protobuf.Timestamp
 	17, // 11: codevaldai.v1.IntakeRunResponse.run:type_name -> codevaldai.v1.AgentRun
 	18, // 12: codevaldai.v1.IntakeRunResponse.fields:type_name -> codevaldai.v1.RunField
 	19, // 13: codevaldai.v1.ExecuteRunRequest.inputs:type_name -> codevaldai.v1.RunInput
@@ -2221,23 +2382,25 @@ var file_codevaldai_v1_ai_proto_depIdxs = []int32{
 	22, // 29: codevaldai.v1.AIService.ExecuteRunStreaming:input_type -> codevaldai.v1.ExecuteRunRequest
 	23, // 30: codevaldai.v1.AIService.GetRun:input_type -> codevaldai.v1.GetRunRequest
 	24, // 31: codevaldai.v1.AIService.ListRuns:input_type -> codevaldai.v1.ListRunsRequest
-	1,  // 32: codevaldai.v1.AIService.CreateProvider:output_type -> codevaldai.v1.LLMProvider
-	1,  // 33: codevaldai.v1.AIService.GetProvider:output_type -> codevaldai.v1.LLMProvider
-	5,  // 34: codevaldai.v1.AIService.ListProviders:output_type -> codevaldai.v1.ListProvidersResponse
-	1,  // 35: codevaldai.v1.AIService.UpdateProvider:output_type -> codevaldai.v1.LLMProvider
-	8,  // 36: codevaldai.v1.AIService.DeleteProvider:output_type -> codevaldai.v1.DeleteProviderResponse
-	9,  // 37: codevaldai.v1.AIService.CreateAgent:output_type -> codevaldai.v1.Agent
-	9,  // 38: codevaldai.v1.AIService.GetAgent:output_type -> codevaldai.v1.Agent
-	13, // 39: codevaldai.v1.AIService.ListAgents:output_type -> codevaldai.v1.ListAgentsResponse
-	9,  // 40: codevaldai.v1.AIService.UpdateAgent:output_type -> codevaldai.v1.Agent
-	16, // 41: codevaldai.v1.AIService.DeleteAgent:output_type -> codevaldai.v1.DeleteAgentResponse
-	21, // 42: codevaldai.v1.AIService.IntakeRun:output_type -> codevaldai.v1.IntakeRunResponse
-	17, // 43: codevaldai.v1.AIService.ExecuteRun:output_type -> codevaldai.v1.AgentRun
-	26, // 44: codevaldai.v1.AIService.ExecuteRunStreaming:output_type -> codevaldai.v1.ExecuteRunStreamingResponse
-	17, // 45: codevaldai.v1.AIService.GetRun:output_type -> codevaldai.v1.AgentRun
-	25, // 46: codevaldai.v1.AIService.ListRuns:output_type -> codevaldai.v1.ListRunsResponse
-	32, // [32:47] is the sub-list for method output_type
-	17, // [17:32] is the sub-list for method input_type
+	27, // 32: codevaldai.v1.AIService.RollbackByWorkflowRun:input_type -> codevaldai.v1.RollbackByWorkflowRunRequest
+	1,  // 33: codevaldai.v1.AIService.CreateProvider:output_type -> codevaldai.v1.LLMProvider
+	1,  // 34: codevaldai.v1.AIService.GetProvider:output_type -> codevaldai.v1.LLMProvider
+	5,  // 35: codevaldai.v1.AIService.ListProviders:output_type -> codevaldai.v1.ListProvidersResponse
+	1,  // 36: codevaldai.v1.AIService.UpdateProvider:output_type -> codevaldai.v1.LLMProvider
+	8,  // 37: codevaldai.v1.AIService.DeleteProvider:output_type -> codevaldai.v1.DeleteProviderResponse
+	9,  // 38: codevaldai.v1.AIService.CreateAgent:output_type -> codevaldai.v1.Agent
+	9,  // 39: codevaldai.v1.AIService.GetAgent:output_type -> codevaldai.v1.Agent
+	13, // 40: codevaldai.v1.AIService.ListAgents:output_type -> codevaldai.v1.ListAgentsResponse
+	9,  // 41: codevaldai.v1.AIService.UpdateAgent:output_type -> codevaldai.v1.Agent
+	16, // 42: codevaldai.v1.AIService.DeleteAgent:output_type -> codevaldai.v1.DeleteAgentResponse
+	21, // 43: codevaldai.v1.AIService.IntakeRun:output_type -> codevaldai.v1.IntakeRunResponse
+	17, // 44: codevaldai.v1.AIService.ExecuteRun:output_type -> codevaldai.v1.AgentRun
+	26, // 45: codevaldai.v1.AIService.ExecuteRunStreaming:output_type -> codevaldai.v1.ExecuteRunStreamingResponse
+	17, // 46: codevaldai.v1.AIService.GetRun:output_type -> codevaldai.v1.AgentRun
+	25, // 47: codevaldai.v1.AIService.ListRuns:output_type -> codevaldai.v1.ListRunsResponse
+	28, // 48: codevaldai.v1.AIService.RollbackByWorkflowRun:output_type -> codevaldai.v1.RollbackByWorkflowRunResponse
+	33, // [33:49] is the sub-list for method output_type
+	17, // [17:33] is the sub-list for method input_type
 	17, // [17:17] is the sub-list for extension type_name
 	17, // [17:17] is the sub-list for extension extendee
 	0,  // [0:17] is the sub-list for field type_name
@@ -2258,7 +2421,7 @@ func file_codevaldai_v1_ai_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_codevaldai_v1_ai_proto_rawDesc), len(file_codevaldai_v1_ai_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   26,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
