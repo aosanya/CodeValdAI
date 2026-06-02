@@ -3,6 +3,7 @@ package codevaldai
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -32,29 +33,59 @@ func (a Action) RawPayload() string {
 	return string(b)
 }
 
+// actionsFence is the opening fence the LLM must use for an actions block.
+// The trailing newline is required so inline mentions (e.g. "produce an
+// ```actions block...") are skipped.
+const actionsFence = "```actions\n"
+
 // parseActions extracts the ```actions block from the LLM output.
 // Returns (nil, nil) when no block is present — callers treat that as a no-op.
 // Returns a non-nil error when a fence is found but the block is malformed,
 // so callers can log the format violation rather than silently dropping it.
 //
-// <think>...</think> sections are stripped first so that reasoning blocks
-// containing draft or placeholder actions blocks do not shadow the real output.
+// Canonical content lives outside <think>...</think> reasoning blocks. When
+// the post-think actions block is truncated (open fence, no close — typical
+// when the model hits its max_tokens cap mid-emission) and a complete actions
+// block exists inside <think>, the in-think block is used as a fallback and a
+// warning is logged. See BUG-09-028.
 func parseActions(output string) ([]Action, error) {
-	output = stripThinkBlocks(output)
+	thinkContents := extractThinkContents(output)
+	postThink := stripThinkBlocks(output)
 
-	// Require a newline immediately after "```actions" so that inline mentions
-	// (e.g. "produce an ```actions block...") are skipped.
-	const fence = "```actions\n"
-	start := strings.Index(output, fence)
+	start := strings.Index(postThink, actionsFence)
 	if start == -1 {
 		return nil, nil
 	}
-	rest := output[start+len(fence):]
+	rest := postThink[start+len(actionsFence):]
 	end := strings.Index(rest, "```")
 	if end == -1 {
+		if raw, ok := findActionsBlock(thinkContents); ok {
+			log.Printf("codevaldai: parseActions: post-think actions block truncated; falling back to in-think block")
+			return decodeActions(raw)
+		}
 		return nil, fmt.Errorf("actions block has opening fence but no closing ```")
 	}
-	raw := strings.TrimSpace(rest[:end])
+	return decodeActions(strings.TrimSpace(rest[:end]))
+}
+
+// findActionsBlock searches s for the first complete ```actions ... ``` block
+// and returns its trimmed inner JSON. Returns ("", false) when no opening
+// fence is present or the block is not closed.
+func findActionsBlock(s string) (string, bool) {
+	start := strings.Index(s, actionsFence)
+	if start == -1 {
+		return "", false
+	}
+	rest := s[start+len(actionsFence):]
+	end := strings.Index(rest, "```")
+	if end == -1 {
+		return "", false
+	}
+	return strings.TrimSpace(rest[:end]), true
+}
+
+// decodeActions parses the trimmed inner contents of an actions block.
+func decodeActions(raw string) ([]Action, error) {
 	if raw == "" {
 		return nil, fmt.Errorf("actions block is empty")
 	}
@@ -63,6 +94,27 @@ func parseActions(output string) ([]Action, error) {
 		return nil, fmt.Errorf("actions block contains invalid JSON: %w", err)
 	}
 	return actions, nil
+}
+
+// extractThinkContents returns the concatenated contents of all <think>...</think>
+// blocks in s. An unclosed <think> block (no </think>, typically due to
+// truncation) contributes everything after the opening tag.
+func extractThinkContents(s string) string {
+	var b strings.Builder
+	for {
+		open := strings.Index(s, "<think>")
+		if open == -1 {
+			return b.String()
+		}
+		inner := s[open+len("<think>"):]
+		closeRel := strings.Index(inner, "</think>")
+		if closeRel == -1 {
+			b.WriteString(inner)
+			return b.String()
+		}
+		b.WriteString(inner[:closeRel])
+		s = inner[closeRel+len("</think>"):]
+	}
 }
 
 // CatalogueEntry describes one PubSub topic a service is known to consume,
