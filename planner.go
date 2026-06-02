@@ -124,6 +124,9 @@ Each sub-task must have self-contained instructions. Respond with ONLY the actio
 		if payload.AgentID == "" {
 			payload.AgentID = agentID
 		}
+		if payload.WorkflowRunID == "" {
+			payload.WorkflowRunID = run.WorkflowRunID
+		}
 		return payload
 	}
 	return TodoCreatedPayload{}
@@ -154,10 +157,11 @@ func (m *aiManager) completeAsDecomposed(
 
 	m.publishJSON(ctx, TopicTodoCreated, todos)
 	m.publishJSON(ctx, TopicTaskCompleted, TaskCompletedPayload{
-		TaskID:      run.TaskID,
-		RunID:       run.ID,
-		AgentID:     agentID,
-		HasSubtasks: len(todos.Todos) > 0,
+		TaskID:        run.TaskID,
+		RunID:         run.ID,
+		AgentID:       agentID,
+		HasSubtasks:   len(todos.Todos) > 0,
+		WorkflowRunID: run.WorkflowRunID,
 	})
 	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+run.ID+`"}`)
 

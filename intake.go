@@ -102,6 +102,7 @@ func (m *aiManager) IntakeRun(ctx context.Context, req IntakeRunRequest) (AgentR
 		TypeID:   "AgentRun",
 		Properties: map[string]any{
 			"task_id":                 req.TaskID,
+			"workflow_run_id":         req.WorkflowRunID,
 			"instructions":            req.Instructions,
 			"status":                  string(AgentRunStatusPendingIntake),
 			"segment_number":          1,

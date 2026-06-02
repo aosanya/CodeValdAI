@@ -282,6 +282,81 @@ func TestExtractTaskID_EmptyOnInvalidJSON(t *testing.T) {
 	}
 }
 
+// ── extractWorkflowRunID tests (FEAT-20260602-001 AI) ────────────────────────
+
+func TestExtractWorkflowRunID_SnakeCase(t *testing.T) {
+	t.Parallel()
+	// Functions/Work/Comm event payloads expose snake_case JSON tags.
+	payload := `{"workflow_run_id":"wfr-1","task_id":"t1"}`
+	if got := extractWorkflowRunID(payload); got != "wfr-1" {
+		t.Errorf("want %q, got %q", "wfr-1", got)
+	}
+}
+
+func TestExtractWorkflowRunID_PascalCase(t *testing.T) {
+	t.Parallel()
+	// Some payloads (e.g. ai.task.* serialized from Go structs) use PascalCase.
+	payload := `{"WorkflowRunID":"wfr-2"}`
+	if got := extractWorkflowRunID(payload); got != "wfr-2" {
+		t.Errorf("want %q, got %q", "wfr-2", got)
+	}
+}
+
+func TestExtractWorkflowRunID_SnakeWins(t *testing.T) {
+	t.Parallel()
+	// When both spellings appear, snake_case wins — that's what every modern
+	// event payload uses; PascalCase is only the legacy fallback.
+	payload := `{"workflow_run_id":"new","WorkflowRunID":"legacy"}`
+	if got := extractWorkflowRunID(payload); got != "new" {
+		t.Errorf("want %q, got %q", "new", got)
+	}
+}
+
+func TestExtractWorkflowRunID_EmptyWhenAbsent(t *testing.T) {
+	t.Parallel()
+	if got := extractWorkflowRunID(`{"other":"value"}`); got != "" {
+		t.Errorf("want empty, got %q", got)
+	}
+}
+
+func TestExtractWorkflowRunID_EmptyOnInvalidJSON(t *testing.T) {
+	t.Parallel()
+	if got := extractWorkflowRunID(`not json`); got != "" {
+		t.Errorf("want empty, got %q", got)
+	}
+}
+
+// TestRACIDispatcher_ForwardsWorkflowRunIDToIntake ensures the trigger-event
+// workflow_run_id reaches IntakeRun. Without this the AgentRun would be
+// orphaned and the WorkflowRun closure would miss the AI section.
+func TestRACIDispatcher_ForwardsWorkflowRunIDToIntake(t *testing.T) {
+	t.Parallel()
+	client := &fakeWorkPlansMatcher{
+		resp: &agencypb.MatchWorkPlansResponse{
+			Matches: []*agencypb.WorkPlanMatch{
+				{WorkPlan: &agencypb.WorkPlan{Id: "plan-1", AgentId: "agent-42"}},
+			},
+		},
+	}
+	mgr := &fakeAIManager{runID: "run-99"}
+	d := NewRACIDispatcher(client, mgr, "agency-1")
+
+	match := client.resp.GetMatches()[0]
+	payload := `{"task_id":"t1","workflow_run_id":"wfr-7"}`
+	if err := d.triggerPlanRun(context.Background(), match, "work.task.assigned", payload); err != nil {
+		t.Fatalf("triggerPlanRun: %v", err)
+	}
+
+	mgr.mu.Lock()
+	defer mgr.mu.Unlock()
+	if len(mgr.intakeCalls) != 1 {
+		t.Fatalf("expected 1 IntakeRun call, got %d", len(mgr.intakeCalls))
+	}
+	if got := mgr.intakeCalls[0].WorkflowRunID; got != "wfr-7" {
+		t.Errorf("IntakeRun.WorkflowRunID = %q, want %q", got, "wfr-7")
+	}
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 func contains(s, substr string) bool {

@@ -178,9 +178,10 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 		runID, agent.ID, run.SegmentNumber, provider.Name,
 		limits.MaxSeconds, limits.MaxTokens, limits.MaxSessions)
 	m.publishJSON(ctx, TopicTaskStarted, TaskStartedPayload{
-		TaskID:  run.TaskID,
-		RunID:   runID,
-		AgentID: agent.ID,
+		TaskID:        run.TaskID,
+		RunID:         runID,
+		AgentID:       agent.ID,
+		WorkflowRunID: run.WorkflowRunID,
 	})
 
 	// Build the streaming context: apply session wall-clock limit on top of the
@@ -257,9 +258,10 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 		})
 		log.Printf("codevaldai: ExecuteRun run=%s agent=%s max sessions exhausted", runID, agent.ID)
 		m.publishJSON(ctx, TopicTaskFailed, TaskFailedPayload{
-			TaskID: run.TaskID,
-			RunID:  runID,
-			Reason: errMsg,
+			TaskID:        run.TaskID,
+			RunID:         runID,
+			Reason:        errMsg,
+			WorkflowRunID: run.WorkflowRunID,
 		})
 		m.publish(ctx, TopicRunFailed, "")
 		failedEntity, _ := m.dm.GetEntity(ctx, m.agencyID, runID)
@@ -288,9 +290,10 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 		})
 		log.Printf("codevaldai: ExecuteRun run=%s agent=%s llm error: %v", runID, agent.ID, llmErr)
 		m.publishJSON(ctx, TopicTaskFailed, TaskFailedPayload{
-			TaskID: run.TaskID,
-			RunID:  runID,
-			Reason: errMsg,
+			TaskID:        run.TaskID,
+			RunID:         runID,
+			Reason:        errMsg,
+			WorkflowRunID: run.WorkflowRunID,
 		})
 		m.publish(ctx, TopicRunFailed, "")
 		failedEntity, _ := m.dm.GetEntity(ctx, m.agencyID, runID)
@@ -343,6 +346,7 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 		AgentID:       agent.ID,
 		HasSubtasks:   hasSubtasks,
 		EmittedWrites: emittedWrites,
+		WorkflowRunID: run.WorkflowRunID,
 	})
 	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+runID+`"}`)
 
@@ -395,6 +399,7 @@ func (m *aiManager) yieldRun(
 		SegmentNumber: run.SegmentNumber,
 		TokensUsed:    tokensUsed,
 		PartialOutput: partialOutput,
+		WorkflowRunID: run.WorkflowRunID,
 	})
 
 	// Read WP overrides from the yielded run entity to propagate to the successor.
@@ -410,6 +415,7 @@ func (m *aiManager) yieldRun(
 		TypeID:   "AgentRun",
 		Properties: map[string]any{
 			"task_id":                 run.TaskID,
+			"workflow_run_id":         run.WorkflowRunID,
 			"instructions":            run.Instructions,
 			"status":                  string(AgentRunStatusPendingExecution),
 			"chain_id":                chainID,
@@ -481,7 +487,7 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 	log.Printf("codevaldai: dispatchActions: dispatching %d action(s)", len(actions))
 	for _, a := range actions {
 		if a.Topic == TopicTodoCreated && run.TaskID != "" {
-			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID)
+			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID, run.WorkflowRunID)
 			hasSubtasks = true
 		}
 		// Inject run_id into git.file.write so CodeValdGit can reference back,
@@ -538,10 +544,10 @@ func (m *aiManager) writeRunDebrief(ctx context.Context, runID string, actions [
 	}
 }
 
-// normalizeTodoCreatedPayload overwrites the parent_task_id, run_id, and agent_id
-// fields in an ai.todo.created action with the authoritative values from the
-// current run, discarding whatever the LLM produced for those fields.
-func normalizeTodoCreatedPayload(a Action, taskID, runID, agentID string) Action {
+// normalizeTodoCreatedPayload overwrites the parent_task_id, run_id, agent_id,
+// and workflow_run_id fields in an ai.todo.created action with the authoritative
+// values from the current run, discarding whatever the LLM produced for them.
+func normalizeTodoCreatedPayload(a Action, taskID, runID, agentID, workflowRunID string) Action {
 	var p TodoCreatedPayload
 	if err := unmarshalActionPayload(a, &p); err != nil {
 		return a
@@ -549,6 +555,7 @@ func normalizeTodoCreatedPayload(a Action, taskID, runID, agentID string) Action
 	p.ParentTaskID = taskID
 	p.RunID = runID
 	p.AgentID = agentID
+	p.WorkflowRunID = workflowRunID
 	b, err := json.Marshal(p)
 	if err != nil {
 		return a

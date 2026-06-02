@@ -73,9 +73,10 @@ func (d *RACIDispatcher) triggerPlanRun(ctx context.Context, match *agencypb.Wor
 	instructions := buildDispatchInstructions(plan, match.GetContextSources(), topic, payload)
 
 	run, _, err := d.mgr.IntakeRun(ctx, codevaldai.IntakeRunRequest{
-		AgentID:      plan.GetAgentId(),
-		Instructions: instructions,
-		TaskID:       extractTaskID(payload),
+		AgentID:       plan.GetAgentId(),
+		Instructions:  instructions,
+		TaskID:        extractTaskID(payload),
+		WorkflowRunID: extractWorkflowRunID(payload),
 	})
 	if err != nil {
 		return fmt.Errorf("IntakeRun: %w", err)
@@ -85,6 +86,26 @@ func (d *RACIDispatcher) triggerPlanRun(ctx context.Context, match *agencypb.Wor
 		return fmt.Errorf("ExecuteRunStreaming run=%s: %w", run.ID, err)
 	}
 	return nil
+}
+
+// extractWorkflowRunID parses the WorkflowRun identifier from a JSON event
+// payload. Trigger events published by CodeValdWork/Functions/Cross carry
+// workflow_run_id; AI inherits the value onto the AgentRun and propagates it
+// through every ai.* event so the WorkflowRun closure can recover all runs.
+//
+// Returns "" when the payload is not valid JSON or the field is absent.
+func extractWorkflowRunID(payload string) string {
+	var p struct {
+		WorkflowRunID    string `json:"workflow_run_id"`
+		WorkflowRunIDAlt string `json:"WorkflowRunID"`
+	}
+	if err := json.Unmarshal([]byte(payload), &p); err != nil {
+		return ""
+	}
+	if p.WorkflowRunID != "" {
+		return p.WorkflowRunID
+	}
+	return p.WorkflowRunIDAlt
 }
 
 // extractTaskID parses the task identifier from a JSON event payload.

@@ -531,6 +531,9 @@ func (m *aiManager) ListRuns(ctx context.Context, filter RunFilter) ([]AgentRun,
 		if filter.TaskID != "" && run.TaskID != filter.TaskID {
 			continue
 		}
+		if filter.WorkflowRunID != "" && run.WorkflowRunID != filter.WorkflowRunID {
+			continue
+		}
 		runs = append(runs, run)
 	}
 	return runs, nil
@@ -660,6 +663,7 @@ func agentRunFromEntity(e entitygraph.Entity) AgentRun {
 	return AgentRun{
 		ID:            e.ID,
 		TaskID:        strProp(p, "task_id"),
+		WorkflowRunID: strProp(p, "workflow_run_id"),
 		Instructions:  strProp(p, "instructions"),
 		Status:        AgentRunStatus(strProp(p, "status")),
 		Output:        strProp(p, "output"),

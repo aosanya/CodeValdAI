@@ -190,6 +190,9 @@ message AgentRun {
   string                    chain_id       = 14; // Shared across all sessions in a chain; empty if not chained
   int32                     segment_number = 15; // 1-based position in the chain; 0 if not chained
   string                    partial_output = 16; // Output captured before a YIELDED limit; empty otherwise
+  // workflow_run_id ties this AgentRun to its WorkflowRun (CodeValdWork).
+  // Empty for manually triggered runs (CLI / direct API).
+  string                    workflow_run_id = 17;
 }
 
 // RunField is a single input field inferred by the LLM during the Intake phase.
@@ -211,8 +214,13 @@ message RunInput {
 
 // IntakeRunRequest carries data required to start the Intake phase.
 message IntakeRunRequest {
-  string agent_id     = 1;
-  string instructions = 2;
+  string agent_id        = 1;
+  string instructions    = 2;
+  // task_id (3) and workflow_run_id (4) carry pipeline correlation. Both are
+  // optional; when set they are persisted on the AgentRun entity and included
+  // in every ai.* event emitted by the run.
+  string task_id         = 3;
+  string workflow_run_id = 4;
 }
 
 // IntakeRunResponse wraps the created AgentRun and its inferred RunFields.
@@ -234,9 +242,10 @@ message GetRunRequest {
 
 // ListRunsRequest constrains a ListRuns query.
 message ListRunsRequest {
-  string         agent_id = 1; // empty = no filter
-  AgentRunStatus status   = 2; // UNSPECIFIED = no filter
-  string         task_id  = 3; // empty = no filter
+  string         agent_id        = 1; // empty = no filter
+  AgentRunStatus status          = 2; // UNSPECIFIED = no filter
+  string         task_id         = 3; // empty = no filter
+  string         workflow_run_id = 4; // empty = no filter
 }
 
 // ListRunsResponse wraps the list of agent runs.
