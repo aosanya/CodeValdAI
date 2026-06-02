@@ -42,4 +42,9 @@ var (
 	// ErrInvalidLLMResponse is returned when the LLM response cannot be
 	// parsed into the expected structure (e.g. []RunField at Intake).
 	ErrInvalidLLMResponse = errors.New("invalid LLM response format")
+
+	// ErrWorkflowRunIDRequired is returned by [AIManager.RollbackByWorkflowRun]
+	// when the supplied workflow_run_id is empty — a global "rollback every
+	// run" sweep is intentionally not supported.
+	ErrWorkflowRunIDRequired = errors.New("workflow_run_id is required")
 )

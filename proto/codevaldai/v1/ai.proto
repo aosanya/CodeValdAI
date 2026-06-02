@@ -20,6 +20,13 @@ enum AgentRunStatus {
   // producing a final result. partial_output is stored; a successor run
   // continues in the same chain.
   AGENT_RUN_STATUS_YIELDED             = 6;
+  // AGENT_RUN_STATUS_CANCELLED: terminal state an in-flight run lands in when
+  // its parent WorkflowRun is rolled back (FEAT-20260602-004 Phase 2).
+  AGENT_RUN_STATUS_CANCELLED           = 7;
+  // AGENT_RUN_STATUS_ROLLED_BACK: terminal audit state a completed or failed
+  // run lands in when its parent WorkflowRun is rolled back. The original
+  // output, error_message, and token counts are preserved.
+  AGENT_RUN_STATUS_ROLLED_BACK         = 8;
 }
 
 // ── LLMProvider ───────────────────────────────────────────────────────────────
@@ -267,6 +274,34 @@ message ExecuteRunStreamingResponse {
   }
 }
 
+// RollbackByWorkflowRunRequest is the input to the CodeValdAI leg of the
+// WorkflowRun rollback coordinator (FEAT-20260602-004 Phase 2). The coordinator
+// in CodeValdWork calls this once per affected agency.
+message RollbackByWorkflowRunRequest {
+  // workflow_run_id is required — a global "rollback every run" sweep is
+  // intentionally not supported.
+  string workflow_run_id = 1;
+  // reason is the operator-supplied rollback reason recorded on each affected
+  // AgentRun and propagated to ai.run.cancelled / ai.run.rolled_back events.
+  string reason          = 2;
+}
+
+// RollbackByWorkflowRunResponse summarises the per-run outcomes. Every
+// AgentRun anchored to the requested WorkflowRun appears in exactly one
+// of the three slices.
+message RollbackByWorkflowRunResponse {
+  string          workflow_run_id     = 1;
+  // cancelled_run_ids: runs that were in-flight (pending_intake,
+  // pending_execution, running, yielded) and were transitioned to cancelled.
+  repeated string cancelled_run_ids   = 2;
+  // rolled_back_run_ids: runs that had already reached completed or failed
+  // and were transitioned to rolled_back (frozen audit).
+  repeated string rolled_back_run_ids = 3;
+  // skipped_run_ids: runs that were already in a rollback-terminal state
+  // — included so the call is observably idempotent.
+  repeated string skipped_run_ids     = 4;
+}
+
 // ── Service ───────────────────────────────────────────────────────────────────
 
 // AIService exposes provider catalogue, agent catalogue, and run lifecycle RPCs.
@@ -329,4 +364,10 @@ service AIService {
 
   // ListRuns returns all AgentRun entities matching the filter.
   rpc ListRuns (ListRunsRequest) returns (ListRunsResponse);
+
+  // RollbackByWorkflowRun applies the CodeValdAI leg of the WorkflowRun
+  // rollback contract (FEAT-20260602-004 Phase 2): in-flight runs go to
+  // cancelled; already-terminal runs go to rolled_back as a frozen audit
+  // record. Called by CodeValdWork's rollback coordinator.
+  rpc RollbackByWorkflowRun (RollbackByWorkflowRunRequest) returns (RollbackByWorkflowRunResponse);
 }

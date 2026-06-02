@@ -24,6 +24,16 @@ const (
 	// TodoItem as a TaskTodo entity, then publishes work.todo.dispatched so
 	// CodeValdAI agents can pick each todo up via a work plan.
 	TopicTodoCreated = "ai.todo.created"
+
+	// Rollback (WorkflowRun rollback coordinator — FEAT-20260602-004 Phase 2)
+	// TopicRunCancelled is published once per in-flight AgentRun the rollback
+	// coordinator cancels. Recipients should treat the run as terminal.
+	TopicRunCancelled = "ai.run.cancelled"
+	// TopicRunRolledBack is published once per already-terminal AgentRun the
+	// rollback coordinator freezes as audit. The payload includes the original
+	// terminal status so consumers can distinguish completed-then-rolled-back
+	// from failed-then-rolled-back.
+	TopicRunRolledBack = "ai.run.rolled_back"
 )
 
 // TaskStartedPayload is published when ExecuteRunStreaming transitions to
@@ -92,4 +102,24 @@ type TodoItem struct {
 	Ordinality     int    `json:"ordinality"`           // 1-based position
 	CanRunParallel bool   `json:"can_run_parallel"`     // true = no predecessor dependency
 	DependsOn      []int  `json:"depends_on,omitempty"` // ordinality values that must complete first
+}
+
+// RunCancelledPayload is published on [TopicRunCancelled] once per in-flight
+// AgentRun the rollback coordinator transitions to cancelled.
+type RunCancelledPayload struct {
+	RunID         string         `json:"run_id"`
+	AgentID       string         `json:"agent_id,omitempty"`
+	WorkflowRunID string         `json:"workflow_run_id"`
+	PreviousStatus AgentRunStatus `json:"previous_status"`
+	Reason        string         `json:"reason,omitempty"`
+}
+
+// RunRolledBackPayload is published on [TopicRunRolledBack] once per
+// completed-or-failed AgentRun the rollback coordinator freezes as audit.
+type RunRolledBackPayload struct {
+	RunID         string         `json:"run_id"`
+	AgentID       string         `json:"agent_id,omitempty"`
+	WorkflowRunID string         `json:"workflow_run_id"`
+	PreviousStatus AgentRunStatus `json:"previous_status"`
+	Reason        string         `json:"reason,omitempty"`
 }
