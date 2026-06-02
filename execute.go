@@ -302,6 +302,12 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	finalOutput := output.String()
 	log.Printf("codevaldai: ExecuteRun run=%s agent=%s llm ok: input_tokens=%d output_tokens=%d output_len=%d",
 		runID, agent.ID, inputTok, outputTok, len(finalOutput))
+	// BUG-09-028 Phase 3: surface per-request token cap saturation immediately
+	// so it's visible at completion time, not 30s later as a downstream parse error.
+	if cap := maxTokensOrDefault(agent.MaxTokens); outputTok >= cap {
+		log.Printf("codevaldai: ExecuteRun run=%s agent=%s WARN: output_tokens hit cap (%d >= %d); response is likely truncated",
+			runID, agent.ID, outputTok, cap)
+	}
 
 	updated, err := m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{
 		Properties: map[string]any{
