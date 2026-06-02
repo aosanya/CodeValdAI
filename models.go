@@ -59,6 +59,9 @@ type AgentRun struct {
 ID            string         `json:"id"`
 AgentID       string         `json:"agent_id"`             // resolved from belongs_to_agent edge
 TaskID        string         `json:"task_id,omitempty"`    // Work task ID; empty for manually triggered runs
+// WorkflowRunID ties this run to a WorkflowRun (CodeValdWork). Inherited from
+// the trigger event during dispatch; empty for manually triggered runs.
+WorkflowRunID string         `json:"workflow_run_id,omitempty"`
 Instructions  string         `json:"instructions"`
 Status        AgentRunStatus `json:"status"`
 Output        string         `json:"output,omitempty"`
@@ -199,6 +202,10 @@ Instructions string `json:"instructions"`
 // the AgentRun entity and included in all ai.task.* lifecycle events so
 // downstream services (e.g. CodeValdWork) can correlate runs back to tasks.
 TaskID       string `json:"task_id,omitempty"`
+// WorkflowRunID is the WorkflowRun this run participates in. Typically
+// inherited from the trigger event. Empty for manually-triggered runs;
+// downstream services treat the resulting AgentRun as orphaned in v1.
+WorkflowRunID string `json:"workflow_run_id,omitempty"`
 // Work-plan session limit overrides. Zero means "use the agent default".
 // These are stored on the AgentRun entity so ExecuteRunStreaming can apply
 // them without needing the WorkPlan in scope.
@@ -209,7 +216,8 @@ WPSessionMaxSessions int `json:"wp_session_max_sessions,omitempty"`
 
 // RunFilter constrains a ListRuns query. Zero values mean "no filter".
 type RunFilter struct {
-AgentID string
-Status  AgentRunStatus
-TaskID  string
+AgentID       string
+Status        AgentRunStatus
+TaskID        string
+WorkflowRunID string
 }

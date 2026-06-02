@@ -168,8 +168,10 @@ func (s *Server) DeleteAgent(ctx context.Context, req *pb.DeleteAgentRequest) (*
 // IntakeRun implements pb.AIServiceServer.
 func (s *Server) IntakeRun(ctx context.Context, req *pb.IntakeRunRequest) (*pb.IntakeRunResponse, error) {
 	run, fields, err := s.mgr.IntakeRun(ctx, codevaldai.IntakeRunRequest{
-		AgentID:      req.GetAgentId(),
-		Instructions: req.GetInstructions(),
+		AgentID:       req.GetAgentId(),
+		Instructions:  req.GetInstructions(),
+		TaskID:        req.GetTaskId(),
+		WorkflowRunID: req.GetWorkflowRunId(),
 	})
 	if err != nil {
 		return nil, toGRPCError(err)
@@ -222,8 +224,9 @@ func (s *Server) GetRun(ctx context.Context, req *pb.GetRunRequest) (*pb.AgentRu
 // ListRuns implements pb.AIServiceServer.
 func (s *Server) ListRuns(ctx context.Context, req *pb.ListRunsRequest) (*pb.ListRunsResponse, error) {
 	filter := codevaldai.RunFilter{
-		AgentID: req.GetAgentId(),
-		TaskID:  req.GetTaskId(),
+		AgentID:       req.GetAgentId(),
+		TaskID:        req.GetTaskId(),
+		WorkflowRunID: req.GetWorkflowRunId(),
 	}
 	if req.GetStatus() != pb.AgentRunStatus_AGENT_RUN_STATUS_UNSPECIFIED {
 		filter.Status = protoStatusToDomain(req.GetStatus())
@@ -279,6 +282,7 @@ func agentRunToProto(r codevaldai.AgentRun) *pb.AgentRun {
 		Id:            r.ID,
 		AgentId:       r.AgentID,
 		TaskId:        r.TaskID,
+		WorkflowRunId: r.WorkflowRunID,
 		Instructions:  r.Instructions,
 		Status:        domainStatusToProto(r.Status),
 		Output:        r.Output,

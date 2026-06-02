@@ -138,6 +138,10 @@ func aiTypes() []types.TypeDefinition {
 					{Name: "ref_code", Type: types.PropertyTypeUUID, Required: true},
 					{Name: "code", Type: types.PropertyTypeString, Required: false},
 					{Name: "task_id", Type: types.PropertyTypeString},
+					// workflow_run_id ties this run to the WorkflowRun produced by
+					// CodeValdFunctions' start-pipeline. Empty for manually-triggered
+					// runs (CLI / direct API) per FEAT-20260602-001 (AI).
+					{Name: "workflow_run_id", Type: types.PropertyTypeString},
 					{Name: "instructions", Type: types.PropertyTypeString, Required: true},
 					{Name: "status", Type: types.PropertyTypeString, Required: true},
 					{Name: "output", Type: types.PropertyTypeString},

@@ -29,9 +29,10 @@ const (
 // TaskStartedPayload is published when ExecuteRunStreaming transitions to
 // the running state (before the LLM call). Signals that work has begun.
 type TaskStartedPayload struct {
-	TaskID  string
-	RunID   string
-	AgentID string
+	TaskID        string
+	RunID         string
+	AgentID       string
+	WorkflowRunID string `json:"workflow_run_id,omitempty"`
 }
 
 // TaskCompletedPayload is published when ExecuteRunStreaming finishes
@@ -47,14 +48,16 @@ type TaskCompletedPayload struct {
 	AgentID       string
 	HasSubtasks   bool     `json:"has_subtasks,omitempty"`
 	EmittedWrites []string `json:"emitted_writes,omitempty"`
+	WorkflowRunID string   `json:"workflow_run_id,omitempty"`
 }
 
 // TaskFailedPayload is published when the LLM call errors, times out, or
 // the output contains no actions block.
 type TaskFailedPayload struct {
-	TaskID  string
-	RunID   string
-	Reason  string
+	TaskID        string
+	RunID         string
+	Reason        string
+	WorkflowRunID string `json:"workflow_run_id,omitempty"`
 }
 
 // TaskYieldedPayload is published when a session hits its wall-clock or token
@@ -66,15 +69,17 @@ type TaskYieldedPayload struct {
 	SegmentNumber int
 	TokensUsed    int
 	PartialOutput string
+	WorkflowRunID string `json:"workflow_run_id,omitempty"`
 }
 
 // TodoCreatedPayload is published on ai.todo.created when a developer agent
 // decomposes an inbound task into sub-tasks.
 type TodoCreatedPayload struct {
-	ParentTaskID string     `json:"parent_task_id"` // Work task that triggered the decomposition
-	RunID        string     `json:"run_id"`
-	AgentID      string     `json:"agent_id"`
-	Todos        []TodoItem `json:"todos"`
+	ParentTaskID  string     `json:"parent_task_id"` // Work task that triggered the decomposition
+	RunID         string     `json:"run_id"`
+	AgentID       string     `json:"agent_id"`
+	WorkflowRunID string     `json:"workflow_run_id,omitempty"`
+	Todos         []TodoItem `json:"todos"`
 }
 
 // TodoItem describes one sub-task within a TodoCreatedPayload.
