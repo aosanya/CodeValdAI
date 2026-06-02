@@ -1,9 +1,15 @@
 # BUG-09-028 — `parseActions` drops the complete in-`<think>` actions block when the post-think block is truncated by the token cap
 
-**Status:** 📋 Open (immediate workaround: bump developer-agent `max_tokens`)
+**Status:** ✅ Fixed (2026-06-02) — Phase 1 (parser fallback), Phase 2 (config bump to 16384), and Phase 3 (cap-hit warning) all landed on main
 **Severity:** High — every decomp run that exceeds the agent's `max_tokens` cap silently produces no todos; the pipeline halts at Work-2 with no error event
 **Owner:** CodeValdAI (parser) + ops (config)
 **Source finding:** Hit during the 09 Part-G QA run on 2026-06-02 (MVP-SF-001, decomp run `9c17d013-...`)
+
+## Resolution
+
+- Phase 1 — [`parseActions`](../../../actions.go) now captures `<think>` contents before stripping; when the post-think actions block has an opening fence with no close, it falls back to a complete in-`<think>` block and logs `parseActions: post-think actions block truncated; falling back to in-think block`. Covered by `TestParseActions_FallsBackToInThinkWhenPostThinkTruncated` and four supporting tests in [actions_test.go](../../../actions_test.go).
+- Phase 2 — `developer-agent.max_tokens` raised from 8192 → 16384 in [`CodeValdImplementations/Agencies/utility-app-builder/agency.json`](../../../../../CodeValdImplementations/Agencies/utility-app-builder/agency.json).
+- Phase 3 — [`ExecuteRun`](../../../execute.go) emits a `WARN: output_tokens hit cap` log line at LLM-completion time when `output_tokens >= max_tokens`, so cap saturation is visible immediately instead of surfacing later as a parse failure.
 
 ---
 
