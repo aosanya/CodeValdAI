@@ -29,7 +29,35 @@ Bugs in scope for CodeValdAI. Mirrors the `mvp.md` / `mvp_done.md` / `mvp-detail
 
 | Bug ID | Title | Severity | Status | Depends On |
 |--------|-------|----------|--------|------------|
+| ~~[BUG-20260603-003](bug-details/BUG-20260603-003_empty-actions-todo-marked-failed.md)~~ | ~~Todo returning `[]` (empty actions) is marked AGENT_RUN_STATUS_FAILED; cascades to task/run FAILED~~ | High | ✅ Fixed (2026-06-03) | — |
+| [BUG-20260603-002](bug-details/BUG-20260603-002_inline-hardcoded-git-topic-strings.md) | Inline hardcoded git-domain topic strings in execute.go and event_receiver.go | Low | 📋 Open | FEAT-20260603-001, FEAT-20260603-002 (SharedLib) |
 | [BUG-20260603-001](bug-details/BUG-20260603-001_decomp-no-actions-block-falsely-completes-task.md) | Decomposition run with no actions block falsely completes the task | High | 📋 Open | — |
+
+---
+
+### BUG-20260603-003 — Todo returning `[]` (empty actions) is marked AGENT_RUN_STATUS_FAILED; cascades to task/run FAILED
+
+**Severity:** High — a valid no-op todo outcome terminates the entire task and WorkflowRun with FAILED status
+**Status:** 📋 Open
+
+The agent instructions permit a todo to return `actions: []` as an explicit no-op (e.g. RULE IDEMPOTENT: if the branch already exists, emit `[]`). CodeValdAI's run result handler interprets `actions = []` as a failure, marks the run `AGENT_RUN_STATUS_FAILED`, publishes `ai.task.failed`, and Work cascades the failure to `TASK_STATUS_FAILED` and `WORKFLOW_RUN_STATUS_FAILED`. Two such failures were observed in QA scenario 09 (2026-06-03), both from the "compile and verify branch" todo which legitimately found nothing left to do.
+
+Fix: distinguish `actions = nil` (missing/unparseable → real failure) from `actions = []` (empty slice → no-op success) in the run result handler. Treat the latter as `AGENT_RUN_STATUS_COMPLETED`.
+
+See [bug-details/BUG-20260603-003](bug-details/BUG-20260603-003_empty-actions-todo-marked-failed.md) for full fix plan.
+
+---
+
+### BUG-20260603-002 — Inline hardcoded git-domain topic strings in execute.go and event_receiver.go
+
+**Severity:** Low
+**Status:** 📋 Open
+
+`execute.go` (lines 524, 555, 559) and `event_receiver.go` (line 77) compare incoming event topics against raw `"git.*"` string literals. Because CodeValdAI cannot import CodeValdGit, these strings are orphaned with no compile-time guard against drift. They will silently stop matching if CodeValdGit renames any of these topics.
+
+**Root cause:** SharedLib has no canonical `Topic*` constants for any domain. Once [FEAT-20260603-001](../../../../CodeValdSharedLib/documentation/3-SofwareDevelopment/mvp-details/FEAT-20260603-001_eventbus-domain-constants.md) and [FEAT-20260603-002](../../../../CodeValdSharedLib/documentation/3-SofwareDevelopment/mvp-details/FEAT-20260603-002_migrate-topic-constants-to-sharedlib.md) land, replace literals with `eventbus.TopicGitFileWrite`, `eventbus.TopicGitFileWritten`, `eventbus.TopicGitBranchCreate`.
+
+See [bug-details/BUG-20260603-002_inline-hardcoded-git-topic-strings.md](bug-details/BUG-20260603-002_inline-hardcoded-git-topic-strings.md) for full fix plan.
 
 ---
 
