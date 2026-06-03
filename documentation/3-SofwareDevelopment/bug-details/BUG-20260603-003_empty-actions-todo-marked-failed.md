@@ -1,6 +1,6 @@
 # BUG-20260603-003 (AI) — Todo returning empty actions block `[]` is marked AGENT_RUN_STATUS_FAILED
 
-**Status:** 📋 Open
+**Status:** ✅ Fixed — source fix in commit 104acd7 (2026-06-03T10:13 UTC); container rebuilt and restarted 2026-06-03T20:07 UTC
 **Severity:** High — a valid "no-op" todo outcome causes AGENT_RUN_STATUS_FAILED, which cascades to TASK_STATUS_FAILED and WORKFLOW_RUN_STATUS_FAILED
 **Owner:** CodeValdAI
 **Estimated effort:** S — add a check in the AI run result handler: treat `actions = []` as a success (no-op), not an error
@@ -47,25 +47,26 @@ The distinction between "intentionally empty" and "erroneously empty" is already
 
 ## Fix plan
 
-In the AI run execution/result-handling code (likely `execute.go` or the AI run finaliser), change the post-run status decision:
+**Step 1 — Source fix (already landed, commit 104acd7):**
 
-```go
-// Before (wrong):
-if len(actions) == 0 {
-    markFailed("no actions returned")
-}
+The fix is in `execute.go` at the `dispatchActions()` call site (approximately lines 505–524). The corrected logic distinguishes:
+- `actions == nil` (JSON key absent or unparseable) → `AGENT_RUN_STATUS_FAILED`
+- `len(actions) == 0` (JSON `[]`) → `actionsFound = true` → `AGENT_RUN_STATUS_COMPLETED`, no `ai.task.failed` published
 
-// After (correct):
-if actions == nil {  // nil = missing/unparseable → real failure
-    markFailed("actions block missing or unparseable")
-} else {             // empty slice = explicit no-op → success
-    markCompleted()
-}
+Go and the JSON decoder support this natively: `json.Unmarshal` leaves a `[]T` field `nil` if the key is absent, and sets it to an empty non-nil slice if the key is present with `[]`.
+
+No proto changes needed. The fix is contained to `execute.go` in CodeValdAI.
+
+**Step 2 — Deploy fix (required, container stale):**
+
+The container was built at 08:06 UTC 2026-06-03; commit 104acd7 landed at 10:13 UTC. The running binary predates the fix. Rebuild is required:
+
+```bash
+cd /workspaces/CodeVald-AIProject/Deployment/local
+docker compose up --build codevaldai
 ```
 
-This requires distinguishing between a nil slice (JSON `null` or absent key) and an empty slice (JSON `[]`). Both Go and the JSON decoder support this distinction natively.
-
-No proto changes needed. The fix is contained to the AI run result handler in CodeValdAI.
+Until the container is rebuilt, every todo that emits `[]` will cascade to TASK_STATUS_FAILED regardless of the source fix.
 
 ## Verification
 
