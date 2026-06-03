@@ -146,16 +146,24 @@ func TestIntakeRun_EmptyFieldsResponse(t *testing.T) {
 	dm := newFakeDM()
 	mgr, _ := newTestManager(dm)
 
+	// "[]" is a valid LLM response meaning "no input fields needed" — the run
+	// should be created successfully with zero fields (not an error).
 	srv := makeOpenAISSEServer(t, "[]")
 	defer srv.Close()
 	_, agentID := seedAgentWithProvider(t, dm, srv.URL)
 
-	_, _, err := mgr.IntakeRun(context.Background(), IntakeRunRequest{
+	run, fields, err := mgr.IntakeRun(context.Background(), IntakeRunRequest{
 		AgentID:      agentID,
 		Instructions: "do something",
 	})
-	if !errors.Is(err, ErrInvalidLLMResponse) {
-		t.Fatalf("got %v, want ErrInvalidLLMResponse", err)
+	if err != nil {
+		t.Fatalf("expected nil error for empty-fields response, got %v", err)
+	}
+	if run.ID == "" {
+		t.Fatal("expected a valid run ID")
+	}
+	if len(fields) != 0 {
+		t.Fatalf("expected 0 fields, got %d", len(fields))
 	}
 }
 

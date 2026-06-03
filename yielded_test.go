@@ -353,9 +353,9 @@ func TestYieldedSession_TwoSessionChainCompletes(t *testing.T) {
 			case <-time.After(5 * time.Second):
 			}
 		} else {
-			// Session 2: complete normally.
+			// Session 2: complete normally with a valid actions block.
 			payload, _ := json.Marshal(map[string]any{
-				"choices": []any{map[string]any{"delta": map[string]any{"content": "final answer"}}},
+				"choices": []any{map[string]any{"delta": map[string]any{"content": "final answer" + testActionsBlock}}},
 			})
 			fmt.Fprintf(w, "data: %s\n\ndata: [DONE]\n\n", payload)
 		}

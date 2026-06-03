@@ -10,6 +10,10 @@ import (
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
 )
 
+// testActionsBlock is appended to mock LLM responses in execute tests so that
+// dispatchActions finds a valid block and does not fail the run.
+const testActionsBlock = "\n```actions\n[{\"topic\":\"ai.test.noop\"}]\n```"
+
 // ── ExecuteRun Tests ──────────────────────────────────────────────────────────
 
 func TestExecuteRun_RunNotFound(t *testing.T) {
@@ -43,7 +47,7 @@ func TestExecuteRun_Success(t *testing.T) {
 	dm := newFakeDM()
 	mgr, pub := newTestManager(dm)
 
-	srv := makeOpenAISSEServer(t, "Hello from the model!")
+	srv := makeOpenAISSEServer(t, "Hello from the model!"+testActionsBlock)
 	defer srv.Close()
 	_, agentID := seedAgentWithProvider(t, dm, srv.URL)
 	runID := seedRunInPendingIntake(t, dm, agentID)
@@ -137,7 +141,7 @@ func TestExecuteRunStreaming_ChunksDelivered(t *testing.T) {
 	dm := newFakeDM()
 	mgr, _ := newTestManager(dm)
 
-	srv := makeOpenAISSEServer(t, "streamed content here")
+	srv := makeOpenAISSEServer(t, "streamed content here"+testActionsBlock)
 	defer srv.Close()
 	_, agentID := seedAgentWithProvider(t, dm, srv.URL)
 	runID := seedRunInPendingIntake(t, dm, agentID)
@@ -159,7 +163,7 @@ func TestExecuteRunStreaming_ChunksDelivered(t *testing.T) {
 }
 
 func TestExecuteRunStreaming_SameOutputAsUnary(t *testing.T) {
-	const content = "deterministic output value"
+	const content = "deterministic output value" + testActionsBlock
 
 	buildRun := func(baseURL string) (AgentRun, error) {
 		dm := newFakeDM()
@@ -216,7 +220,7 @@ func TestIntakeToExecute_EndToEnd(t *testing.T) {
 	}
 
 	// Switch the provider URL to the execute server before executing.
-	executeSrv := makeOpenAISSEServer(t, "scan complete")
+	executeSrv := makeOpenAISSEServer(t, "scan complete"+testActionsBlock)
 	defer executeSrv.Close()
 	dm.mu.Lock()
 	// Update provider base_url to the execute server.

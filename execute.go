@@ -327,7 +327,32 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	}
 
 	// Dispatch any PubSub actions the LLM embedded in its output.
-	hasSubtasks, emittedWrites := m.dispatchActions(ctx, finalOutput, run, agent.ID)
+	hasSubtasks, emittedWrites, actionsFound := m.dispatchActions(ctx, finalOutput, run, agent.ID)
+
+	// BUG-20260603-001: if the LLM produced output but no actions block, treat
+	// the run as failed rather than silently completing the task with no work done.
+	if !actionsFound {
+		errMsg := "no actions block in LLM output"
+		log.Printf("codevaldai: ExecuteRun run=%s agent=%s WARN: %s — publishing ai.task.failed", runID, agent.ID, errMsg)
+		m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{ //nolint:errcheck
+			Properties: map[string]any{
+				"status":        string(AgentRunStatusFailed),
+				"error_message": errMsg,
+				"updated_at":    time.Now().UTC().Format(time.RFC3339),
+			},
+		})
+		m.publishJSON(ctx, TopicTaskFailed, TaskFailedPayload{
+			TaskID:        run.TaskID,
+			RunID:         runID,
+			Reason:        errMsg,
+			WorkflowRunID: run.WorkflowRunID,
+		})
+		m.publish(ctx, TopicRunFailed, "")
+		failedEntity, _ := m.dm.GetEntity(ctx, m.agencyID, runID)
+		failed := agentRunFromEntity(failedEntity)
+		failed.AgentID = agent.ID
+		return failed, fmt.Errorf("ExecuteRun %s: %s", runID, errMsg)
+	}
 
 	// Persist the emitted writes on the run entity so they survive a restart
 	// and are visible via GetRun / chain reads.
@@ -470,11 +495,14 @@ func (m *aiManager) yieldRun(
 // entity recording every dispatched action with [dispatched] status. The debrief
 // is updated to [committed: sha] when git.file.written events arrive later.
 // dispatchActions returns hasSubtasks=true when an ai.todo.created action was
-// dispatched (signalling decomposition and deferred completion) and the ordered
-// list of paths emitted via git.file.write actions during this dispatch.
+// dispatched (signalling decomposition and deferred completion), the ordered
+// list of paths emitted via git.file.write actions during this dispatch, and
+// actionsFound=true when an actions block was present in the output (even if
+// it contained only non-subtask actions). actionsFound=false means the output
+// had no actions block at all — the caller should treat this as a failure.
 // CodeValdWork uses emittedWrites to gate work.todo.completed on
 // git.file.written confirmation (BUG-09-020 Phase 2).
-func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) (hasSubtasks bool, emittedWrites []string) {
+func (m *aiManager) dispatchActions(ctx context.Context, output string, run AgentRun, agentID string) (hasSubtasks bool, emittedWrites []string, actionsFound bool) {
 	actions, err := parseActions(output)
 	if err != nil {
 		log.Printf("codevaldai: dispatchActions: malformed actions block: %v", err)
@@ -484,6 +512,7 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 		log.Printf("codevaldai: dispatchActions: no actions block in output")
 		return
 	}
+	actionsFound = true
 	log.Printf("codevaldai: dispatchActions: dispatching %d action(s)", len(actions))
 	for _, a := range actions {
 		if a.Topic == TopicTodoCreated && run.TaskID != "" {
