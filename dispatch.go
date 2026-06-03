@@ -356,7 +356,7 @@ func postJSON(ctx context.Context, url string, body any, headers map[string]stri
 
 func maxTokensOrDefault(n int) int {
 	if n <= 0 {
-		return 4096
+		return 8192
 	}
 	return n
 }
