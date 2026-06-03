@@ -508,11 +508,19 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 		log.Printf("codevaldai: dispatchActions: malformed actions block: %v", err)
 		return
 	}
-	if len(actions) == 0 {
+	if actions == nil {
+		// No actions block present at all — caller treats this as a failure.
 		log.Printf("codevaldai: dispatchActions: no actions block in output")
 		return
 	}
+	// Block was present (actionsFound=true). An empty slice is an intentional
+	// no-op (e.g. "branch already exists, nothing to do") — not a failure
+	// (BUG-20260603-003).
 	actionsFound = true
+	if len(actions) == 0 {
+		log.Printf("codevaldai: dispatchActions: actions block is empty (no-op)")
+		return
+	}
 	log.Printf("codevaldai: dispatchActions: dispatching %d action(s)", len(actions))
 	for _, a := range actions {
 		if a.Topic == TopicTodoCreated && run.TaskID != "" {
