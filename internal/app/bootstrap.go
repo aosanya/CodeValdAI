@@ -38,13 +38,16 @@ type aiProviderSpec struct {
 }
 
 type aiAgentSpec struct {
-	Code         string  `json:"code"`
-	Name         string  `json:"name"`
-	ProviderCode string  `json:"provider_code"`
-	Model        string  `json:"model"`
-	SystemPrompt string  `json:"system_prompt"`
-	Temperature  float64 `json:"temperature"`
-	MaxTokens    int     `json:"max_tokens"`
+	Code               string  `json:"code"`
+	Name               string  `json:"name"`
+	ProviderCode       string  `json:"provider_code"`
+	Model              string  `json:"model"`
+	SystemPrompt       string  `json:"system_prompt"`
+	Temperature        float64 `json:"temperature"`
+	MaxTokens          int     `json:"max_tokens"`
+	SessionMaxSeconds  int     `json:"session_max_seconds"`
+	SessionMaxTokens   int     `json:"session_max_tokens"`
+	SessionMaxSessions int     `json:"session_max_sessions"`
 }
 
 type wpMinimalSpec struct {
@@ -123,22 +126,40 @@ func doBootstrap(ctx context.Context, path string, mgr codevaldai.AIManager, age
 
 	agentCodeToID := make(map[string]string, len(spec.AIConfig.Agents))
 	for _, as := range spec.AIConfig.Agents {
+		providerID := providerCodeToID[as.ProviderCode]
 		if id, ok := agentNameToID[as.Name]; ok {
 			agentCodeToID[as.Code] = id
-			log.Printf("codevaldai: ai_config: agent %q already exists (id=%s)", as.Name, id)
+			_, uErr := mgr.UpdateAgent(ctx, id, codevaldai.UpdateAgentRequest{
+				Name:               as.Name,
+				ProviderID:         providerID,
+				Model:              as.Model,
+				SystemPrompt:       as.SystemPrompt,
+				Temperature:        as.Temperature,
+				MaxTokens:          as.MaxTokens,
+				SessionMaxSeconds:  as.SessionMaxSeconds,
+				SessionMaxTokens:   as.SessionMaxTokens,
+				SessionMaxSessions: as.SessionMaxSessions,
+			})
+			if uErr != nil {
+				log.Printf("codevaldai: ai_config: agent %q update failed: %v", as.Name, uErr)
+			} else {
+				log.Printf("codevaldai: ai_config: agent %q updated (id=%s)", as.Name, id)
+			}
 			continue
 		}
-		providerID, ok := providerCodeToID[as.ProviderCode]
-		if !ok {
+		if providerID == "" {
 			return fmt.Errorf("agent %q: unknown provider_code %q", as.Name, as.ProviderCode)
 		}
 		a, err := mgr.CreateAgent(ctx, codevaldai.CreateAgentRequest{
-			Name:         as.Name,
-			ProviderID:   providerID,
-			Model:        as.Model,
-			SystemPrompt: as.SystemPrompt,
-			Temperature:  as.Temperature,
-			MaxTokens:    as.MaxTokens,
+			Name:               as.Name,
+			ProviderID:         providerID,
+			Model:              as.Model,
+			SystemPrompt:       as.SystemPrompt,
+			Temperature:        as.Temperature,
+			MaxTokens:          as.MaxTokens,
+			SessionMaxSeconds:  as.SessionMaxSeconds,
+			SessionMaxTokens:   as.SessionMaxTokens,
+			SessionMaxSessions: as.SessionMaxSessions,
 		})
 		if err != nil {
 			return fmt.Errorf("create agent %q: %w", as.Name, err)
