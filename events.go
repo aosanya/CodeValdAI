@@ -25,6 +25,13 @@ const (
 	// CodeValdAI agents can pick each todo up via a work plan.
 	TopicTodoCreated = "ai.todo.created"
 
+	// Planner dispatch topics — relayed on behalf of the task-planner agent.
+	// These are work-domain topics; the AI acts as a relay, not the originator.
+	// task.plan.split: planner breaks the task into child Tasks via CodeValdWork.
+	// task.plan.decompose: planner signals a re-dispatch to the developer agent.
+	TopicTaskPlanSplit    = "task.plan.split"
+	TopicTaskPlanDecompose = "task.plan.decompose"
+
 	// Rollback (WorkflowRun rollback coordinator — FEAT-20260602-004 Phase 2)
 	// TopicRunCancelled is published once per in-flight AgentRun the rollback
 	// coordinator cancels. Recipients should treat the run as terminal.

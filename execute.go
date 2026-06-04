@@ -527,6 +527,19 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID, run.WorkflowRunID)
 			hasSubtasks = true
 		}
+		// task.plan.split / task.plan.decompose: inject authoritative task_id and
+		// workflow_run_id so CodeValdWork can reliably look up the parent task.
+		// Both cases set hasSubtasks=true to prevent premature task completion.
+		if (a.Topic == TopicTaskPlanSplit || a.Topic == TopicTaskPlanDecompose) && run.TaskID != "" {
+			if a.Payload == nil {
+				a.Payload = make(map[string]any)
+			}
+			a.Payload["task_id"] = run.TaskID
+			if run.WorkflowRunID != "" {
+				a.Payload["workflow_run_id"] = run.WorkflowRunID
+			}
+			hasSubtasks = true
+		}
 		// Inject run_id into git.file.write so CodeValdGit can reference back,
 		// and record the path so CodeValdWork can wait for git.file.written.
 		if a.Topic == "git.file.write" && run.ID != "" {
