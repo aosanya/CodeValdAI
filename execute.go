@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
+	"github.com/aosanya/CodeValdSharedLib/eventbus"
 	"github.com/google/uuid"
 )
 
@@ -542,7 +543,7 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 		}
 		// Inject run_id into git.file.write so CodeValdGit can reference back,
 		// and record the path so CodeValdWork can wait for git.file.written.
-		if a.Topic == "git.file.write" && run.ID != "" {
+		if a.Topic == eventbus.TopicGitFileWrite && run.ID != "" {
 			if a.Payload == nil {
 				a.Payload = make(map[string]any)
 			}
@@ -573,11 +574,11 @@ func (m *aiManager) writeRunDebrief(ctx context.Context, runID string, actions [
 	b.WriteString("## Actions Dispatched\n")
 	for _, a := range actions {
 		switch a.Topic {
-		case "git.file.write":
+		case eventbus.TopicGitFileWrite:
 			path, _ := a.Payload["path"].(string)
 			branch, _ := a.Payload["branch_name"].(string)
 			b.WriteString(fmt.Sprintf("- `git.file.write` path=`%s` branch=`%s` [dispatched]\n", path, branch))
-		case "git.branch.create":
+		case eventbus.TopicGitBranchCreate:
 			name, _ := a.Payload["name"].(string)
 			repo, _ := a.Payload["repository"].(string)
 			b.WriteString(fmt.Sprintf("- `git.branch.create` name=`%s` repo=`%s` [dispatched]\n", name, repo))
