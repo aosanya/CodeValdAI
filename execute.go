@@ -527,7 +527,7 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID, run.WorkflowRunID)
 			hasSubtasks = true
 		}
-		// task.plan.split / task.plan.decompose: inject authoritative task_id and
+		// ai.task.split / ai.task.decompose: inject authoritative task_id and
 		// workflow_run_id so CodeValdWork can reliably look up the parent task.
 		// Both cases set hasSubtasks=true to prevent premature task completion.
 		if (a.Topic == TopicTaskPlanSplit || a.Topic == TopicTaskPlanDecompose) && run.TaskID != "" {

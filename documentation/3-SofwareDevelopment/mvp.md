@@ -29,7 +29,7 @@ The MVP delivers:
 | FEAT-20260602-004-AI | `DELETE /by-workflow-run/{id}` — CodeValdAI leg of the WorkflowRun rollback coordinator. Cancel in-flight AgentRuns (→ cancelled); mark completed AgentRuns rolled_back (frozen audit) | ✅ Done | ~~FEAT-20260602-001~~ ✅, FEAT-20260602-004 Phase 1+3 in CodeValdWork (✅ Shipped) |
 | FEAT-20260602-001 | `workflow_run_id` on `AgentRun` + every `ai.*` event payload (AI sibling of the [Cross umbrella](../../../CodeValdCross/documentation/3-SofwareDevelopment/mvp-details/FEAT-20260602-001_workflow_run_id_propagation_umbrella.md)) | 📋 Not Started | FEAT-20260602-001 in CodeValdFunctions (start-pipeline) |
 | GAP-20260604-001 | `bootstrap.go` agent-already-exists path calls `UpdateAgent`; `aiAgentSpec` extended with `session_max_*` fields — bumps in agency.json now take effect on restart | ✅ Done | — |
-| FEAT-20260604-001 | Planner dispatch — add `task.plan.split` / `task.plan.decompose` as allowed action topics; normalize planner payload (task_id, workflow_run_id); dispatch via Cross publisher | ✅ Done | — |
+| FEAT-20260604-001 | Planner dispatch — add `ai.task.split` / `ai.task.decompose` as allowed action topics; normalize planner payload (task_id, workflow_run_id); dispatch via Cross publisher | ✅ Done | — |
 
 See [mvp-details/FEAT-20260602-001_workflow_run_id_in_ai.md](mvp-details/FEAT-20260602-001_workflow_run_id_in_ai.md).
 

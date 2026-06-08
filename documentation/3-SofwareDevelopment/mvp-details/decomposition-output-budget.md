@@ -69,7 +69,7 @@ planner-assigned-handler   (planner agent — runs on EVERY task)
         │
         │  LLM emits ONE fenced action: ONE of —
         ▼
-        ├─►  task.plan.split        (children + depends_on)
+        ├─►  ai.task.split        (children + depends_on)
         │             │
         │             ▼
         │      split-handler (CodeValdAI or CodeValdWork)
@@ -81,7 +81,7 @@ planner-assigned-handler   (planner agent — runs on EVERY task)
         │                up in topo order, each one fires work.task.assigned
         │                → planner runs again on each child (recursive)
         │
-        └─►  task.plan.decompose    (signal-only — no children)
+        └─►  ai.task.decompose    (signal-only — no children)
                       │
                       ▼
               developer-assigned-handler   (existing decomposition path)
@@ -89,7 +89,7 @@ planner-assigned-handler   (planner agent — runs on EVERY task)
                       └─ emits ai.task.todo  (today's mechanism, unchanged)
 ```
 
-The current `developer-assigned-handler` work plan keeps its existing implementation; its **trigger topic changes** from `work.task.assigned` to `task.plan.decompose`. The planner becomes the new `work.task.assigned` subscriber.
+The current `developer-assigned-handler` work plan keeps its existing implementation; its **trigger topic changes** from `work.task.assigned` to `ai.task.decompose`. The planner becomes the new `work.task.assigned` subscriber.
 
 ### 3.2 Why pub/sub is the commit mechanism
 
@@ -115,7 +115,7 @@ A child task that is *itself* too big to decompose still works. Its `work.task.a
 
 ### 4.2 New event payloads
 
-`task.plan.split` payload:
+`ai.task.split` payload:
 ```json
 {
   "task_id":         "<parent task id>",
@@ -141,7 +141,7 @@ A child task that is *itself* too big to decompose still works. Its `work.task.a
 }
 ```
 
-`task.plan.decompose` payload (signal-only):
+`ai.task.decompose` payload (signal-only):
 ```json
 {
   "task_id":         "<task id>",
@@ -193,9 +193,9 @@ Baselines from this session's measurements:
 
 1. **Add `task-planner` agent** to `agency.json ai_config.agents`. Reimport idempotently.
 2. **Add `planner-assigned-handler` work plan** triggered on `work.task.assigned`. Bind to `task-planner`.
-3. **Change `developer-assigned-handler` trigger** from `work.task.assigned` to `task.plan.decompose`. Reimport.
-4. **Add CodeValdAI/CodeValdWork support** for emitting `task.plan.split` / `task.plan.decompose` topics in the action catalogue.
-5. **Add CodeValdWork support** for `task.plan.split` consumption — split-handler creates children with parent_task_id and depends_on edges, transitions parent to `TASK_STATUS_SPLIT`.
+3. **Change `developer-assigned-handler` trigger** from `work.task.assigned` to `ai.task.decompose`. Reimport.
+4. **Add CodeValdAI/CodeValdWork support** for emitting `ai.task.split` / `ai.task.decompose` topics in the action catalogue.
+5. **Add CodeValdWork support** for `ai.task.split` consumption — split-handler creates children with parent_task_id and depends_on edges, transitions parent to `TASK_STATUS_SPLIT`.
 6. **Add `TASK_STATUS_SPLIT` to the Task state machine** with the roll-up transitions described in §4.3.
 
 Migration is staged — each step lands behind the next. The agency.json reimport pattern means rollback is one revert + reimport.
@@ -209,7 +209,7 @@ These are explicitly deferred for follow-up work; do not block on them.
 - **Planner-model choice.** Initial guidance is "same model as developer". A non-reasoning model (Sonnet-Haiku class) is cheaper and likely sufficient for the decision-and-children-list output shape. Needs an A/B once the loop is wired.
 - **What if planner picks `split` but emits zero children?** Treat as `no actions block` failure → AI Failure Reviewer. Document explicitly.
 - **What if planner picks `split` with cyclic depends_on?** Split-handler validates and rejects; treat as planner failure.
-- **`task.plan.split` action catalogue entry.** Need entry in the canonical action catalogue per [action-protocol.md](action-protocol.md) so the dispatcher accepts the topic.
+- **`ai.task.split` action catalogue entry.** Need entry in the canonical action catalogue per [action-protocol.md](action-protocol.md) so the dispatcher accepts the topic.
 - **TASK_STATUS_SPLIT in CodeValdWorkFrontend.** UI must render a SPLIT parent as a tree with child status aggregation (not as a stale IN_PROGRESS).
 - **`ImportDraft` does not update existing AI Agent entities.** Surfaced this session when agency.json `max_tokens` bumps were silently ignored. File as a separate Agency bug; the planner work above is independent but benefits from the fix.
 
