@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aosanya/CodeValdSharedLib/entitygraph"
+	"github.com/aosanya/CodeValdSharedLib/eventbus"
 	sharedev1 "github.com/aosanya/CodeValdSharedLib/gen/go/codevaldshared/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -74,7 +75,7 @@ func (s *EventReceiverServer) NotifyEvent(ctx context.Context, req *sharedev1.No
 	log.Printf("codevaldai: NotifyEvent: ACK event_id=%s topic=%s source=%s",
 		eventID, req.GetTopic(), req.GetSource())
 
-	if req.GetTopic() == "git.file.written" {
+	if req.GetTopic() == eventbus.TopicGitFileWritten {
 		go s.handleFileWritten(context.Background(), req.GetPayload())
 	}
 
