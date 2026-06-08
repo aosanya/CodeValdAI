@@ -29,21 +29,7 @@ Bugs in scope for CodeValdAI. Mirrors the `mvp.md` / `mvp_done.md` / `mvp-detail
 
 | Bug ID | Title | Severity | Status | Depends On |
 |--------|-------|----------|--------|------------|
-| [BUG-20260603-002](bug-details/BUG-20260603-002_inline-hardcoded-git-topic-strings.md) | Inline hardcoded git-domain topic strings in execute.go and event_receiver.go | Low | 📋 Open | FEAT-20260603-001, FEAT-20260603-002 (SharedLib) |
 | [BUG-20260603-001](bug-details/BUG-20260603-001_decomp-no-actions-block-falsely-completes-task.md) | Decomposition run with no actions block falsely completes the task | High | 📋 Open | — |
-
----
-
-### BUG-20260603-002 — Inline hardcoded git-domain topic strings in execute.go and event_receiver.go
-
-**Severity:** Low
-**Status:** 📋 Open
-
-`execute.go` (lines 524, 555, 559) and `event_receiver.go` (line 77) compare incoming event topics against raw `"git.*"` string literals. Because CodeValdAI cannot import CodeValdGit, these strings are orphaned with no compile-time guard against drift. They will silently stop matching if CodeValdGit renames any of these topics.
-
-**Root cause:** SharedLib has no canonical `Topic*` constants for any domain. Once [FEAT-20260603-001](../../../../CodeValdSharedLib/documentation/3-SofwareDevelopment/mvp-details/FEAT-20260603-001_eventbus-domain-constants.md) and [FEAT-20260603-002](../../../../CodeValdSharedLib/documentation/3-SofwareDevelopment/mvp-details/FEAT-20260603-002_migrate-topic-constants-to-sharedlib.md) land, replace literals with `eventbus.TopicGitFileWrite`, `eventbus.TopicGitFileWritten`, `eventbus.TopicGitBranchCreate`.
-
-See [bug-details/BUG-20260603-002_inline-hardcoded-git-topic-strings.md](bug-details/BUG-20260603-002_inline-hardcoded-git-topic-strings.md) for full fix plan.
 
 ---
 
