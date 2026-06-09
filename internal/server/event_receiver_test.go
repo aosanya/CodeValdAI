@@ -80,7 +80,7 @@ func TestNotifyEvent_WritesReceivedEventAndReturnsSuccess(t *testing.T) {
 
 	req := &sharedev1.NotifyEventRequest{
 		EventId:  "evt-123",
-		Topic:    "work.task.status.changed",
+		Topic:    "task.status.changed",
 		AgencyId: "agency-1",
 		Source:   "codevaldwork",
 		Payload:  `{"task_id":"t1","from":"pending","to":"in_progress"}`,
@@ -109,8 +109,8 @@ func TestNotifyEvent_WritesReceivedEventAndReturnsSuccess(t *testing.T) {
 	if got.Properties["event_id"] != "evt-123" {
 		t.Errorf("event_id = %v, want %q", got.Properties["event_id"], "evt-123")
 	}
-	if got.Properties["topic"] != "work.task.status.changed" {
-		t.Errorf("topic = %v, want %q", got.Properties["topic"], "work.task.status.changed")
+	if got.Properties["topic"] != "task.status.changed" {
+		t.Errorf("topic = %v, want %q", got.Properties["topic"], "task.status.changed")
 	}
 	if got.Properties["source"] != "codevaldwork" {
 		t.Errorf("source = %v, want %q", got.Properties["source"], "codevaldwork")
@@ -126,7 +126,7 @@ func TestNotifyEvent_DBFailureReturnsInternalError(t *testing.T) {
 
 	req := &sharedev1.NotifyEventRequest{
 		EventId: "evt-456",
-		Topic:   "work.task.status.changed",
+		Topic:   "task.status.changed",
 	}
 
 	_, err := srv.NotifyEvent(context.Background(), req)
