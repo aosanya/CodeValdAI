@@ -84,7 +84,7 @@ func New(
 			"ai.todo.created",
 			"git.branch.create",  // LLM action topic — consumed by CodeValdGit
 			"git.file.write",     // LLM action topic — consumed by CodeValdGit
-			"work.task.update",   // LLM action topic — consumed by CodeValdWork (patch branch_name)
+			"task.update",        // LLM action topic — consumed by CodeValdWork (patch branch_name)
 		},
 		merged,
 		routes,

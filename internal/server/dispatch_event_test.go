@@ -135,7 +135,7 @@ func TestRACIDispatcher_Dispatch_TriggersRunForMatchedPlan(t *testing.T) {
 
 	// Run synchronously by using the unexported triggerPlanRun directly.
 	match := client.resp.GetMatches()[0]
-	err := d.triggerPlanRun(context.Background(), match, "work.task.status.changed", `{"task_id":"t1"}`)
+	err := d.triggerPlanRun(context.Background(), match, "task.status.changed", `{"task_id":"t1"}`)
 	if err != nil {
 		t.Fatalf("triggerPlanRun: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestRACIDispatcher_Dispatch_SkipsPlanWithNoAgentID(t *testing.T) {
 	d := NewRACIDispatcher(client, mgr, "agency-1")
 
 	match := client.resp.GetMatches()[0]
-	if err := d.triggerPlanRun(context.Background(), match, "work.task.status.changed", "{}"); err != nil {
+	if err := d.triggerPlanRun(context.Background(), match, "task.status.changed", "{}"); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -187,7 +187,7 @@ func TestRACIDispatcher_Dispatch_MatchWorkPlansError_NoRun(t *testing.T) {
 	mgr := &fakeAIManager{}
 	d := NewRACIDispatcher(client, mgr, "agency-1")
 
-	d.Dispatch(context.Background(), "work.task.status.changed", "{}")
+	d.Dispatch(context.Background(), "task.status.changed", "{}")
 
 	// Dispatch is async — give goroutines a moment (none should fire here).
 	time.Sleep(20 * time.Millisecond)
@@ -219,14 +219,14 @@ func TestRACIDispatcher_Dispatch_NoMatches_NoRun(t *testing.T) {
 func TestBuildDispatchInstructions_IncludesTopicAndPayload(t *testing.T) {
 	t.Parallel()
 	plan := &agencypb.WorkPlan{Instructions: "Do the analysis."}
-	result := buildDispatchInstructions(plan, nil, "work.task.status.changed", `{"task_id":"t1"}`)
+	result := buildDispatchInstructions(plan, nil, "task.status.changed", `{"task_id":"t1"}`)
 
 	if result == "" {
 		t.Fatal("expected non-empty instructions")
 	}
 	for _, want := range []string{
 		"Do the analysis.",
-		"work.task.status.changed",
+		"task.status.changed",
 		`{"task_id":"t1"}`,
 	} {
 		if !contains(result, want) {
@@ -238,8 +238,8 @@ func TestBuildDispatchInstructions_IncludesTopicAndPayload(t *testing.T) {
 func TestBuildDispatchInstructions_NoPlanInstructions_StillIncludesEvent(t *testing.T) {
 	t.Parallel()
 	plan := &agencypb.WorkPlan{}
-	result := buildDispatchInstructions(plan, nil, "work.task.status.changed", `{"x":1}`)
-	if !contains(result, "work.task.status.changed") {
+	result := buildDispatchInstructions(plan, nil, "task.status.changed", `{"x":1}`)
+	if !contains(result, "task.status.changed") {
 		t.Error("missing topic")
 	}
 	if !contains(result, `{"x":1}`) {
@@ -366,7 +366,7 @@ func TestRACIDispatcher_ForwardsWorkflowRunIDToIntake(t *testing.T) {
 
 	match := client.resp.GetMatches()[0]
 	payload := `{"task_id":"t1","workflow_run_id":"wfr-7"}`
-	if err := d.triggerPlanRun(context.Background(), match, "work.task.assigned", payload); err != nil {
+	if err := d.triggerPlanRun(context.Background(), match, "task.assigned", payload); err != nil {
 		t.Fatalf("triggerPlanRun: %v", err)
 	}
 
