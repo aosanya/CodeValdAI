@@ -29,7 +29,19 @@ Bugs in scope for CodeValdAI. Mirrors the `mvp.md` / `mvp_done.md` / `mvp-detail
 
 | Bug ID | Title | Severity | Status | Depends On |
 |--------|-------|----------|--------|------------|
+| [BUG-20260609-001](bug-details/BUG-20260609-001_drop_ai_domain_prefix.md) | Drop `ai.` domain prefix from published topic names (system-wide rename; paired with CodeValdWork) | High | 📋 Open | SharedLib dual-emit shim; paired CodeValdWork BUG-20260609-001 |
 | [BUG-20260603-001](bug-details/BUG-20260603-001_decomp-no-actions-block-falsely-completes-task.md) | Decomposition run with no actions block falsely completes the task | High | 📋 Open | — |
+
+---
+
+### BUG-20260609-001 — Drop `ai.` domain prefix from published topic names (system-wide rename)
+
+**Severity:** High — paired with the CodeValdWork rename; both must land in the same release window
+**Status:** 📋 Open
+
+CodeValdAI publishes on `ai.task.started`, `ai.task.completed`, `ai.task.failed`, `ai.task.split`, `ai.task.decompose`, `ai.task.todo`. The rename drops the `ai.` prefix and shifts planner routing events from publisher-keyed to intent-keyed: `ai.task.split` → `task.request-split`, `ai.task.decompose` → `task.request-decompose`, `ai.task.todo` → `task.todo`. Phased rollout via SharedLib eventreceiver dual-emit shim, CodeValdAI publisher rename, agency.json `trigger_topic` sweep. Paired with [CodeValdWork/BUG-20260609-001](../../../CodeValdWork/documentation/3-SofwareDevelopment/bug-details/BUG-20260609-001_drop_work_domain_prefix.md) for the `work.*` family.
+
+See [bug-details/BUG-20260609-001](bug-details/BUG-20260609-001_drop_ai_domain_prefix.md) for the full phased plan and rename table.
 
 ---
 
