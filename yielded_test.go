@@ -159,7 +159,7 @@ func findRelationshipByName(dm *fakeDataManager, fromID, name string) *entitygra
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 // TestYieldedSession_WallClockLimit verifies that a session hitting its
-// wall-clock limit transitions to YIELDED and publishes ai.task.yielded.
+// wall-clock limit transitions to YIELDED and publishes task.yielded.
 func TestYieldedSession_WallClockLimit(t *testing.T) {
 	dm := newFakeDM()
 	srv := makeHangingStreamServer(t) // keeps SSE connection open
@@ -190,10 +190,10 @@ func TestYieldedSession_WallClockLimit(t *testing.T) {
 		t.Errorf("segment_number: got %d, want 1", firstRun.SegmentNumber)
 	}
 
-	// ai.task.yielded must have been published.
+	// task.yielded must have been published.
 	topics := pub.published()
 	if !containsTopic(topics, TopicTaskYielded) {
-		t.Errorf("ai.task.yielded not published; got topics: %v", topics)
+		t.Errorf("task.yielded not published; got topics: %v", topics)
 	}
 }
 
@@ -222,13 +222,13 @@ func TestYieldedSession_TokenLimit(t *testing.T) {
 		t.Errorf("expected yielded, got %s", firstRun.Status)
 	}
 	if !containsTopic(pub.published(), TopicTaskYielded) {
-		t.Errorf("ai.task.yielded not published; topics: %v", pub.published())
+		t.Errorf("task.yielded not published; topics: %v", pub.published())
 	}
 }
 
 // TestYieldedSession_MaxSessionsExhausted verifies that when a session yields
-// and there are no more sessions available, ai.task.failed is published and
-// no ai.task.yielded is emitted for that final session.
+// and there are no more sessions available, task.failed is published and
+// no task.yielded is emitted for that final session.
 func TestYieldedSession_MaxSessionsExhausted(t *testing.T) {
 	dm := newFakeDM()
 	srv := makeStreamingPauseServer(t, strings.Repeat("x", 80)) // 20 tokens
@@ -243,18 +243,18 @@ func TestYieldedSession_MaxSessionsExhausted(t *testing.T) {
 
 	topics := pub.published()
 
-	// ai.task.yielded from session 1.
+	// task.yielded from session 1.
 	if !containsTopic(topics, TopicTaskYielded) {
-		t.Errorf("ai.task.yielded from session 1 not published; topics: %v", topics)
+		t.Errorf("task.yielded from session 1 not published; topics: %v", topics)
 	}
-	// ai.task.failed from session 2 exhaustion.
+	// task.failed from session 2 exhaustion.
 	if !containsTopic(topics, TopicTaskFailed) {
-		t.Errorf("ai.task.failed not published; topics: %v", topics)
+		t.Errorf("task.failed not published; topics: %v", topics)
 	}
-	// ai.task.yielded must NOT appear as the last task event (ai.task.failed is final).
+	// task.yielded must NOT appear as the last task event (task.failed is final).
 	lastTaskEvent := lastTopicMatching(topics, TopicTaskYielded, TopicTaskFailed)
 	if lastTaskEvent != TopicTaskFailed {
-		t.Errorf("expected ai.task.failed as last task event, got %q; topics: %v", lastTaskEvent, topics)
+		t.Errorf("expected task.failed as last task event, got %q; topics: %v", lastTaskEvent, topics)
 	}
 }
 
@@ -373,13 +373,13 @@ func TestYieldedSession_TwoSessionChainCompletes(t *testing.T) {
 
 	topics := pub.published()
 	if !containsTopic(topics, TopicTaskYielded) {
-		t.Errorf("ai.task.yielded not published; topics: %v", topics)
+		t.Errorf("task.yielded not published; topics: %v", topics)
 	}
 	if !containsTopic(topics, TopicTaskCompleted) {
-		t.Errorf("ai.task.completed not published; topics: %v", topics)
+		t.Errorf("task.completed not published; topics: %v", topics)
 	}
 	if !containsTopic(topics, TopicRunCompleted) {
-		t.Errorf("ai.run.completed not published; topics: %v", topics)
+		t.Errorf("run.completed not published; topics: %v", topics)
 	}
 }
 
@@ -435,7 +435,7 @@ func TestYieldedSession_WPPartialOverride(t *testing.T) {
 
 // TestYieldedSession_MaxSessions1IsBackwardCompat verifies that the default
 // max_sessions=1 behaviour (no yield) is preserved: a timeout produces
-// ai.task.failed without going through the yield path.
+// task.failed without going through the yield path.
 func TestYieldedSession_MaxSessions1IsBackwardCompat(t *testing.T) {
 	dm := newFakeDM()
 	// Agent has no session limits set (defaults: max_sessions=1 → no yield).
@@ -457,10 +457,10 @@ func TestYieldedSession_MaxSessions1IsBackwardCompat(t *testing.T) {
 		t.Errorf("expected failed, got %s", storedRun.Status)
 	}
 	if containsTopic(pub.published(), TopicTaskYielded) {
-		t.Error("ai.task.yielded must NOT be published when max_sessions=1")
+		t.Error("task.yielded must NOT be published when max_sessions=1")
 	}
 	if !containsTopic(pub.published(), TopicTaskFailed) {
-		t.Errorf("ai.task.failed must be published; topics: %v", pub.published())
+		t.Errorf("task.failed must be published; topics: %v", pub.published())
 	}
 }
 

@@ -114,7 +114,7 @@ func TestReconcileRunningRuns_FailsAndPublishes(t *testing.T) {
 		}
 	}
 
-	wantTopic := "ai.run.failed"
+	wantTopic := "run.failed"
 	if len(pub.calls) != 2 {
 		t.Fatalf("expected 2 publishes, got %d", len(pub.calls))
 	}

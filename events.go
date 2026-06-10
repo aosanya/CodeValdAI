@@ -1,46 +1,49 @@
 package codevaldai
 
-// AI event topics — CodeValdAI publishes only ai.* events.
+// AI event topics — intent-keyed, no service-domain prefix.
+// (Bare names per BUG-20260609-001 paired Work/AI rename. The `ai.` prefix
+// was dropped in favour of producer-agnostic, intent-keyed topic names.)
 // No agencyID segment: each service instance is scoped to a single agency.
 const (
 	// Run lifecycle (task-driven)
-	TopicTaskStarted   = "ai.task.started"
-	TopicTaskCompleted = "ai.task.completed"
-	TopicTaskFailed    = "ai.task.failed"
+	TopicTaskStarted   = "task.started"
+	TopicTaskCompleted = "task.completed"
+	TopicTaskFailed    = "task.failed"
 	// TopicTaskYielded is published when a session hits its wall-clock or token
 	// limit and a successor session has been created to continue the chain.
-	TopicTaskYielded = "ai.task.yielded"
+	TopicTaskYielded = "task.yielded"
 
 	// Run lifecycle (internal / recovery)
-	TopicRunCompleted = "ai.run.completed"
-	TopicRunFailed    = "ai.run.failed"
+	TopicRunCompleted = "run.completed"
+	TopicRunFailed    = "run.failed"
 
 	// Agent management
-	TopicAgentCreated = "ai.agent.created"
+	TopicAgentCreated = "agent.created"
 
 	// Task decomposition
 	// TopicTodoCreated is published when a developer agent decomposes an inbound
 	// task into sub-tasks. CodeValdWork consumes this topic and materialises each
-	// TodoItem as a TaskTodo entity, then publishes work.todo.dispatched so
+	// TodoItem as a TaskTodo entity, then publishes todo.dispatched so
 	// CodeValdAI agents can pick each todo up via a work plan.
-	TopicTodoCreated = "ai.todo.created"
+	TopicTodoCreated = "todo.created"
 
 	// Planner dispatch topics — relayed on behalf of the task-planner agent.
-	// These are work-domain topics; the AI acts as a relay, not the originator.
-	// ai.task.split: planner breaks the task into child Tasks via CodeValdWork.
-	// ai.task.decompose: planner signals a re-dispatch to the developer agent.
-	TopicTaskPlanSplit    = "ai.task.split"
-	TopicTaskPlanDecompose = "ai.task.decompose"
+	// The planner emits a *request*; the consumer (CodeValdWork or a WorkPlan)
+	// performs the actual split/decompose work.
+	// TopicTaskPlanSplit: planner requests breaking the task into child Tasks via CodeValdWork.
+	// TopicTaskPlanDecompose: planner requests re-dispatch to the developer agent.
+	TopicTaskPlanSplit     = "task.request-split"
+	TopicTaskPlanDecompose = "task.request-decompose"
 
 	// Rollback (WorkflowRun rollback coordinator — FEAT-20260602-004 Phase 2)
 	// TopicRunCancelled is published once per in-flight AgentRun the rollback
 	// coordinator cancels. Recipients should treat the run as terminal.
-	TopicRunCancelled = "ai.run.cancelled"
+	TopicRunCancelled = "run.cancelled"
 	// TopicRunRolledBack is published once per already-terminal AgentRun the
 	// rollback coordinator freezes as audit. The payload includes the original
 	// terminal status so consumers can distinguish completed-then-rolled-back
 	// from failed-then-rolled-back.
-	TopicRunRolledBack = "ai.run.rolled_back"
+	TopicRunRolledBack = "run.rolled-back"
 )
 
 // TaskStartedPayload is published when ExecuteRunStreaming transitions to
@@ -89,7 +92,7 @@ type TaskYieldedPayload struct {
 	WorkflowRunID string `json:"workflow_run_id,omitempty"`
 }
 
-// TodoCreatedPayload is published on ai.todo.created when a developer agent
+// TodoCreatedPayload is published on todo.created when a developer agent
 // decomposes an inbound task into sub-tasks.
 type TodoCreatedPayload struct {
 	ParentTaskID  string     `json:"parent_task_id"` // Work task that triggered the decomposition

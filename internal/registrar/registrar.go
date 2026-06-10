@@ -74,14 +74,14 @@ func New(
 		agencyID,
 		"codevaldai",
 		[]string{
-			"ai.agent.created",
-			"ai.run.completed",
-			"ai.run.failed",
-			"ai.task.started",
-			"ai.task.completed",
-			"ai.task.failed",
-			"ai.task.yielded",
-			"ai.todo.created",
+			"agent.created",
+			"run.completed",
+			"run.failed",
+			"task.started",
+			"task.completed",
+			"task.failed",
+			"task.yielded",
+			"todo.created",
 			"git.branch.create",  // LLM action topic — consumed by CodeValdGit
 			"git.file.write",     // LLM action topic — consumed by CodeValdGit
 			"task.update",        // LLM action topic — consumed by CodeValdWork (patch branch_name)
