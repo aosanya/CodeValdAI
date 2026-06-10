@@ -20,7 +20,7 @@ type Publisher interface {
 
 // ReconcileRunningRuns transitions any AgentRun left in "running" state to
 // "failed" with error_message="interrupted by service restart" and publishes
-// "ai.run.failed" for each. Called once on startup before
+// "run.failed" for each. Called once on startup before
 // the gRPC server begins accepting requests.
 //
 // Per-run failures are logged and skipped — one bad row must not block the

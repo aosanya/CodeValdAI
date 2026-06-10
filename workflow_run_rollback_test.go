@@ -101,7 +101,7 @@ func TestRollbackByWorkflowRun_InFlightRuns_TransitionToCancelled(t *testing.T) 
 		}
 	}
 
-	// One ai.run.cancelled event per cancelled run.
+	// One run.cancelled event per cancelled run.
 	cancelledCount := 0
 	for _, topic := range pub.published() {
 		if topic == TopicRunCancelled {
@@ -109,7 +109,7 @@ func TestRollbackByWorkflowRun_InFlightRuns_TransitionToCancelled(t *testing.T) 
 		}
 	}
 	if cancelledCount != len(runIDs) {
-		t.Errorf("ai.run.cancelled count = %d want %d", cancelledCount, len(runIDs))
+		t.Errorf("run.cancelled count = %d want %d", cancelledCount, len(runIDs))
 	}
 }
 
@@ -150,7 +150,7 @@ func TestRollbackByWorkflowRun_TerminalRuns_TransitionToRolledBack(t *testing.T)
 		}
 	}
 	if rolledBackCount != 2 {
-		t.Errorf("ai.run.rolled_back count = %d want 2", rolledBackCount)
+		t.Errorf("run.rolled-back count = %d want 2", rolledBackCount)
 	}
 }
 

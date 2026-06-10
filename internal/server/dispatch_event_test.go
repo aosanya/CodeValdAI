@@ -271,7 +271,7 @@ func TestExtractTaskID_TodoIDTakesPrecedenceOverTaskID(t *testing.T) {
 	t.Parallel()
 	// work.todo.dispatched carries both TodoID (todo's own ID) and TaskID
 	// (parent task alias). The run must be associated with the todo so that
-	// ai.task.completed routes back to updateTodoStatus, not the parent task.
+	// task.completed routes back to updateTodoStatus, not the parent task.
 	payload := `{"TodoID":"todo-abc","TaskID":"task-xyz","ParentTaskID":"task-xyz"}`
 	got := extractTaskID(payload)
 	if got != "todo-abc" {
@@ -318,7 +318,7 @@ func TestExtractWorkflowRunID_SnakeCase(t *testing.T) {
 
 func TestExtractWorkflowRunID_PascalCase(t *testing.T) {
 	t.Parallel()
-	// Some payloads (e.g. ai.task.* serialized from Go structs) use PascalCase.
+	// Some payloads (e.g. task.* serialized from Go structs) use PascalCase.
 	payload := `{"WorkflowRunID":"wfr-2"}`
 	if got := extractWorkflowRunID(payload); got != "wfr-2" {
 		t.Errorf("want %q, got %q", "wfr-2", got)

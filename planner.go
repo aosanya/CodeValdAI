@@ -32,7 +32,7 @@ separable steps (e.g. "rename a variable", "update a single config value").
 Your ENTIRE response must be exactly one actions block — no other text:
 
 ` + "```" + `actions
-[{"topic":"ai.todo.created","payload":{"parent_task_id":"PARENT_TASK_ID","run_id":"RUN_ID","agent_id":"AGENT_ID","todos":[
+[{"topic":"todo.created","payload":{"parent_task_id":"PARENT_TASK_ID","run_id":"RUN_ID","agent_id":"AGENT_ID","todos":[
   {"title":"Sub-task title","description":"What this sub-task accomplishes","instructions":"<fully self-contained agent prompt>","ordinality":1,"can_run_parallel":true},
   {"title":"Sub-task title","description":"What this sub-task accomplishes","instructions":"<fully self-contained agent prompt>","ordinality":2,"can_run_parallel":false,"depends_on":[1]}
 ]}}]
@@ -79,7 +79,7 @@ func (m *aiManager) autoDecompose(
 
 	const sysMsg = `You are a task recovery planner for a developer AI agent.
 A run exhausted its session budget before finishing. Given the original instructions
-and any partial output, produce an ai.todo.created actions block covering the REMAINING work.
+and any partial output, produce a todo.created actions block covering the REMAINING work.
 Each sub-task must have self-contained instructions. Respond with ONLY the actions block.`
 
 	userMsg := fmt.Sprintf(
@@ -133,7 +133,7 @@ Each sub-task must have self-contained instructions. Respond with ONLY the actio
 }
 
 // completeAsDecomposed stores the decomposition output on the run, publishes
-// ai.todo.created, spawns child runs, and transitions the run to completed.
+// todo.created, spawns child runs, and transitions the run to completed.
 // decomposedOutput is the raw LLM output (the actions block text) to store.
 func (m *aiManager) completeAsDecomposed(
 	ctx context.Context,
@@ -165,7 +165,7 @@ func (m *aiManager) completeAsDecomposed(
 	})
 	m.publish(ctx, TopicRunCompleted, `{"run_id":"`+run.ID+`"}`)
 
-	log.Printf("codevaldai: completeAsDecomposed run=%s: ai.todo.created published with %d item(s)", run.ID, len(todos.Todos))
+	log.Printf("codevaldai: completeAsDecomposed run=%s: todo.created published with %d item(s)", run.ID, len(todos.Todos))
 	completed := agentRunFromEntity(updated)
 	completed.AgentID = agentID
 	return completed, nil

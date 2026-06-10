@@ -211,7 +211,7 @@ type IntakeRunRequest struct {
 AgentID      string `json:"agent_id"`
 Instructions string `json:"instructions"`
 // TaskID is the Work task this run is acting on. When set it is stored on
-// the AgentRun entity and included in all ai.task.* lifecycle events so
+// the AgentRun entity and included in all task.* lifecycle events so
 // downstream services (e.g. CodeValdWork) can correlate runs back to tasks.
 TaskID       string `json:"task_id,omitempty"`
 // WorkflowRunID is the WorkflowRun this run participates in. Typically

@@ -35,13 +35,13 @@ func TestParseActions_FallsBackToInThinkWhenPostThinkTruncated(t *testing.T) {
 	output := "<think>\n" +
 		"long reasoning ...\n" +
 		"```actions\n" +
-		`[{"topic":"ai.todo.created","payload":{"title":"step 1"}},` +
-		`{"topic":"ai.todo.created","payload":{"title":"step 2"}}]` +
+		`[{"topic":"todo.created","payload":{"title":"step 1"}},` +
+		`{"topic":"todo.created","payload":{"title":"step 2"}}]` +
 		"\n```\n" +
 		"more reasoning ...\n" +
 		"</think>\n\n" +
 		"```actions\n" +
-		`[{"topic":"ai.todo.created","payload":{"title":"step 1"`
+		`[{"topic":"todo.created","payload":{"title":"step 1"`
 	actions, err := parseActions(output)
 	if err != nil {
 		t.Fatalf("expected fallback to succeed, got error: %v", err)
@@ -49,7 +49,7 @@ func TestParseActions_FallsBackToInThinkWhenPostThinkTruncated(t *testing.T) {
 	if len(actions) != 2 {
 		t.Fatalf("expected 2 fallback actions, got %d: %+v", len(actions), actions)
 	}
-	if actions[0].Topic != "ai.todo.created" || actions[1].Payload["title"] != "step 2" {
+	if actions[0].Topic != "todo.created" || actions[1].Payload["title"] != "step 2" {
 		t.Fatalf("unexpected fallback actions: %+v", actions)
 	}
 }
@@ -59,7 +59,7 @@ func TestParseActions_FallsBackToInThinkWhenPostThinkTruncated(t *testing.T) {
 func TestParseActions_TruncatedPostThinkWithoutInThinkReturnsError(t *testing.T) {
 	output := "<think>\nreasoning with no fenced block\n</think>\n\n" +
 		"```actions\n" +
-		`[{"topic":"ai.todo.created"`
+		`[{"topic":"todo.created"`
 	_, err := parseActions(output)
 	if err == nil {
 		t.Fatal("expected error for unclosed actions block, got nil")

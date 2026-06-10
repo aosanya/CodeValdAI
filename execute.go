@@ -334,7 +334,7 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	// the run as failed rather than silently completing the task with no work done.
 	if !actionsFound {
 		errMsg := "no actions block in LLM output"
-		log.Printf("codevaldai: ExecuteRun run=%s agent=%s WARN: %s — publishing ai.task.failed", runID, agent.ID, errMsg)
+		log.Printf("codevaldai: ExecuteRun run=%s agent=%s WARN: %s — publishing task.failed", runID, agent.ID, errMsg)
 		m.dm.UpdateEntity(ctx, m.agencyID, runID, entitygraph.UpdateEntityRequest{ //nolint:errcheck
 			Properties: map[string]any{
 				"status":        string(AgentRunStatusFailed),
@@ -381,7 +381,7 @@ func (m *aiManager) ExecuteRunStreaming(ctx context.Context, runID string, input
 	return completed, nil
 }
 
-// yieldRun marks the current run as YIELDED, publishes ai.task.yielded,
+// yieldRun marks the current run as YIELDED, publishes task.yielded,
 // creates the successor AgentRun (with continues_from edge), and starts
 // ExecuteRunStreaming recursively for the successor.
 func (m *aiManager) yieldRun(
@@ -487,7 +487,7 @@ func (m *aiManager) yieldRun(
 // publishes each action as a PubSub event via CodeValdCross.
 //
 // Normalizations applied before publishing:
-//   - ai.todo.created: parent_task_id, run_id, and agent_id are overwritten with
+//   - todo.created: parent_task_id, run_id, and agent_id are overwritten with
 //     authoritative values from the current run.
 //   - git.file.write: run_id is injected so CodeValdGit can carry it through to
 //     the git.file.written confirmation event, enabling debrief updates.
@@ -495,7 +495,7 @@ func (m *aiManager) yieldRun(
 // After all actions are published a run debrief is written to the AgentRun
 // entity recording every dispatched action with [dispatched] status. The debrief
 // is updated to [committed: sha] when git.file.written events arrive later.
-// dispatchActions returns hasSubtasks=true when an ai.todo.created action was
+// dispatchActions returns hasSubtasks=true when a todo.created action was
 // dispatched (signalling decomposition and deferred completion), the ordered
 // list of paths emitted via git.file.write actions during this dispatch, and
 // actionsFound=true when an actions block was present in the output (even if
@@ -528,7 +528,7 @@ func (m *aiManager) dispatchActions(ctx context.Context, output string, run Agen
 			a = normalizeTodoCreatedPayload(a, run.TaskID, run.ID, agentID, run.WorkflowRunID)
 			hasSubtasks = true
 		}
-		// ai.task.split / ai.task.decompose: inject authoritative task_id and
+		// task.request-split / task.request-decompose: inject authoritative task_id and
 		// workflow_run_id so CodeValdWork can reliably look up the parent task.
 		// Both cases set hasSubtasks=true to prevent premature task completion.
 		if (a.Topic == TopicTaskPlanSplit || a.Topic == TopicTaskPlanDecompose) && run.TaskID != "" {
@@ -596,7 +596,7 @@ func (m *aiManager) writeRunDebrief(ctx context.Context, runID string, actions [
 }
 
 // normalizeTodoCreatedPayload overwrites the parent_task_id, run_id, agent_id,
-// and workflow_run_id fields in an ai.todo.created action with the authoritative
+// and workflow_run_id fields in a todo.created action with the authoritative
 // values from the current run, discarding whatever the LLM produced for them.
 func normalizeTodoCreatedPayload(a Action, taskID, runID, agentID, workflowRunID string) Action {
 	var p TodoCreatedPayload

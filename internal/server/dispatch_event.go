@@ -114,7 +114,7 @@ func extractWorkflowRunID(payload string) string {
 //   - work.todo.dispatched carries both TodoID (the todo's own ID) and TaskID
 //     (which equals ParentTaskID for HydrateEventContext). The AgentRun must
 //     be associated with the todo, not the parent task, so that when the run
-//     finishes and CodeValdAI publishes ai.task.completed{TaskID=<todoID>},
+//     finishes and CodeValdAI publishes task.completed{TaskID=<todoID>},
 //     CodeValdWork routes it to updateTodoStatus → unblockDependentTodos /
 //     maybeCompleteParentTask instead of directly completing the parent task.
 //   - work.task.assigned and other task-level events carry only TaskID (no
