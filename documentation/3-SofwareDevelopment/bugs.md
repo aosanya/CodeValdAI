@@ -29,7 +29,7 @@ Bugs in scope for CodeValdAI. Mirrors the `mvp.md` / `mvp_done.md` / `mvp-detail
 
 | Bug ID | Title | Severity | Status | Depends On |
 |--------|-------|----------|--------|------------|
-| [BUG-20260609-001](bug-details/BUG-20260609-001_drop_ai_domain_prefix.md) | Drop `ai.` domain prefix from published topic names (system-wide rename; paired with CodeValdWork) | High | 📋 Open | SharedLib dual-emit shim; paired CodeValdWork BUG-20260609-001 |
+| [BUG-20260609-001](bug-details/BUG-20260609-001_drop_ai_domain_prefix.md) | Drop `ai.` domain prefix from published topic names (system-wide rename; paired with CodeValdWork) | High | 🚀 In Progress | SharedLib dual-emit shim; paired CodeValdWork BUG-20260609-001 |
 | [BUG-20260603-001](bug-details/BUG-20260603-001_decomp-no-actions-block-falsely-completes-task.md) | Decomposition run with no actions block falsely completes the task | High | 📋 Open | — |
 
 ---
