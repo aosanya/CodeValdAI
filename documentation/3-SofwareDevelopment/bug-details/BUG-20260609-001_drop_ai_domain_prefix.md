@@ -1,6 +1,6 @@
 # BUG-20260609-001 — Drop `ai.` domain prefix from published topic names (system-wide rename)
 
-**Status:** 🚀 In Progress
+**Status:** ✅ Fixed (2026-06-10) — landed via `feature/Dev-AI-BUG20260609001_drop-ai-domain-prefix` across CodeValdSharedLib + CodeValdAI + CodeValdWork + CodeValdImplementations + CodeValdCross. Paired with the already-fixed CodeValdWork BUG-20260609-001; SharedLib dual-emit shim was skipped (platform never deployed) per the same cohesive-cut decision as the Work side.
 **Severity:** High — paired with [CodeValdWork/BUG-20260609-001](../../../../CodeValdWork/documentation/3-SofwareDevelopment/bug-details/BUG-20260609-001_drop_work_domain_prefix.md); both must rename in the same release window or the dispatch graph splits down the middle
 **Owner:** CodeValdAI (primary — `ai.task.*` family); coordinated paired item in CodeValdWork; trigger-topic updates land in [CodeValdImplementations/Agencies/utility-app-builder/agency.json](../../../../CodeValdImplementations/Agencies/utility-app-builder/agency.json)
 **Estimated effort:** ~1 day (audit + rename + agency.json sweep; smaller than the Work side because CodeValdAI has fewer publish call sites)
